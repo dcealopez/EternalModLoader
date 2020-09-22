@@ -183,13 +183,15 @@ namespace EternalModLoader
                 nameId = binaryReader.ReadInt64();
                 string name = resourceInfo.NamesList[(int)nameId];
 
-                var chunk = new ResourceChunk(name, fileOffset);
-                chunk.NameId = nameId;
-                chunk.FileOffset = sizeOffset - 8;
-                chunk.SizeOffset = sizeOffset;
-                chunk.SizeZ = sizeZ;
-                chunk.Size = size;
-                chunk.CompressionMode = compressionMode;
+                var chunk = new ResourceChunk(name, fileOffset)
+                {
+                    NameId = nameId,
+                    FileOffset = sizeOffset - 8,
+                    SizeOffset = sizeOffset,
+                    SizeZ = sizeZ,
+                    Size = size,
+                    CompressionMode = compressionMode
+                };
 
                 resourceInfo.ChunkList.Add(chunk);
             }
@@ -396,8 +398,6 @@ namespace EternalModLoader
             memoryStream.Read(data, 0, data.Length);
 
             int infoOldLength = info.Length;
-            int nameOffsetsOldLength = nameOffsets.Length;
-            int namesOldLength = names.Length;
             int nameIdsOldLength = nameIds.Length;
 
             List<ResourceChunk> newChunks = new List<ResourceChunk>();
@@ -457,11 +457,13 @@ namespace EternalModLoader
                 info[info.Length - 0x20] = 0;
 
                 // Create the new chunk object now
-                var newChunk = new ResourceChunk(mod.Name, fileOffset);
-                newChunk.NameId = nameId;
-                newChunk.Size = mod.FileBytes.Length;
-                newChunk.SizeZ = mod.FileBytes.Length;
-                newChunk.CompressionMode = 0;
+                var newChunk = new ResourceChunk(mod.Name, fileOffset)
+                {
+                    NameId = nameId,
+                    Size = mod.FileBytes.Length,
+                    SizeZ = mod.FileBytes.Length,
+                    CompressionMode = 0
+                };
 
                 Console.WriteLine(string.Format("\tAdded {0}", mod.Name));
                 resourceInfo.NamesList.Add(mod.Name);
@@ -608,6 +610,12 @@ namespace EternalModLoader
                     {
                         string modFile = modFileName;
                         var modFilePathParts = modFile.Split('/');
+
+                        if (modFilePathParts.Length < 2)
+                        {
+                            continue;
+                        }
+
                         string resourceName = modFilePathParts[0];
 
                         // Old mods compatibility
@@ -629,6 +637,7 @@ namespace EternalModLoader
                             if (res.Name.Equals(resourceName))
                             {
                                 resource = res;
+                                break;
                             }
                         }
 
@@ -680,7 +689,7 @@ namespace EternalModLoader
                     continue;
                 }
 
-                string[] modFilePathParts = file.Split(new string[] { "\\" }, StringSplitOptions.RemoveEmptyEntries);
+                string[] modFilePathParts = file.Split('\\');
 
                 if (modFilePathParts.Length <= 2)
                 {
@@ -709,6 +718,7 @@ namespace EternalModLoader
                     if (res.Name.Equals(resourceName))
                     {
                         resource = res;
+                        break;
                     }
                 }
 
