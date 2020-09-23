@@ -125,14 +125,6 @@ namespace EternalModLoader
                         currentNameBytes.Add(currentByte);
                     }
 
-                    foreach (var name in namesList)
-                    {
-                        if (name.Contains("#"))
-                        {
-                            Console.WriteLine(name);
-                        }
-                    }
-
                     resourceInfo.FileCount = fileCount;
                     resourceInfo.TypeCount = dummy2Num;
                     resourceInfo.StringsSize = stringsSize;
