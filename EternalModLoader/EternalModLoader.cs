@@ -416,27 +416,26 @@ namespace EternalModLoader
 
                 // Add name
                 long lastOffset = BitConverter.ToInt64(nameOffsets.Skip(nameOffsets.Length - 8).Take(8).ToArray(), 0);
-                long lastChar = 0;
+                long lastNameOffset = 0;
 
                 for (int i = (int)lastOffset; i < names.Length; i++)
                 {
                     if (names[i] == '\x00')
                     {
-                        lastChar = i;
+                        lastNameOffset = i + 1;
                         break;
                     }
                 }
 
-                long nameOffset = lastChar + 1;
                 byte[] nameBytes = System.Text.Encoding.UTF8.GetBytes(mod.Name);
                 Array.Resize(ref names, names.Length + nameBytes.Length + 1);
-                Buffer.BlockCopy(nameBytes, 0, names, names.Length - nameBytes.Length - 1, nameBytes.Length);
+                Buffer.BlockCopy(nameBytes, 0, names, (int)lastNameOffset, nameBytes.Length);
 
                 // Add name offset
                 byte[] newCount = BitConverter.GetBytes(BitConverter.ToInt64(nameOffsets.Take(8).ToArray(), 0) + 1);
                 Buffer.BlockCopy(newCount, 0, nameOffsets, 0, 8);
                 Array.Resize(ref nameOffsets, nameOffsets.Length + 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(nameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(lastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
 
                 // Add info
                 byte[] lastInfo = info.Skip(info.Length - 0x90).ToArray();
@@ -580,7 +579,7 @@ namespace EternalModLoader
             }
 
             // Find zipped mods
-            foreach (string zippedMod in Directory.GetFiles("Mods\\", "*.zip"))
+            foreach (string zippedMod in Directory.GetFiles("Mods", "*.zip", SearchOption.TopDirectoryOnly))
             {
                 int zippedModCount = 0;
                 List<string> modFileNameList = new List<string>();
@@ -674,7 +673,7 @@ namespace EternalModLoader
             // Find unzipped mods
             int unzippedModCount = 0;
 
-            foreach (var file in Directory.GetFiles("Mods\\", "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.GetFiles("Mods", "*", SearchOption.AllDirectories))
             {
                 if (file.EndsWith(".zip"))
                 {
