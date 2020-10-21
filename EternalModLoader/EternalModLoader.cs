@@ -333,7 +333,7 @@ namespace EternalModLoader
                 Console.ResetColor();
                 Console.Write("in ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(string.Join("", resourceInfo.Name, ".resources"));
+                Console.WriteLine(resourceInfo.Path);
                 Console.ResetColor();
             }
         }
@@ -510,7 +510,7 @@ namespace EternalModLoader
                 Console.ResetColor();
                 Console.Write("in ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(string.Join("", resourceInfo.Name, ".resources"));
+                Console.WriteLine(resourceInfo.Path);
                 Console.ResetColor();
             }
         }
@@ -522,9 +522,29 @@ namespace EternalModLoader
         /// <returns>the path to the .resources file for the specified resource name, empty string if it wasn't found</returns>
         public static string PathToRes(string name)
         {
+            string searchPattern;
+
+            // Support for DLC1 hub resources files
+            // It has the same name as the base game hub resources file, so we will need
+            // to adjust the search pattern to find the one we want depending on the folder name of the mod
+            if (name.ToLower().StartsWith("dlc_hub"))
+            {
+                string dlcHubFileName = name.Substring(4, name.Length - 4);
+                searchPattern = $"game\\dlc\\hub\\{dlcHubFileName}.resources";
+            }
+            else if (name.ToLower().StartsWith("hub"))
+            {
+                searchPattern = $"game\\hub\\{name}.resources";
+            }
+            else
+            {
+                searchPattern = name + ".resources";
+            }
+
             try
             {
-                return Directory.GetFiles(BasePath, name + ".resources", SearchOption.AllDirectories).FirstOrDefault();
+                DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
+                return baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault().FullName;
             }
             catch (Exception)
             {
@@ -691,7 +711,7 @@ namespace EternalModLoader
                 string fileName = string.Empty;
 
                 // Old mods compatibility
-                if (resourceName.Equals("generated"))
+                if (resourceName.ToLower().Equals("generated"))
                 {
                     resourceName = "gameresources";
                     fileName = file.Remove(0, modFilePathParts[0].Length + 1).Replace('\\', '/');
@@ -761,7 +781,7 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    Console.WriteLine(string.Join("", resource.Name, ".resources"));
+                    Console.WriteLine(resource.Path);
                 }
 
                 return 0;
@@ -775,9 +795,9 @@ namespace EternalModLoader
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("WARNING: ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write(string.Join("", resource.Name, ".resources "));
+                    Console.Write(resource.Name + ".resources");
                     Console.ResetColor();
-                    Console.Write("was not found! Skipping ");
+                    Console.Write(" was not found! Skipping ");
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write(string.Format("{0} file(s)", resource.ModList.Count));
                     Console.ResetColor();
