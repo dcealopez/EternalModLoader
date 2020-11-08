@@ -781,7 +781,7 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    Console.WriteLine(resource.Path);
+                    Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\"))}");
                 }
 
                 return 0;
