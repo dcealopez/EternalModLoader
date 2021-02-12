@@ -150,7 +150,7 @@ namespace EternalModLoader
         /// </summary>
         /// <param name="fileStream">file stream used to read the resource file</param>
         /// <param name="binaryReader">binary reader used to read the resource file</param>
-        /// <param name="resourceInfo">resource info object/param>
+        /// <param name="resourceInfo">resource info object</param>
         private static void ReadChunkInfo(FileStream fileStream, BinaryReader binaryReader, ResourceInfo resourceInfo)
         {
             fileStream.Seek(resourceInfo.Dummy7Offset + (resourceInfo.TypeCount * 4), SeekOrigin.Begin);
@@ -530,11 +530,11 @@ namespace EternalModLoader
             if (name.ToLower().StartsWith("dlc_hub"))
             {
                 string dlcHubFileName = name.Substring(4, name.Length - 4);
-                searchPattern = $"game\\dlc\\hub\\{dlcHubFileName}.resources";
+                searchPattern = Path.Combine("game", "dlc", "hub", $"{dlcHubFileName}.resources");
             }
             else if (name.ToLower().StartsWith("hub"))
             {
-                searchPattern = $"game\\hub\\{name}.resources";
+                searchPattern = Path.Combine("game", "hub", $"{name}.resources");
             }
             else
             {
@@ -569,7 +569,7 @@ namespace EternalModLoader
                 return 1;
             }
 
-            BasePath = string.Join("\\", args[0], "base");
+            BasePath = Path.Combine(args[0], "base");
 
             if (!Directory.Exists(BasePath))
             {
@@ -780,8 +780,15 @@ namespace EternalModLoader
                     {
                         continue;
                     }
-
-                    Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\"))}");
+                    if (resource.Path.Contains("\\base\\"))
+                    {
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\"))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/"))}");
+                    }
+                        
                 }
 
                 return 0;
