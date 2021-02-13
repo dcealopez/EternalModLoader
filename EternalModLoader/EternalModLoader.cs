@@ -780,7 +780,8 @@ namespace EternalModLoader
                     {
                         continue;
                     }
-                    if (resource.Path.Contains("\\base\\"))
+
+                    if (Path.DirectorySeparatorChar == '\\')
                     {
                         Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\"))}");
                     }
@@ -788,7 +789,6 @@ namespace EternalModLoader
                     {
                         Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/"))}");
                     }
-                        
                 }
 
                 return 0;
