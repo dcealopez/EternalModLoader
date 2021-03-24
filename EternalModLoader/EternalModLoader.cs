@@ -764,18 +764,24 @@ namespace EternalModLoader
                                 mod.FileBytes = memoryStream.ToArray();
                             }
 
-                            if (modFilePathParts.Length == 4 
-                                && modFilePathParts[1].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase)
-                                && modFilePathParts[2].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
-                                && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                            if (modFilePathParts[1].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
                             {
-                                mod.isBlangJson = true;
+                                if (modFilePathParts.Length == 4
+                                    && modFilePathParts[2].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                                    && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    mod.isBlangJson = true;
+                                }
+                                else
+                                {
+                                    continue;
+                                }
                             }
                             else
                             {
                                 mod.isBlangJson = false;
                             }
-
+                            
                             resource.ModList.Add(mod);
                             zippedModCount++;
                         }
@@ -805,16 +811,8 @@ namespace EternalModLoader
                 {
                     continue;
                 }
-
-                string[] modFilePathParts;
-                if (Path.DirectorySeparatorChar == '\\')
-                {
-                    modFilePathParts = file.Split('\\');
-                }
-                else
-                {
-                    modFilePathParts = file.Split('/');
-                }
+                
+                string[] modFilePathParts = file.Split(Path.DirectorySeparatorChar);
 
                 if (modFilePathParts.Length <= 2)
                 {
@@ -867,12 +865,18 @@ namespace EternalModLoader
                         }
                     }
                     
-                    if (modFilePathParts.Length == 5 
-                        && modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase)
-                        && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
-                        && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                    if (modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        mod.isBlangJson = true;
+                        if (modFilePathParts.Length == 5
+                            && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                            && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            mod.isBlangJson = true;
+                        }
+                        else
+                        {
+                            continue;
+                        }
                     }
                     else
                     {
