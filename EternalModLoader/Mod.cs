@@ -14,6 +14,11 @@
         /// Mod file bytes
         /// </summary>
         public byte[] FileBytes;
+        
+        /// <summary>
+        /// True if the mod file is a .blang json
+        /// </summary>
+        public bool isBlangJson;
 
         /// <summary>
         /// Mod constructor

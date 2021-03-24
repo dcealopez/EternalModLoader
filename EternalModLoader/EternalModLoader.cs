@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace EternalModLoader
 {
@@ -249,18 +250,111 @@ namespace EternalModLoader
             {
                 foreach (var mod in resourceInfo.ModList)
                 {
-                    var chunk = GetChunk(mod.Name, resourceInfo);
+                    ResourceChunk chunk;
 
-                    if (chunk == null)
+                    if (mod.isBlangJson)
                     {
-                        resourceInfo.ModListNew.Add(mod);
-                        continue;
+                        var modName = mod.Name;
+                        var modFilePathParts = modName.Split('/');
+                        var name = modName.Remove(0, modFilePathParts[0].Length + 1);
+                        mod.Name = name.Substring(0, name.Length - 4) + "blang";
+                        chunk = GetChunk(mod.Name, resourceInfo);
+
+                        if (chunk == null)
+                            continue;
+                    }
+                    else
+                    {
+                        chunk = GetChunk(mod.Name, resourceInfo);
+                        
+                        if (chunk == null)
+                        {
+                            resourceInfo.ModListNew.Add(mod);
+                            continue;
+                        }
                     }
 
                     memoryStream.Seek(chunk.FileOffset, SeekOrigin.Begin);
                     long fileOffset = binaryReader.ReadInt64();
                     long size = binaryReader.ReadInt64();
                     long sizeDiff = mod.FileBytes.Length - size;
+
+                    // If the mod is a blang file json, modify the .blang file
+                    if (mod.isBlangJson)
+                    {
+                        BlangJson blangJson;
+                        try
+                        {
+                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(mod.FileBytes));
+                            if (blangJson == null || blangJson.strings.Count == 0)
+                                throw new Exception();
+                            foreach (var blangJsonString in blangJson.strings)
+                            {
+                                if (blangJsonString == null || blangJsonString.name == null || blangJsonString.text == null)
+                                    throw new Exception();
+                            }
+                        }
+                        catch
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("ERROR: ");
+                            Console.ResetColor();
+                            Console.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                            continue;
+                        }
+                        
+                        memoryStream.Seek(fileOffset, SeekOrigin.Begin);
+                        byte[] blangFileBytes = new byte[size];
+                        memoryStream.Read(blangFileBytes, 0, (int)size);
+                        int res = BlangCrypt.IdCrypt(ref blangFileBytes, $"strings/{Path.GetFileName(mod.Name)}", true);
+
+                        if (res != 0)
+                        {
+                            continue;
+                        }
+
+                        BlangFile blangFile;
+                        using (var blangMemoryStream = new MemoryStream(blangFileBytes))
+                        {
+                            blangFile = BlangFile.Parse(blangMemoryStream);
+
+                        }
+
+                        foreach (var blangJsonString in blangJson.strings)
+                        {
+                            bool stringFound = false;
+                            
+                            foreach (var blangString in blangFile.Strings)
+                            {
+                                if (blangJsonString.name.Equals(blangString.Identifier))
+                                {
+                                    stringFound = true;
+                                    blangString.Text = blangJsonString.text;
+                                    Console.WriteLine($"\tReplaced {blangString.Identifier} in {mod.Name}");
+                                    break;
+                                }
+                            }
+
+                            if (stringFound)
+                                continue;
+                            
+                            blangFile.Strings.Add(new BlangString()
+                            {
+                                Identifier = blangJsonString.name,
+                                Text = blangJsonString.text,
+                            });
+                            Console.WriteLine($"\tAdded {blangJsonString.name} in {mod.Name}");
+                        }
+
+                        byte[] cryptDataBuffer = blangFile.WriteToBytes();
+                        res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(mod.Name)}", false);
+                        if (res != 0)
+                        {
+                            continue;
+                        }
+
+                        mod.FileBytes = cryptDataBuffer;
+                    }
 
                     // We will need to expand the file if the new size is greater than the old one
                     // If its shorter, we will replace all the bytes and zero out the remaining bytes
@@ -665,9 +759,21 @@ namespace EternalModLoader
                             var stream = zipArchive.GetEntry(modFileName).Open();
 
                             using (var memoryStream = new MemoryStream())
-                            {
+                            { 
                                 stream.CopyTo(memoryStream);
                                 mod.FileBytes = memoryStream.ToArray();
+                            }
+
+                            if (modFilePathParts.Length == 4 
+                                && modFilePathParts[1].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase)
+                                && modFilePathParts[2].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                                && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                mod.isBlangJson = true;
+                            }
+                            else
+                            {
+                                mod.isBlangJson = false;
                             }
 
                             resource.ModList.Add(mod);
@@ -700,7 +806,15 @@ namespace EternalModLoader
                     continue;
                 }
 
-                string[] modFilePathParts = file.Split('\\');
+                string[] modFilePathParts;
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    modFilePathParts = file.Split('\\');
+                }
+                else
+                {
+                    modFilePathParts = file.Split('/');
+                }
 
                 if (modFilePathParts.Length <= 2)
                 {
@@ -751,6 +865,18 @@ namespace EternalModLoader
                             streamReader.BaseStream.CopyTo(memoryStream);
                             mod.FileBytes = memoryStream.ToArray();
                         }
+                    }
+                    
+                    if (modFilePathParts.Length == 5 
+                        && modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase)
+                        && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                        && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        mod.isBlangJson = true;
+                    }
+                    else
+                    {
+                        mod.isBlangJson = false;
                     }
 
                     resource.ModList.Add(mod);
