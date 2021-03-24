@@ -414,7 +414,9 @@ namespace EternalModLoader
                         }
                     }
 
-                    Console.WriteLine(string.Format("\tReplaced {0}", mod.Name));
+                    if (!mod.isBlangJson)
+                        Console.WriteLine(string.Format("\tReplaced {0}", mod.Name));
+                    
                     fileCount++;
                 }
             }
