@@ -18,7 +18,6 @@ namespace EternalModLoader
         /// <param name="internalPath">blang file's internal path</param>
         /// <param name="decrypt">bool indicating if we wanna encrypt or decrypt</param>
         /// <returns>int indicating success or failure</returns>
-
         public static int IdCrypt(ref byte[] fileData, string internalPath, bool decrypt)
         {
             string keyDeriveStatic = "swapTeam\n";
