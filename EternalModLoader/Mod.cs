@@ -18,7 +18,7 @@
         /// <summary>
         /// True if the mod file is a .blang json
         /// </summary>
-        public bool isBlangJson;
+        public bool IsBlangJson;
 
         /// <summary>
         /// Mod constructor

@@ -24,7 +24,7 @@ namespace EternalModLoader
         /// </summary>
         /// <param name="memoryStream">stream containing the Blang file</param>
         /// <returns>parsed Blang file in a BlangFile object</returns>
-        public static BlangFile Parse(MemoryStream memoryStream)
+        public static BlangFile ParseFromMemory(MemoryStream memoryStream)
         {
             var blangFile = new BlangFile();
             
@@ -80,7 +80,7 @@ namespace EternalModLoader
         /// Writes the current BlangFile object to a byte array
         /// </summary>
         /// <returns>byte array containing a .blang file</returns>
-        public byte[] WriteToBytes()
+        public MemoryStream WriteToMemory()
         {
             using (var memoryStream = new MemoryStream())
             {
@@ -164,7 +164,7 @@ namespace EternalModLoader
                     }
                 }
 
-                return memoryStream.ToArray();
+                return memoryStream;
             }
         }
     }

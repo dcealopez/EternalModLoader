@@ -10,7 +10,7 @@ namespace EternalModLoader
         /// <summary>
         /// List of StringObjects for JSON deserialization
         /// </summary>
-        public IList<StringObject> strings { get; set; }
+        public IList<StringObject> Strings { get; set; }
     }
     
     /// <summary>
@@ -21,11 +21,11 @@ namespace EternalModLoader
         /// <summary>
         /// String identifier
         /// </summary>
-        public string name { get; set; }
+        public string Name { get; set; }
         
         /// <summary>
         /// String text
         /// </summary>
-        public string text { get; set; }
+        public string Text { get; set; }
     }
 }

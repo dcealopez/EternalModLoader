@@ -21,8 +21,9 @@ namespace EternalModLoader
         public static int IdCrypt(ref byte[] fileData, string internalPath, bool decrypt)
         {
             string keyDeriveStatic = "swapTeam\n";
-
             byte[] fileSalt = new byte[0xC];
+            
+            // Get fileSalt from file, or create a new one
             if (decrypt)
             {
                 Array.Copy(fileData, fileSalt, 0xC);
@@ -39,7 +40,9 @@ namespace EternalModLoader
             Array.Copy(Encoding.ASCII.GetBytes(keyDeriveStatic), keyDeriveStaticBytes, 0xA - 1);
             keyDeriveStaticBytes[0xA - 1] = (byte)'\0';
             
+            // Generate the encryption key for AES using SHA256
             byte[] encKey = null;
+            
             try
             {
                 encKey = HashData(fileSalt, keyDeriveStaticBytes, Encoding.ASCII.GetBytes(internalPath), null);
@@ -49,7 +52,9 @@ namespace EternalModLoader
                 return 1;
             }
 
+            // Get IV for AES from the file, or create a new one
             byte[] fileIV = new byte[0x10];
+            
             if (decrypt)
             {
                 Array.Copy(fileData, 0xC, fileIV, 0, 0x10);
@@ -62,8 +67,10 @@ namespace EternalModLoader
                 }
             }
 
+            //Get plain text for AES
             byte[] fileText;
             byte[] hmac = new byte[0x20];
+            
             if (decrypt)
             {
                 fileText = new byte[fileData.Length - 0x1C - 0x20];
@@ -72,6 +79,7 @@ namespace EternalModLoader
                 byte[] fileHmac = new byte[0x20];
                 Array.Copy(fileData, fileData.Length - 0x20, fileHmac, 0, 0x20);
 
+                // Get HMAC from file data
                 try
                 {
                     hmac = HashData(fileSalt, fileIV, fileText, encKey);
@@ -81,6 +89,7 @@ namespace EternalModLoader
                     return 1;
                 }
 
+                // Make sure the file HMAC and the new HMAC are the same
                 if (!hmac.SequenceEqual(fileHmac))
                 {
                     return 1;
@@ -91,7 +100,9 @@ namespace EternalModLoader
                 fileText = fileData;
             }
 
+            // Encrypt or decrypt the data using AES
             byte[] cryptedText = null;
+            
             try
             {
                 cryptedText = CryptData(decrypt, fileText, encKey.Take(0x10).ToArray(), fileIV);
@@ -101,7 +112,9 @@ namespace EternalModLoader
                 return 1;
             }
 
+            // Write the new file into a memory stream
             var cryptMemoryStream = new MemoryStream();
+            
             if (decrypt)
             {
                 cryptMemoryStream.Write(cryptedText, 0, cryptedText.Length);
@@ -210,7 +223,6 @@ namespace EternalModLoader
                         }
                     }
                 }
-
             }
         }
     }
