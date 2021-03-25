@@ -359,9 +359,9 @@ namespace EternalModLoader
                             Console.WriteLine($"\tAdded {blangJsonString.Name} in {mod.Name}");
                         }
 
-                        byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();
-                        
+                        byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();                      
                         res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(mod.Name)}", false);
+
                         if (res != 0)
                         {
                             continue;

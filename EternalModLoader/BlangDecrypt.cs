@@ -67,7 +67,7 @@ namespace EternalModLoader
                 }
             }
 
-            //Get plain text for AES
+            // Get plain text for AES
             byte[] fileText;
             byte[] hmac = new byte[0x20];
             
