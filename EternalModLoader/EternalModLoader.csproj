@@ -65,8 +65,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BlangParser.cs" />
-    <Compile Include="BlangString.cs" />
+    <Compile Include="..\BlangParser\BlangParser\BlangFile.cs">
+      <Link>BlangFile.cs</Link>
+    </Compile>
+    <Compile Include="..\BlangParser\BlangParser\BlangString.cs">
+      <Link>BlangString.cs</Link>
+    </Compile>
     <Compile Include="EternalModLoader.cs" />
     <Compile Include="BlangDecrypt.cs" />
     <Compile Include="Mod.cs" />

@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using BlangParser;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -358,7 +359,7 @@ namespace EternalModLoader
                             Console.WriteLine($"\tAdded {blangJsonString.Name} in {mod.Name}");
                         }
 
-                        byte[] cryptDataBuffer = blangFile.WriteToMemory().ToArray();
+                        byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();
                         
                         res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(mod.Name)}", false);
                         if (res != 0)

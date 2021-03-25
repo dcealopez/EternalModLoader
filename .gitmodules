@@ -1,0 +1,3 @@
+[submodule "BlangParser"]
+	path = BlangParser
+	url = https://github.com/dcealopez/BlangParser
