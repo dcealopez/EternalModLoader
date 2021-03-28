@@ -340,7 +340,7 @@ namespace EternalModLoader
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name} - are you trying to inject to the wrong .resources?");
+                                Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name} - are you trying to change strings in the wrong .resources archive?");
                                 continue;
                             }
                             
