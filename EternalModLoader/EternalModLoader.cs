@@ -321,13 +321,29 @@ namespace EternalModLoader
 
                         if (res != 0)
                         {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("ERROR: ");
+                            Console.ResetColor();
+                            Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name}");
                             continue;
                         }
 
                         BlangFile blangFile;
                         using (var blangMemoryStream = new MemoryStream(blangFileBytes))
                         {
-                            blangFile = BlangFile.ParseFromMemory(blangMemoryStream);
+                            try
+                            {
+                                blangFile = BlangFile.ParseFromMemory(blangMemoryStream);
+                            }
+                            catch
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("ERROR: ");
+                                Console.ResetColor();
+                                Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name} - are you trying to inject to the wrong .resources?");
+                                continue;
+                            }
+                            
                         }
 
                         foreach (var blangJsonString in blangJson.Strings)
@@ -364,6 +380,10 @@ namespace EternalModLoader
 
                         if (res != 0)
                         {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("ERROR: ");
+                            Console.ResetColor();
+                            Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name}");
                             continue;
                         }
 
