@@ -280,8 +280,6 @@ namespace EternalModLoader
 
                     memoryStream.Seek(chunk.FileOffset, SeekOrigin.Begin);
 
-                    bool clearCompressionFlag = true;
-                    long uncompressedSize = mod.FileBytes.Length;
                     long fileOffset = binaryReader.ReadInt64();
                     long size = binaryReader.ReadInt64();
                     long sizeDiff = mod.FileBytes.Length - size;
@@ -290,11 +288,13 @@ namespace EternalModLoader
                     if (mod.IsBlangJson)
                     {
                         BlangJson blangJson;
+
                         try
                         {
                             var serializerSettings = new JsonSerializerSettings();
                             serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
                             blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
+
                             if (blangJson == null || blangJson.Strings.Count == 0)
                             {
                                 throw new Exception();
@@ -318,8 +318,10 @@ namespace EternalModLoader
                         }
 
                         memoryStream.Seek(fileOffset, SeekOrigin.Begin);
+
                         byte[] blangFileBytes = new byte[size];
                         memoryStream.Read(blangFileBytes, 0, (int)size);
+
                         int res = BlangCrypt.IdCrypt(ref blangFileBytes, $"strings/{Path.GetFileName(mod.Name)}", true);
 
                         if (res != 0)
@@ -332,6 +334,7 @@ namespace EternalModLoader
                         }
 
                         BlangFile blangFile;
+
                         using (var blangMemoryStream = new MemoryStream(blangFileBytes))
                         {
                             try
@@ -396,6 +399,9 @@ namespace EternalModLoader
                     // Special case: if this a .mapresources file, remove the first 8 bytes, since
                     // they are used for us to write the uncompressed / compressed sizes properly
                     // in the file header
+                    bool clearCompressionFlag = true;
+                    long uncompressedSize = mod.FileBytes.Length;
+
                     if (mod.Name.EndsWith(".mapresources"))
                     {
                         uncompressedSize = BitConverter.ToInt64(mod.FileBytes, 0);
