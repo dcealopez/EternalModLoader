@@ -270,7 +270,7 @@ namespace EternalModLoader
                     else
                     {
                         chunk = GetChunk(mod.Name, resourceInfo);
-                        
+
                         if (chunk == null)
                         {
                             resourceInfo.ModListNew.Add(mod);
@@ -299,7 +299,7 @@ namespace EternalModLoader
                             {
                                 throw new Exception();
                             }
-                            
+
                             foreach (var blangJsonString in blangJson.Strings)
                             {
                                 if (blangJsonString == null || blangJsonString.Name == null || blangJsonString.Text == null)
@@ -316,7 +316,7 @@ namespace EternalModLoader
                             Console.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
                             continue;
                         }
-                        
+
                         memoryStream.Seek(fileOffset, SeekOrigin.Begin);
                         byte[] blangFileBytes = new byte[size];
                         memoryStream.Read(blangFileBytes, 0, (int)size);
@@ -346,13 +346,13 @@ namespace EternalModLoader
                                 Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name} - are you trying to change strings in the wrong .resources archive?");
                                 continue;
                             }
-                            
+
                         }
 
                         foreach (var blangJsonString in blangJson.Strings)
                         {
                             bool stringFound = false;
-                            
+
                             foreach (var blangString in blangFile.Strings)
                             {
                                 if (blangJsonString.Name.Equals(blangString.Identifier))
@@ -374,11 +374,11 @@ namespace EternalModLoader
                                 Identifier = blangJsonString.Name,
                                 Text = blangJsonString.Text,
                             });
-                            
+
                             Console.WriteLine($"\tAdded {blangJsonString.Name} in {mod.Name}");
                         }
 
-                        byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();                      
+                        byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();
                         res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(mod.Name)}", false);
 
                         if (res != 0)
@@ -832,7 +832,7 @@ namespace EternalModLoader
                             {
                                 mod.IsBlangJson = false;
                             }
-                            
+
                             resource.ModList.Add(mod);
                             zippedModCount++;
                         }
@@ -862,7 +862,7 @@ namespace EternalModLoader
                 {
                     continue;
                 }
-                
+
                 string[] modFilePathParts = file.Split(Path.DirectorySeparatorChar);
 
                 if (modFilePathParts.Length <= 2)
@@ -915,7 +915,7 @@ namespace EternalModLoader
                             mod.FileBytes = memoryStream.ToArray();
                         }
                     }
-                    
+
                     if (modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
                     {
                         if (modFilePathParts.Length == 5

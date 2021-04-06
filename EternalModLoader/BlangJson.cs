@@ -12,7 +12,7 @@ namespace EternalModLoader
         /// </summary>
         public IList<StringObject> Strings { get; set; }
     }
-    
+
     /// <summary>
     /// StringObject class used by BlangJson class
     /// </summary>
@@ -22,7 +22,7 @@ namespace EternalModLoader
         /// String identifier
         /// </summary>
         public string Name { get; set; }
-        
+
         /// <summary>
         /// String text
         /// </summary>

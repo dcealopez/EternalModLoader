@@ -22,7 +22,7 @@ namespace EternalModLoader
         {
             string keyDeriveStatic = "swapTeam\n";
             byte[] fileSalt = new byte[0xC];
-            
+
             // Get fileSalt from file, or create a new one
             if (decrypt)
             {
@@ -39,10 +39,10 @@ namespace EternalModLoader
             byte[] keyDeriveStaticBytes = new byte[0xA];
             Array.Copy(Encoding.ASCII.GetBytes(keyDeriveStatic), keyDeriveStaticBytes, 0xA - 1);
             keyDeriveStaticBytes[0xA - 1] = (byte)'\0';
-            
+
             // Generate the encryption key for AES using SHA256
             byte[] encKey = null;
-            
+
             try
             {
                 encKey = HashData(fileSalt, keyDeriveStaticBytes, Encoding.ASCII.GetBytes(internalPath), null);
@@ -54,7 +54,7 @@ namespace EternalModLoader
 
             // Get IV for AES from the file, or create a new one
             byte[] fileIV = new byte[0x10];
-            
+
             if (decrypt)
             {
                 Array.Copy(fileData, 0xC, fileIV, 0, 0x10);
@@ -70,7 +70,7 @@ namespace EternalModLoader
             // Get plain text for AES
             byte[] fileText;
             byte[] hmac = new byte[0x20];
-            
+
             if (decrypt)
             {
                 fileText = new byte[fileData.Length - 0x1C - 0x20];
@@ -102,7 +102,7 @@ namespace EternalModLoader
 
             // Encrypt or decrypt the data using AES
             byte[] cryptedText = null;
-            
+
             try
             {
                 cryptedText = CryptData(decrypt, fileText, encKey.Take(0x10).ToArray(), fileIV);
@@ -114,7 +114,7 @@ namespace EternalModLoader
 
             // Write the new file into a memory stream
             var cryptMemoryStream = new MemoryStream();
-            
+
             if (decrypt)
             {
                 cryptMemoryStream.Write(cryptedText, 0, cryptedText.Length);
@@ -133,14 +133,14 @@ namespace EternalModLoader
                 {
                     return 1;
                 }
-                
+
                 cryptMemoryStream.Write(hmac, 0, hmac.Length);
             }
 
             fileData = cryptMemoryStream.ToArray();
             return 0;
         }
-        
+
         /// <summary>
         /// Hashes or gets hmac of the given byte array
         /// </summary>
@@ -197,7 +197,7 @@ namespace EternalModLoader
                 if (decrypt)
                 {
                     ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
-                    
+
                     using (MemoryStream msDecrypt = new MemoryStream(pbInput))
                     {
                         using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
@@ -211,14 +211,14 @@ namespace EternalModLoader
                 else
                 {
                     ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
-                    
+
                     using (MemoryStream msEncrypt = new MemoryStream())
                     {
                         using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
                         {
                             csEncrypt.Write(pbInput, 0, pbInput.Length);
                             csEncrypt.FlushFinalBlock();
-                            
+
                             return msEncrypt.ToArray();
                         }
                     }
