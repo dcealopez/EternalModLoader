@@ -258,9 +258,22 @@ namespace EternalModLoader
                     }
 
                     memoryStream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+
+                    bool clearCompressionFlag = true;
+                    long uncompressedSize = mod.FileBytes.Length;
                     long fileOffset = binaryReader.ReadInt64();
                     long size = binaryReader.ReadInt64();
                     long sizeDiff = mod.FileBytes.Length - size;
+
+                    // Special case: if this a .mapresources file, remove the first 8 bytes, since
+                    // they are used for us to write the uncompressed / compressed sizes properly
+                    // in the file header
+                    if (mod.Name.EndsWith(".mapresources"))
+                    {
+                        uncompressedSize = BitConverter.ToInt64(mod.FileBytes, 0);
+                        mod.FileBytes = mod.FileBytes.Skip(16).ToArray();
+                        clearCompressionFlag = false;
+                    }
 
                     // We will need to expand the file if the new size is greater than the old one
                     // If its shorter, we will replace all the bytes and zero out the remaining bytes
@@ -302,11 +315,11 @@ namespace EternalModLoader
                     // Replace the file size data
                     memoryStream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
                     memoryStream.Write(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, 8);
-                    memoryStream.Write(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, 8);
+                    memoryStream.Write(BitConverter.GetBytes(uncompressedSize), 0, 8);
 
-                    // Clear the compression flag
+                    // Clear the compression flag if needed
                     memoryStream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
-                    memoryStream.WriteByte(0);
+                    memoryStream.WriteByte(clearCompressionFlag ? (byte)0 : chunk.CompressionMode);
 
                     // If the file was expanded, update file offsets for every file after the one we replaced
                     if (sizeDiff > 0)
