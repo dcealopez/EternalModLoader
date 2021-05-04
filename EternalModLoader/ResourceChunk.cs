@@ -8,12 +8,7 @@
         /// <summary>
         /// Name of the chunk
         /// </summary>
-        public string Name;
-
-        /// <summary>
-        /// Name Id in the names list
-        /// </summary>
-        public long NameId;
+        public ResourceName ResourceName;
 
         /// <summary>
         /// File offset
@@ -45,9 +40,9 @@
         /// </summary>
         /// <param name="name">chunk name</param>
         /// <param name="fileOffset">file offset</param>
-        public ResourceChunk(string name, long fileOffset)
+        public ResourceChunk(ResourceName name, long fileOffset)
         {
-            Name = name;
+            ResourceName = name;
             FileOffset = fileOffset;
         }
     }

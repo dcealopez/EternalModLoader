@@ -37,6 +37,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -47,6 +48,7 @@
     </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BlangParser, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -70,12 +72,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EternalModLoader.cs" />
-    <Compile Include="BlangDecrypt.cs" />
+    <Compile Include="Blang\BlangDecrypt.cs" />
+    <Compile Include="MapResources\MapAsset.cs" />
+    <Compile Include="MapResources\MapResourcesFile.cs" />
     <Compile Include="Mod.cs" />
+    <Compile Include="AssetsInfo.cs" />
+    <Compile Include="Oodle.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResourceChunk.cs" />
+    <Compile Include="ResourceData\ResourceData.cs" />
+    <Compile Include="ResourceData\ResourceDataEntry.cs" />
     <Compile Include="ResourceInfo.cs" />
-    <Compile Include="BlangJson.cs" />
+    <Compile Include="Blang\BlangJson.cs" />
+    <Compile Include="ResourceName.cs" />
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -93,5 +103,6 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -100,7 +100,7 @@ namespace EternalModLoader
         /// <summary>
         /// List of all the file names in this resource
         /// </summary>
-        public List<string> NamesList;
+        public List<ResourceName> NamesList;
 
         /// <summary>
         /// Resource info constructor
@@ -114,8 +114,44 @@ namespace EternalModLoader
             Path = path;
             ModList = new List<Mod>();
             ModListNew = new List<Mod>();
-            NamesList = new List<string>();
+            NamesList = new List<ResourceName>();
             ChunkList = new List<ResourceChunk>();
+        }
+
+        /// <summary>
+        /// Returns true if the container contains a resource with the given name, false otherwise
+        /// </summary>
+        /// <param name="name">resource name</param>
+        /// <returns>true if the container contains a resource with the given name, false otherwise</returns>
+        public bool ContainsResourceWithName(string name)
+        {
+            foreach (var resourceName in NamesList)
+            {
+                if (resourceName.FullFileName == name || resourceName.NormalizedFileName == name)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the index of the given name in the container
+        /// </summary>
+        /// <param name="name">name whose index we want to find</param>
+        /// <returns>the index of the given name in the container, -1 if not found</returns>
+        public long GetResourceNameId(string name)
+        {
+            for (int i = 0; i < NamesList.Count; i++)
+            {
+                if (NamesList[i].FullFileName == name || NamesList[i].NormalizedFileName == name)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
     }
 }
