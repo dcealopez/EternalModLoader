@@ -1567,18 +1567,11 @@ namespace EternalModLoader
                                 continue;
                             }
                         }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                    else if (modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        // Detect custom language files
-                        if (modFilePathParts.Length == 5
+                        else if (modFilePathParts.Length == 5
                             && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
                             && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
                         {
+                            // Detect custom language files
                             mod.IsBlangJson = true;
                         }
                         else
