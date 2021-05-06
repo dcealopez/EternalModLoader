@@ -342,11 +342,6 @@ namespace EternalModLoader
                         break;
                 }
             }
-
-            foreach (var type in types)
-            {
-                Console.WriteLine(type);
-            }
         }
 
         /// <summary>
@@ -1329,11 +1324,13 @@ namespace EternalModLoader
             }
 
             // Load the compressed resource data file
-            if (File.Exists(ResourceDataFileName))
+            var resourceDataFilePath = Path.Combine(BasePath, ResourceDataFileName);
+
+            if (File.Exists(resourceDataFilePath))
             {
                 try
                 {
-                    ResourceDataDictionary = ResourceData.ResourceData.Parse(ResourceDataFileName);
+                    ResourceDataDictionary = ResourceData.ResourceData.Parse(resourceDataFilePath);
                 }
                 catch (Exception e)
                 {
