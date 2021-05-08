@@ -40,7 +40,10 @@ namespace EternalModLoader.ResourceData
                     {
                         ulong fileNameHash = binaryReader.ReadUInt64();
                         ulong streamDbHash = binaryReader.ReadUInt64();
-                        ushort version = binaryReader.ReadUInt16();
+                        byte version = binaryReader.ReadByte();
+                        byte specialByte1 = binaryReader.ReadByte();
+                        byte specialByte2 = binaryReader.ReadByte();
+                        byte specialByte3 = binaryReader.ReadByte();
                         ushort typeNameLength = binaryReader.ReadUInt16();
                         string typeName = Encoding.Default.GetString(binaryReader.ReadBytes(typeNameLength));
                         ushort assetTypeLength = binaryReader.ReadUInt16();
@@ -58,6 +61,9 @@ namespace EternalModLoader.ResourceData
                         {
                             StreamDbHash = streamDbHash,
                             Version = version,
+                            SpecialByte1 = specialByte1,
+                            SpecialByte2 = specialByte2,
+                            SpecialByte3 = specialByte3,
                             ResourceType = typeName,
                             MapResourceName = assetName,
                             MapResourceType = assetType

@@ -79,5 +79,20 @@ namespace EternalModLoader
         /// Asset type for .mapresources
         /// </summary>
         public string MapResourceType;
+
+        /// <summary>
+        /// Special byte 1
+        /// </summary>
+        public byte SpecialByte1;
+
+        /// <summary>
+        /// Special byte 2
+        /// </summary>
+        public byte SpecialByte2;
+
+        /// <summary>
+        /// Special byte 3
+        /// </summary>
+        public byte SpecialByte3;
     }
 }

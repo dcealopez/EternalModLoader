@@ -60,6 +60,21 @@ namespace EternalModLoader
         public ushort? Version = null;
 
         /// <summary>
+        /// Special byte 1 for new resources
+        /// </summary>
+        public byte? SpecialByte1 = null;
+
+        /// <summary>
+        /// Special byte 2 for new resources
+        /// </summary>
+        public byte? SpecialByte2 = null;
+
+        /// <summary>
+        /// Special byte 3 for new resources
+        /// </summary>
+        public byte? SpecialByte3 = null;
+
+        /// <summary>
         /// Mod constructor
         /// </summary>
         /// <param name="name">mod name</param>

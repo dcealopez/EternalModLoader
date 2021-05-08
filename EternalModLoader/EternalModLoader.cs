@@ -229,20 +229,23 @@ namespace EternalModLoader
                     case "anim":
                         mod.Priority = 1;
                         break;
-                    case "discreteanimation2":
+                    case "havokShape":
                         mod.Priority = 2;
                         break;
-                    case "skeleton":
+                    case "discreteanimation2":
                         mod.Priority = 3;
                         break;
-                    case "baseModel":
+                    case "skeleton":
                         mod.Priority = 4;
                         break;
-                    case "binarymd6def":
+                    case "baseModel":
                         mod.Priority = 5;
                         break;
-                    case "binaryGoreContainer":
+                    case "binarymd6def":
                         mod.Priority = 6;
+                        break;
+                    case "binaryGoreContainer":
+                        mod.Priority = 7;
                         break;
                     case "soundevent":
                         mod.Priority = 100;
@@ -267,9 +270,6 @@ namespace EternalModLoader
                         break;
                     case "destructible":
                         mod.Priority = 107;
-                        break;
-                    case "havokShape":
-                        mod.Priority = 9999;
                         break;
                     case "gorewounds":
                         mod.Priority = 109;
@@ -984,7 +984,7 @@ namespace EternalModLoader
             int nameIdsOldLength = nameIds.Length;
             int newChunksCount = 0;
 
-            // Find the stream resource hashes for the new mod files and set them
+            // Find the resource data for the new mod files and set them
             foreach (var mod in resourceInfo.ModList)
             {
                 if (mod.IsAssetsInfoJson && mod.AssetsInfo != null && mod.AssetsInfo.Resources != null)
@@ -1003,6 +1003,9 @@ namespace EternalModLoader
                                 newMod.ResourceType = assetsInfoResources.ResourceType;
                                 newMod.Version = assetsInfoResources.Version;
                                 newMod.StreamDbHash = assetsInfoResources.StreamDbHash;
+                                newMod.SpecialByte1 = assetsInfoResources.SpecialByte1;
+                                newMod.SpecialByte2 = assetsInfoResources.SpecialByte2;
+                                newMod.SpecialByte3 = assetsInfoResources.SpecialByte3;
                                 Console.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
                                     newMod.ResourceType,
                                     newMod.Version,
@@ -1045,6 +1048,9 @@ namespace EternalModLoader
                     mod.ResourceType = mod.ResourceType == null ? resourceData.ResourceType : mod.ResourceType;
                     mod.Version = mod.Version == null ? resourceData.Version : mod.Version;
                     mod.StreamDbHash = mod.StreamDbHash == null ? resourceData.StreamDbHash : mod.StreamDbHash;
+                    mod.SpecialByte1 = mod.SpecialByte1 == null ? resourceData.SpecialByte1 : mod.SpecialByte1;
+                    mod.SpecialByte2 = mod.SpecialByte2 == null ? resourceData.SpecialByte2 : mod.SpecialByte2;
+                    mod.SpecialByte3 = mod.SpecialByte3 == null ? resourceData.SpecialByte3 : mod.SpecialByte3;
                 }
 
                 // TODO: Get type + version from file extension if they are still not defined at this point
@@ -1053,6 +1059,9 @@ namespace EternalModLoader
                     mod.ResourceType = mod.ResourceType == null ? "rs_streamfile" : mod.ResourceType;
                     mod.Version = mod.Version == null ? 0 : mod.Version;
                     mod.StreamDbHash = mod.StreamDbHash == null ? 0 : mod.StreamDbHash;
+                    mod.SpecialByte1 = 0;
+                    mod.SpecialByte2 = 0;
+                    mod.SpecialByte3 = 0;
 
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("WARNING: ");
@@ -1178,6 +1187,11 @@ namespace EternalModLoader
 
                 // Set the correct asset version
                 Buffer.BlockCopy(BitConverter.GetBytes((int)mod.Version.Value), 0, info, info.Length - 0x28, 4);
+
+                // Set the special byte values
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte1.Value), 0, info, info.Length - 0x24, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte2.Value), 0, info, info.Length - 0x1E, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, info, info.Length - 0x1D, 4);
 
                 // Clear the compression mode
                 info[info.Length - 0x20] = 0;
