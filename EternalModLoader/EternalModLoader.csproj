@@ -27,6 +27,7 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -63,6 +64,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -86,6 +88,8 @@
     <Compile Include="ResourceInfo.cs" />
     <Compile Include="Blang\BlangJson.cs" />
     <Compile Include="ResourceName.cs" />
+    <Compile Include="SoundBankInfo.cs" />
+    <Compile Include="SoundMod.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -42,6 +42,11 @@ namespace EternalModLoader
         public static List<ResourceInfo> ResourceList = new List<ResourceInfo>();
 
         /// <summary>
+        /// Sound bank list
+        /// </summary>
+        public static List<SoundBankInfo> SoundBankList = new List<SoundBankInfo>();
+
+        /// <summary>
         /// Resource data dictionary, indexed by file name
         /// </summary>
         public static Dictionary<ulong, ResourceDataEntry> ResourceDataDictionary = new Dictionary<ulong, ResourceDataEntry>();
@@ -1463,11 +1468,212 @@ namespace EternalModLoader
         }
 
         /// <summary>
+        /// Loads the sound mods present in the specified sound bank info object
+        /// </summary>
+        /// <param name="soundBankInfo">sound bank info object</param>
+        public static void LoadSoundMods(SoundBankInfo soundBankInfo)
+        {
+            int fileCount = 0;
+
+            using (var fileStream = new FileStream(soundBankInfo.Path, FileMode.Open, FileAccess.ReadWrite))
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    // Copy the stream into memory for faster manipulation of the data
+                    fileStream.CopyTo(memoryStream);
+
+                    // Load the sound mods
+                    foreach (var soundMod in soundBankInfo.ModList)
+                    {
+                        // Parse the identifier of the sound we want to replace
+                        int soundModId = -1;
+                        int.TryParse(Path.GetFileNameWithoutExtension(soundMod.Name), out soundModId);
+
+                        if (soundModId == -1)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Bad file name for sound file \"{soundMod.Name}\" - sound file names should be named after the sound number identifier, skipping");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        // Determine the sound format by extension
+                        var soundExtension = Path.GetExtension(soundMod.Name);
+                        short format = -1;
+
+                        switch (soundExtension)
+                        {
+                            case ".wem":
+                                format = 3;
+                                break;
+                            default:
+                                format = 2;
+                                break;
+                        }
+
+                        if (format == -1)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Couldn't determine the sound file format for \"{soundMod.Name}\", skipping");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        int encodedSize = soundMod.FileBytes.Length;
+                        int decodedSize = encodedSize;
+
+                        // Use opusdec to determine the decoded size of the sound file
+                        // if the format is not .wem
+                        if (format == 2)
+                        {
+                            var opusDecPath = Path.Combine(BasePath, "opusdec.exe");
+
+                            if (!File.Exists(opusDecPath))
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("WARNING: ");
+                                Console.ResetColor();
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.WriteLine($"Couldn't find \"{opusDecPath}\" to decompress \"{soundMod.Name}\", skipping");
+                                Console.ResetColor();
+                                continue;
+                            }
+
+                            // Write the encoded file to a temp file in the disk
+                            var tempEncSoundFilePath = Path.Combine(Path.GetTempPath(), soundMod.Name);
+                            var tempDecSoundFilePath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(soundMod.Name) + ".wav");
+
+                            // Delete the temp files first in case they exist for some reason
+                            if (File.Exists(tempEncSoundFilePath))
+                            {
+                                File.Delete(tempEncSoundFilePath);
+                            }
+
+                            if (File.Exists(tempDecSoundFilePath))
+                            {
+                                File.Delete(tempDecSoundFilePath);
+                            }
+
+                            File.WriteAllBytes(tempEncSoundFilePath, soundMod.FileBytes);
+
+                            // Decode the file to .wav to get the decoded size
+                            var opusDecProcess = new Process();
+                            opusDecProcess.StartInfo.UseShellExecute = false;
+                            opusDecProcess.StartInfo.FileName = opusDecPath;
+                            opusDecProcess.StartInfo.Arguments = $"--quiet \"{tempEncSoundFilePath}\" \"{tempDecSoundFilePath}\"";
+                            opusDecProcess.StartInfo.CreateNoWindow = false;
+                            opusDecProcess.Start();
+                            opusDecProcess.WaitForExit();
+
+                            decodedSize = (int)new FileInfo(tempDecSoundFilePath).Length + 20;
+
+                            File.Delete(tempEncSoundFilePath);
+                            File.Delete(tempDecSoundFilePath);
+                        }
+
+                        if (decodedSize == -1)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Unsupported sound mod file format for file \"{soundMod.Name}\", skipping");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        // Load the sound mod into the sound bank
+                        bool soundFound = false;
+
+                        using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
+                        {
+                            // Read the info and the header sizes
+                            memoryStream.Seek(4, SeekOrigin.Begin);
+
+                            uint infoSize = binaryReader.ReadUInt32();
+                            uint headerSize = binaryReader.ReadUInt32();
+
+                            memoryStream.Seek(headerSize, SeekOrigin.Current);
+
+                            // Loop through all the sound info to find the sound we want to replace
+                            for (int i = 0; i < (infoSize - headerSize) / 32; i++)
+                            {
+                                memoryStream.Seek(8, SeekOrigin.Current);
+                                uint soundId = binaryReader.ReadUInt32();
+
+                                if (soundId != soundModId)
+                                {
+                                    memoryStream.Seek(20, SeekOrigin.Current);
+                                    continue;
+                                }
+
+                                // Save the current sound info offset
+                                soundFound = true;
+                                long soundInfoOffset = memoryStream.Position;
+
+                                // Write the sound replacement data at the end of the sound bank
+                                memoryStream.Seek(0, SeekOrigin.End);
+                                uint soundModOffset = (uint)memoryStream.Position;
+                                memoryStream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
+
+                                // Replace the sound info offset and sizes
+                                memoryStream.Seek(soundInfoOffset, SeekOrigin.Begin);
+                                memoryStream.Write(BitConverter.GetBytes(encodedSize), 0, 4);
+                                memoryStream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
+                                memoryStream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
+                                memoryStream.Write(BitConverter.GetBytes(format), 0, 2);
+                                break;
+                            }
+                        }
+
+                        if (!soundFound)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Couldn't find sound with id \"{soundModId}\" in \"{soundBankInfo.Name}\", sound will not be replaced");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        Console.WriteLine(string.Format("\tReplaced sound with id {0}", soundModId));
+                        fileCount++;
+                    }
+
+                    // Copy the memory stream into the filestream now
+                    fileStream.SetLength(memoryStream.Length);
+                    fileStream.Seek(0, SeekOrigin.Begin);
+                    memoryStream.Seek(0, SeekOrigin.Begin);
+                    memoryStream.CopyTo(fileStream);
+                }
+            }
+
+            if (fileCount > 0)
+            {
+                Console.Write("Number of sounds replaced: ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(string.Format("{0} sound(s) ", fileCount));
+                Console.ResetColor();
+                Console.Write("in ");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(soundBankInfo.Path);
+                Console.ResetColor();
+            }
+        }
+
+        /// <summary>
         /// Gets the path to the .resources file for the specified resource name
         /// </summary>
         /// <param name="name">resource name</param>
         /// <returns>the path to the .resources file for the specified resource name, empty string if it wasn't found</returns>
-        public static string PathToRes(string name)
+        public static string PathToResource(string name)
         {
             string searchPattern;
 
@@ -1491,7 +1697,41 @@ namespace EternalModLoader
             try
             {
                 DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
-                return baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault().FullName;
+                var resourceFile = baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault();
+
+                if (resourceFile == null)
+                {
+                    return string.Empty;
+                }
+
+                return resourceFile.FullName;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Gets the path to the .snd file for the specified sound bank name
+        /// </summary>
+        /// <param name="name">resource name</param>
+        /// <returns>the path to the .snd file for the specified sound bank name, empty string if it wasn't found</returns>
+        public static string PathToSoundBank(string name)
+        {
+            string searchPattern = Path.Combine("sound", "soundbanks", "pc", $"{name}.snd");
+
+            try
+            {
+                DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
+                var soundBankFile = baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault();
+
+                if (soundBankFile == null)
+                {
+                    return string.Empty;
+                }
+
+                return soundBankFile.FullName;
             }
             catch (Exception)
             {
@@ -1594,6 +1834,7 @@ namespace EternalModLoader
 
                     foreach (string modFileName in modFileNameList)
                     {
+                        bool isSoundMod = false;
                         string modFile = modFileName;
                         var modFilePathParts = modFile.Split('/');
 
@@ -1615,75 +1856,132 @@ namespace EternalModLoader
                             modFile = modFileName.Remove(0, resourceName.Length + 1);
                         }
 
-                        // Get the resource object
-                        ResourceInfo resource = null;
+                        // Check if this is a sound mod or not
+                        var resourcePath = PathToResource(resourceName);
 
-                        foreach (var res in ResourceList)
+                        if (resourcePath == string.Empty)
                         {
-                            if (res.Name.Equals(resourceName))
+                            resourcePath = PathToSoundBank(resourceName);
+
+                            if (resourcePath != string.Empty)
                             {
-                                resource = res;
-                                break;
+                                isSoundMod = true;
                             }
                         }
 
-                        if (resource == null)
+                        if (isSoundMod)
                         {
-                            resource = new ResourceInfo(resourceName, PathToRes(resourceName));
-                            ResourceList.Add(resource);
-                        }
+                            // Get the sound bank info object, create it if it doesn't exist
+                            var soundBankInfo = SoundBankList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
 
-                        // Create the mod object and read the unzipped files
-                        if (!listResources)
-                        {
-                            Mod mod = new Mod(modFile);
-                            var stream = zipArchive.GetEntry(modFileName).Open();
-
-                            using (var memoryStream = new MemoryStream())
+                            if (soundBankInfo == null)
                             {
-                                stream.CopyTo(memoryStream);
-                                mod.FileBytes = memoryStream.ToArray();
-                            }
-
-                            // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                            if (modFilePathParts[1].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
-                            {
-                                if (modFilePathParts.Length == 4
-                                    && modFilePathParts[2].Equals("assetsinfo", StringComparison.InvariantCultureIgnoreCase)
-                                    && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                                soundBankInfo = new SoundBankInfo()
                                 {
-                                    try
+                                    ModList = new List<SoundMod>(),
+                                    Name = resourceName,
+                                    Path = resourcePath
+                                };
+
+                                SoundBankList.Add(soundBankInfo);
+                            }
+
+                            // Create the mod object and read the unzipped files
+                            if (!listResources)
+                            {
+                                // Skip unsupported formats
+                                var soundExtension = Path.GetExtension(modFile);
+
+                                if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg"))
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Write("WARNING: ");
+                                    Console.ResetColor();
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFile}\"");
+                                    Console.ResetColor();
+                                    continue;
+                                }
+
+                                // Load the sound mod
+                                SoundMod sndMod = new SoundMod();
+                                sndMod.Name = Path.GetFileName(modFile);
+
+                                var stream = zipArchive.GetEntry(modFileName).Open();
+
+                                using (var memoryStream = new MemoryStream())
+                                {
+                                    stream.CopyTo(memoryStream);
+                                    sndMod.FileBytes = memoryStream.ToArray();
+                                }
+
+                                soundBankInfo.ModList.Add(sndMod);
+                                zippedModCount++;
+                            }
+                        }
+                        else
+                        {
+                            // Get the resource object
+                            var resource = ResourceList.FirstOrDefault(res => res.Name.Equals(resourceName));
+
+                            if (resource == null)
+                            {
+                                resource = new ResourceInfo(resourceName, PathToResource(resourceName));
+                                ResourceList.Add(resource);
+                            }
+
+                            // Create the mod object and read the unzipped files
+                            if (!listResources)
+                            {
+                                Mod mod = new Mod(modFile);
+                                var stream = zipArchive.GetEntry(modFileName).Open();
+
+                                using (var memoryStream = new MemoryStream())
+                                {
+                                    stream.CopyTo(memoryStream);
+                                    mod.FileBytes = memoryStream.ToArray();
+                                }
+
+                                // Read the JSON files in 'assetsinfo' under 'EternalMod'
+                                if (modFilePathParts[1].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    if (modFilePathParts.Length == 4
+                                        && modFilePathParts[2].Equals("assetsinfo", StringComparison.InvariantCultureIgnoreCase)
+                                        && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
                                     {
-                                        var serializerSettings = new JsonSerializerSettings();
-                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                        mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
-                                        mod.IsAssetsInfoJson = true;
-                                        mod.FileBytes = null;
+                                        try
+                                        {
+                                            var serializerSettings = new JsonSerializerSettings();
+                                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                            mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
+                                            mod.IsAssetsInfoJson = true;
+                                            mod.FileBytes = null;
+                                        }
+                                        catch
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("ERROR: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                            continue;
+                                        }
                                     }
-                                    catch
+                                    else if (modFilePathParts.Length == 4
+                                        && modFilePathParts[2].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                                        && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
                                     {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("ERROR: ");
-                                        Console.ResetColor();
-                                        Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                        // Detect custom language files
+                                        mod.IsBlangJson = true;
+                                    }
+                                    else
+                                    {
                                         continue;
                                     }
                                 }
-                                else if (modFilePathParts.Length == 4
-                                    && modFilePathParts[2].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
-                                    && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
-                                {
-                                    // Detect custom language files
-                                    mod.IsBlangJson = true;
-                                }
-                                else
-                                {
-                                    continue;
-                                }
-                            }
 
-                            resource.ModList.Add(mod);
-                            zippedModCount++;
+                                resource.ModList.Add(mod);
+                                zippedModCount++;
+                            }
                         }
                     }
                 }
@@ -1719,6 +2017,7 @@ namespace EternalModLoader
                     continue;
                 }
 
+                bool isSoundMod = false;
                 string resourceName = modFilePathParts[1];
                 string fileName = string.Empty;
 
@@ -1733,77 +2032,135 @@ namespace EternalModLoader
                     fileName = file.Remove(0, modFilePathParts[0].Length + resourceName.Length + 2).Replace('\\', '/');
                 }
 
-                // Get the resource object
-                ResourceInfo resource = null;
+                // Check if this is a sound mod or not
+                var resourcePath = PathToResource(resourceName);
 
-                foreach (var res in ResourceList)
+                if (resourcePath == string.Empty)
                 {
-                    if (res.Name.Equals(resourceName))
+                    resourcePath = PathToSoundBank(resourceName);
+
+                    if (resourcePath != string.Empty)
                     {
-                        resource = res;
-                        break;
+                        isSoundMod = true;
                     }
                 }
 
-                if (resource == null)
+                if (isSoundMod)
                 {
-                    resource = new ResourceInfo(resourceName, PathToRes(resourceName));
-                    ResourceList.Add(resource);
-                }
+                    // Get the sound bank info object, create it if it doesn't exist
+                    var soundBankInfo = SoundBankList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
 
-                // Create the mod object and read the files
-                if (!listResources)
-                {
-                    Mod mod = new Mod(fileName);
-
-                    using (var streamReader = new StreamReader(file))
+                    if (soundBankInfo == null)
                     {
-                        using (var memoryStream = new MemoryStream())
+                        soundBankInfo = new SoundBankInfo()
                         {
-                            streamReader.BaseStream.CopyTo(memoryStream);
-                            mod.FileBytes = memoryStream.ToArray();
+                            ModList = new List<SoundMod>(),
+                            Name = resourceName,
+                            Path = resourcePath
+                        };
+
+                        SoundBankList.Add(soundBankInfo);
+                    }
+
+                    // Create the mod object and read the unzipped files
+                    if (!listResources)
+                    {
+                        // Skip unsupported formats
+                        var soundExtension = Path.GetExtension(fileName);
+
+                        if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg"))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{fileName}\"");
+                            Console.ResetColor();
+                            continue;
                         }
+
+                        // Load the sound mod
+                        SoundMod sndMod = new SoundMod();
+                        sndMod.Name = Path.GetFileName(fileName);
+
+                        using (var streamReader = new StreamReader(file))
+                        {
+                            using (var memoryStream = new MemoryStream())
+                            {
+                                streamReader.BaseStream.CopyTo(memoryStream);
+                                sndMod.FileBytes = memoryStream.ToArray();
+                            }
+                        }
+
+                        soundBankInfo.ModList.Add(sndMod);
+                        unzippedModCount++;
+                    }
+                }
+                else
+                {
+                    // Get the resource object
+                    var resource = ResourceList.FirstOrDefault(res => res.Name.Equals(resourceName));
+
+                    if (resource == null)
+                    {
+                        resource = new ResourceInfo(resourceName, PathToResource(resourceName));
+                        ResourceList.Add(resource);
                     }
 
-                    // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                    if (modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
+                    // Create the mod object and read the files
+                    if (!listResources)
                     {
-                        if (modFilePathParts.Length == 5
-                            && modFilePathParts[3].Equals("assetsinfo", StringComparison.InvariantCultureIgnoreCase)
-                            && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                        Mod mod = new Mod(fileName);
+
+                        using (var streamReader = new StreamReader(file))
                         {
-                            try
+                            using (var memoryStream = new MemoryStream())
                             {
-                                var serializerSettings = new JsonSerializerSettings();
-                                serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
-                                mod.IsAssetsInfoJson = true;
-                                mod.FileBytes = null;
+                                streamReader.BaseStream.CopyTo(memoryStream);
+                                mod.FileBytes = memoryStream.ToArray();
                             }
-                            catch
+                        }
+
+                        // Read the JSON files in 'assetsinfo' under 'EternalMod'
+                        if (modFilePathParts[2].Equals("EternalMod", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            if (modFilePathParts.Length == 5
+                                && modFilePathParts[3].Equals("assetsinfo", StringComparison.InvariantCultureIgnoreCase)
+                                && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
                             {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("ERROR: ");
-                                Console.ResetColor();
-                                Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                try
+                                {
+                                    var serializerSettings = new JsonSerializerSettings();
+                                    serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                    mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
+                                    mod.IsAssetsInfoJson = true;
+                                    mod.FileBytes = null;
+                                }
+                                catch
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Write("ERROR: ");
+                                    Console.ResetColor();
+                                    Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                    continue;
+                                }
+                            }
+                            else if (modFilePathParts.Length == 5
+                                && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
+                                && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                // Detect custom language files
+                                mod.IsBlangJson = true;
+                            }
+                            else
+                            {
                                 continue;
                             }
                         }
-                        else if (modFilePathParts.Length == 5
-                            && modFilePathParts[3].Equals("strings", StringComparison.InvariantCultureIgnoreCase)
-                            && Path.GetExtension(modFilePathParts[4]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            // Detect custom language files
-                            mod.IsBlangJson = true;
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
 
-                    resource.ModList.Add(mod);
-                    unzippedModCount++;
+                        resource.ModList.Add(mod);
+                        unzippedModCount++;
+                    }
                 }
             }
 
@@ -1823,9 +2180,10 @@ namespace EternalModLoader
             // List the resources that will be modified
             if (listResources)
             {
+                // Resource file mods
                 foreach (var resource in ResourceList)
                 {
-                    if (string.IsNullOrEmpty(resource.Path))
+                    if (resource.Path == string.Empty)
                     {
                         continue;
                     }
@@ -1840,10 +2198,28 @@ namespace EternalModLoader
                     }
                 }
 
+                // Sound mods
+                foreach (var soundBank in SoundBankList)
+                {
+                    if (soundBank.Path == string.Empty)
+                    {
+                        continue;
+                    }
+
+                    if (Path.DirectorySeparatorChar == '\\')
+                    {
+                        Console.WriteLine($".{soundBank.Path.Substring(soundBank.Path.IndexOf("\\base\\"))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($".{soundBank.Path.Substring(soundBank.Path.IndexOf("/base/"))}");
+                    }
+                }
+
                 return 0;
             }
 
-            // Load the mods
+            // Load the resource file mods
             foreach (var resource in ResourceList)
             {
                 if (string.IsNullOrEmpty(resource.Path))
@@ -1864,6 +2240,27 @@ namespace EternalModLoader
                 ReadResource(resource);
                 DetermineLoadOrder(resource);
                 LoadMods(resource);
+            }
+
+            // Load the sound mods
+            foreach (var soundBank in SoundBankList)
+            {
+                if (string.IsNullOrEmpty(soundBank.Path))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write(soundBank.Name + ".resources");
+                    Console.ResetColor();
+                    Console.Write(" was not found! Skipping ");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write(string.Format("{0} file(s)", soundBank.ModList.Count));
+                    Console.ResetColor();
+                    Console.WriteLine("...");
+                    continue;
+                }
+
+                LoadSoundMods(soundBank);
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
