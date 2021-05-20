@@ -10,23 +10,28 @@ namespace EternalModLoader
         /// <summary>
         /// Layers list
         /// </summary>
-        public IList<Layers> Layers { get; set; }
+        public IList<AssetsInfoLayer> Layers { get; set; }
 
         /// <summary>
         /// Maps list
         /// </summary>
-        public IList<Maps> Maps { get; set; }
+        public IList<AssetsInfoMap> Maps { get; set; }
 
         /// <summary>
-        /// Resources list
+        /// Extra resource files to load in the map
         /// </summary>
-        public IList<Resources> Resources { get; set; }
+        public IList<AssetsInfoResource> ExtraResources { get; set; }
+
+        /// <summary>
+        /// New assets list
+        /// </summary>
+        public IList<AssetsInfoAsset> NewAssets { get; set; }
     }
 
     /// <summary>
     /// Layers object
     /// </summary>
-    public class Layers
+    public class AssetsInfoLayer
     {
         /// <summary>
         /// Layer name
@@ -37,7 +42,7 @@ namespace EternalModLoader
     /// <summary>
     /// Maps object
     /// </summary>
-    public class Maps
+    public class AssetsInfoMap
     {
         /// <summary>
         /// Map name
@@ -46,9 +51,17 @@ namespace EternalModLoader
     }
 
     /// <summary>
-    /// Resources object
+    /// Extra resource file class
     /// </summary>
-    public class Resources
+    public class AssetsInfoResource
+    {
+        public string Name;
+    }
+
+    /// <summary>
+    /// Assets object
+    /// </summary>
+    public class AssetsInfoAsset
     {
         /// <summary>
         /// Path to the resource in the container
@@ -68,7 +81,7 @@ namespace EternalModLoader
         /// <summary>
         /// Version
         /// </summary>
-        public ushort Version;
+        public byte Version;
 
         /// <summary>
         /// Asset name for .mapresources

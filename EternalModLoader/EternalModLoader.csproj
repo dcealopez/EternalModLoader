@@ -78,6 +78,7 @@
     <Compile Include="Mod.cs" />
     <Compile Include="AssetsInfo.cs" />
     <Compile Include="Oodle.cs" />
+    <Compile Include="PackageMapSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResourceChunk.cs" />
     <Compile Include="ResourceData\ResourceData.cs" />
