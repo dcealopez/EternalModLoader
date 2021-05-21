@@ -1,2 +1,3 @@
 # EternalModLoader
-C# port for the DOOM Eternal modloader by SutandoTsukai181
+DOOM Eternal mod loader for Windows.
+Originally just a C# port for the original DOOM Eternal Python modloader written by SutandoTsukai181
