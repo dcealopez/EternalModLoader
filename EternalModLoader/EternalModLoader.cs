@@ -1542,6 +1542,7 @@ namespace EternalModLoader
 
                         // Determine the sound format by extension
                         var soundExtension = Path.GetExtension(soundMod.Name);
+                        bool isWav = false;
                         short format = -1;
 
                         switch (soundExtension)
@@ -1549,7 +1550,12 @@ namespace EternalModLoader
                             case ".wem":
                                 format = 3;
                                 break;
-                            default:
+                            case ".ogg":
+                            case ".opus":
+                                format = 2;
+                                break;
+                            case ".wav":
+                                isWav = true;
                                 format = 2;
                                 break;
                         }
@@ -1566,58 +1572,174 @@ namespace EternalModLoader
                         }
 
                         int encodedSize = soundMod.FileBytes.Length;
-                        int decodedSize = encodedSize;
+                        int decodedSize = isWav ? encodedSize + 20 : encodedSize;
 
-                        // Use opusdec to determine the decoded size of the sound file
-                        // if the format is not .wem
                         if (format == 2)
                         {
-                            var opusDecPath = Path.Combine(BasePath, "opusdec.exe");
-
-                            if (!File.Exists(opusDecPath))
+                            // Use opusdec to determine the decoded size of the sound file
+                            // if the format is .ogg or .opus
+                            if (!isWav)
                             {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Couldn't find \"{opusDecPath}\" to decompress \"{soundMod.Name}\", skipping");
-                                Console.ResetColor();
-                                continue;
+                                try
+                                {
+                                    var opusDecPath = Path.Combine(BasePath, "opusdec.exe");
+
+                                    if (!File.Exists(opusDecPath))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.Write("WARNING: ");
+                                        Console.ResetColor();
+                                        Console.ForegroundColor = ConsoleColor.Yellow;
+                                        Console.WriteLine($"Couldn't find \"{opusDecPath}\" to decode \"{soundMod.Name}\", skipping");
+                                        Console.ResetColor();
+                                        continue;
+                                    }
+
+                                    // Write the encoded file to a temp file in the disk
+                                    var tempEncSoundFilePath = Path.Combine(Path.GetTempPath(), soundMod.Name);
+                                    var tempDecSoundFilePath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(soundMod.Name) + ".wav");
+
+                                    // Delete the temp files first in case they exist for some reason
+                                    if (File.Exists(tempEncSoundFilePath))
+                                    {
+                                        File.Delete(tempEncSoundFilePath);
+                                    }
+
+                                    if (File.Exists(tempDecSoundFilePath))
+                                    {
+                                        File.Delete(tempDecSoundFilePath);
+                                    }
+
+                                    File.WriteAllBytes(tempEncSoundFilePath, soundMod.FileBytes);
+
+                                    // Decode the file to .wav to get the decoded size
+                                    var opusDecProcess = new Process();
+                                    opusDecProcess.StartInfo.UseShellExecute = false;
+                                    opusDecProcess.StartInfo.FileName = opusDecPath;
+                                    opusDecProcess.StartInfo.Arguments = $"--quiet \"{tempEncSoundFilePath}\" \"{tempDecSoundFilePath}\"";
+                                    opusDecProcess.StartInfo.CreateNoWindow = false;
+                                    opusDecProcess.StartInfo.RedirectStandardError = true;
+                                    opusDecProcess.StartInfo.RedirectStandardOutput = true;
+                                    opusDecProcess.Start();
+                                    opusDecProcess.WaitForExit();
+
+                                    // If the .wav file doesn't exist, that means that the conversion failed
+                                    if (!File.Exists(tempDecSoundFilePath))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.Write("WARNING: ");
+                                        Console.ResetColor();
+                                        Console.ForegroundColor = ConsoleColor.Yellow;
+                                        Console.WriteLine($"Unsupported sound mod file format for file \"{soundMod.Name}\", skipping");
+                                        Console.ResetColor();
+                                        File.Delete(tempEncSoundFilePath);
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        decodedSize = (int)new FileInfo(tempDecSoundFilePath).Length + 20;
+                                        File.Delete(tempDecSoundFilePath);
+                                        File.Delete(tempEncSoundFilePath);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Error.Write("ERROR: ");
+                                    Console.ResetColor();
+                                    Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
+                                    continue;
+                                }
                             }
-
-                            // Write the encoded file to a temp file in the disk
-                            var tempEncSoundFilePath = Path.Combine(Path.GetTempPath(), soundMod.Name);
-                            var tempDecSoundFilePath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(soundMod.Name) + ".wav");
-
-                            // Delete the temp files first in case they exist for some reason
-                            if (File.Exists(tempEncSoundFilePath))
+                            else
                             {
-                                File.Delete(tempEncSoundFilePath);
+                                try
+                                {
+                                    // This is a .wav file, encode it using opusenc
+                                    var opusEncPath = Path.Combine(BasePath, "opusenc.exe");
+                                    encodedSize = -1;
+
+                                    if (!File.Exists(opusEncPath))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.Write("WARNING: ");
+                                        Console.ResetColor();
+                                        Console.ForegroundColor = ConsoleColor.Yellow;
+                                        Console.WriteLine($"Couldn't find \"{opusEncPath}\" to encode \"{soundMod.Name}\", skipping");
+                                        Console.ResetColor();
+                                        continue;
+                                    }
+
+                                    // Write the .wav file to a temp file in the disk
+                                    var tempWavSoundFilePath = Path.Combine(Path.GetTempPath(), soundMod.Name);
+                                    var tempEncSoundFilePath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(soundMod.Name) + ".ogg");
+
+                                    // Delete the temp files first in case they exist for some reason
+                                    if (File.Exists(tempWavSoundFilePath))
+                                    {
+                                        File.Delete(tempWavSoundFilePath);
+                                    }
+
+                                    if (File.Exists(tempEncSoundFilePath))
+                                    {
+                                        File.Delete(tempEncSoundFilePath);
+                                    }
+
+                                    File.WriteAllBytes(tempWavSoundFilePath, soundMod.FileBytes);
+
+                                    // Encode the file to .ogg
+                                    var opusEncProcess = new Process();
+                                    opusEncProcess.StartInfo.UseShellExecute = false;
+                                    opusEncProcess.StartInfo.FileName = opusEncPath;
+                                    opusEncProcess.StartInfo.Arguments = $"--quiet \"{tempWavSoundFilePath}\" \"{tempEncSoundFilePath}\"";
+                                    opusEncProcess.StartInfo.RedirectStandardError = true;
+                                    opusEncProcess.StartInfo.RedirectStandardOutput = true;
+                                    opusEncProcess.StartInfo.CreateNoWindow = false;
+                                    opusEncProcess.Start();
+                                    opusEncProcess.WaitForExit();
+
+                                    // If the .ogg file doesn't exist, that means that the conversion failed
+                                    if (!File.Exists(tempEncSoundFilePath))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.Write("WARNING: ");
+                                        Console.ResetColor();
+                                        Console.ForegroundColor = ConsoleColor.Yellow;
+                                        Console.WriteLine($"Unsupported sound mod file format for file \"{soundMod.Name}\", skipping");
+                                        Console.ResetColor();
+                                        File.Delete(tempWavSoundFilePath);
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        // Grab the .ogg file data
+                                        using (var streamReader = new StreamReader(tempEncSoundFilePath))
+                                        {
+                                            using (var sndFileMemoryStream = new MemoryStream())
+                                            {
+                                                streamReader.BaseStream.CopyTo(sndFileMemoryStream);
+                                                soundMod.FileBytes = sndFileMemoryStream.ToArray();
+                                            }
+                                        }
+
+                                        encodedSize = soundMod.FileBytes.Length;
+
+                                        File.Delete(tempEncSoundFilePath);
+                                        File.Delete(tempWavSoundFilePath);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Error.Write("ERROR: ");
+                                    Console.ResetColor();
+                                    Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
+                                    continue;
+                                }
                             }
-
-                            if (File.Exists(tempDecSoundFilePath))
-                            {
-                                File.Delete(tempDecSoundFilePath);
-                            }
-
-                            File.WriteAllBytes(tempEncSoundFilePath, soundMod.FileBytes);
-
-                            // Decode the file to .wav to get the decoded size
-                            var opusDecProcess = new Process();
-                            opusDecProcess.StartInfo.UseShellExecute = false;
-                            opusDecProcess.StartInfo.FileName = opusDecPath;
-                            opusDecProcess.StartInfo.Arguments = $"--quiet \"{tempEncSoundFilePath}\" \"{tempDecSoundFilePath}\"";
-                            opusDecProcess.StartInfo.CreateNoWindow = false;
-                            opusDecProcess.Start();
-                            opusDecProcess.WaitForExit();
-
-                            decodedSize = (int)new FileInfo(tempDecSoundFilePath).Length + 20;
-
-                            File.Delete(tempEncSoundFilePath);
-                            File.Delete(tempDecSoundFilePath);
                         }
 
-                        if (decodedSize == -1)
+                        if (decodedSize == -1 || encodedSize == -1)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("WARNING: ");
@@ -1943,7 +2065,7 @@ namespace EternalModLoader
                                 // Skip unsupported formats
                                 var soundExtension = Path.GetExtension(modFile);
 
-                                if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg"))
+                                if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg") && !soundExtension.Equals(".wav"))
                                 {
                                     Console.ForegroundColor = ConsoleColor.Red;
                                     Console.Write("WARNING: ");
@@ -2119,7 +2241,7 @@ namespace EternalModLoader
                         // Skip unsupported formats
                         var soundExtension = Path.GetExtension(fileName);
 
-                        if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg"))
+                        if (!soundExtension.Equals(".wem") && !soundExtension.Equals(".opus") && !soundExtension.Equals(".ogg") && !soundExtension.Equals(".wav"))
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("WARNING: ");
