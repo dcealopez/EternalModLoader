@@ -37,6 +37,11 @@ namespace EternalModLoader
         public static string BasePath;
 
         /// <summary>
+        /// Verbose logging
+        /// </summary>
+        public static bool Verbose;
+
+        /// <summary>
         /// Resource list
         /// </summary>
         public static List<ResourceInfo> ResourceList = new List<ResourceInfo>();
@@ -547,12 +552,16 @@ namespace EternalModLoader
                                                 // Prevent adding the same map file reference multiple times
                                                 if (alreadyExists)
                                                 {
-                                                    Console.ForegroundColor = ConsoleColor.Red;
-                                                    Console.Write("WARNING: ");
-                                                    Console.ResetColor();
-                                                    Console.ForegroundColor = ConsoleColor.Yellow;
-                                                    Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
-                                                    Console.ResetColor();
+                                                    if (Verbose)
+                                                    {
+                                                        Console.ForegroundColor = ConsoleColor.Red;
+                                                        Console.Write("WARNING: ");
+                                                        Console.ResetColor();
+                                                        Console.ForegroundColor = ConsoleColor.Yellow;
+                                                        Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
+                                                        Console.ResetColor();
+                                                    }
+
                                                     continue;
                                                 }
 
@@ -654,12 +663,16 @@ namespace EternalModLoader
                                 {
                                     if (mapResourcesFile.Layers.Contains(newLayers.Name))
                                     {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("WARNING: ");
-                                        Console.ResetColor();
-                                        Console.ForegroundColor = ConsoleColor.Yellow;
-                                        Console.WriteLine($"Trying to add layer \"{newLayers.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
-                                        Console.ResetColor();
+                                        if (Verbose)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("WARNING: ");
+                                            Console.ResetColor();
+                                            Console.ForegroundColor = ConsoleColor.Yellow;
+                                            Console.WriteLine($"Trying to add layer \"{newLayers.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
+                                            Console.ResetColor();
+                                        }
+
                                         continue;
                                     }
 
@@ -675,12 +688,16 @@ namespace EternalModLoader
                                 {
                                     if (mapResourcesFile.Maps.Contains(newMaps.Name))
                                     {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("WARNING: ");
-                                        Console.ResetColor();
-                                        Console.ForegroundColor = ConsoleColor.Yellow;
-                                        Console.WriteLine($"Trying to add map \"{newMaps.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
-                                        Console.ResetColor();
+                                        if (Verbose)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("WARNING: ");
+                                            Console.ResetColor();
+                                            Console.ForegroundColor = ConsoleColor.Yellow;
+                                            Console.WriteLine($"Trying to add map \"{newMaps.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
+                                            Console.ResetColor();
+                                        }
+
                                         continue;
                                     }
 
@@ -697,10 +714,14 @@ namespace EternalModLoader
                                     if (string.IsNullOrEmpty(newAssets.Name) || string.IsNullOrWhiteSpace(newAssets.Name) ||
                                         string.IsNullOrEmpty(newAssets.MapResourceType) || string.IsNullOrWhiteSpace(newAssets.MapResourceType))
                                     {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("WARNING: ");
-                                        Console.ResetColor();
-                                        Console.WriteLine($"Skipping empty resource declaration in \"{mod.Name}\"");
+                                        if (Verbose)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("WARNING: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine($"Skipping empty resource declaration in \"{mod.Name}\"");
+                                        }
+
                                         continue;
                                     }
 
@@ -717,12 +738,16 @@ namespace EternalModLoader
 
                                     if (alreadyExists)
                                     {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("WARNING: ");
-                                        Console.ResetColor();
-                                        Console.ForegroundColor = ConsoleColor.Yellow;
-                                        Console.WriteLine($"Trying to add asset \"{newAssets.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
-                                        Console.ResetColor();
+                                        if (Verbose)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("WARNING: ");
+                                            Console.ResetColor();
+                                            Console.ForegroundColor = ConsoleColor.Yellow;
+                                            Console.WriteLine($"Trying to add asset \"{newAssets.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
+                                            Console.ResetColor();
+                                        }
+
                                         continue;
                                     }
 
@@ -813,10 +838,14 @@ namespace EternalModLoader
 
                             if (string.IsNullOrEmpty(resourceData.MapResourceName) && string.IsNullOrWhiteSpace(resourceData.MapResourceType))
                             {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.WriteLine($"Mapresources data for asset \"{mod.Name}\" is null, skipping");
+                                if (Verbose)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Write("WARNING: ");
+                                    Console.ResetColor();
+                                    Console.WriteLine($"Mapresources data for asset \"{mod.Name}\" is null, skipping");
+                                }
+
                                 continue;
                             }
                             else
@@ -886,12 +915,16 @@ namespace EternalModLoader
 
                             if (alreadyExists)
                             {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Trying to add asset \"{resourceData.MapResourceName}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
-                                Console.ResetColor();
+                                if (Verbose)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Write("WARNING: ");
+                                    Console.ResetColor();
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine($"Trying to add asset \"{resourceData.MapResourceName}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
+                                    Console.ResetColor();
+                                }
+
                                 continue;
                             }
 
@@ -1238,12 +1271,16 @@ namespace EternalModLoader
             {
                 if (resourceInfo.ContainsResourceWithName(mod.Name))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("WARNING: ");
-                    Console.ResetColor();
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"Trying to add resource \"{mod.Name}\" that has already been added to \"{resourceInfo.Name}\", skipping");
-                    Console.ResetColor();
+                    if (Verbose)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("WARNING: ");
+                        Console.ResetColor();
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"Trying to add resource \"{mod.Name}\" that has already been added to \"{resourceInfo.Name}\", skipping");
+                        Console.ResetColor();
+                    }
+
                     continue;
                 }
 
@@ -1266,8 +1303,8 @@ namespace EternalModLoader
                     mod.SpecialByte3 = mod.SpecialByte3 == null ? resourceData.SpecialByte3 : mod.SpecialByte3;
                 }
 
-                // TODO: Get type + version from file extension if they are still not defined at this point
-                if (mod.ResourceType == null && mod.Version == null && mod.StreamDbHash == null)
+                // Use rs_streamfile by default if no data was found or specified
+                if (mod.ResourceType != null && mod.Version == null && mod.StreamDbHash == null)
                 {
                     mod.ResourceType = mod.ResourceType == null ? "rs_streamfile" : mod.ResourceType;
                     mod.Version = mod.Version == null ? 0 : mod.Version;
@@ -1276,12 +1313,15 @@ namespace EternalModLoader
                     mod.SpecialByte2 = 0;
                     mod.SpecialByte3 = 0;
 
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("WARNING: ");
-                    Console.ResetColor();
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"No resource data found for file: {mod.Name}");
-                    Console.ResetColor();
+                    if (Verbose)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("WARNING: ");
+                        Console.ResetColor();
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"No resource data found for file: {mod.Name}");
+                        Console.ResetColor();
+                    }
                 }
 
                 // Check if the resource type name exists in the current container, add if it doesn't
@@ -1747,12 +1787,13 @@ namespace EternalModLoader
         public static int Main(string[] args)
         {
             // Parse arguments
-            if (args.Length == 0 || args.Length > 2)
+            if (args.Length == 0)
             {
-                Console.WriteLine("Loads mods from ZIPs or loose files in 'Mods' folder into the .resources files in the specified directory");
+                Console.WriteLine("Loads DOOM Eternal mods from ZIPs or loose files in 'Mods' folder into the game installation specified in the game path");
                 Console.WriteLine("USAGE: EternalModLoader <game path> [OPTIONS]");
                 Console.WriteLine("OPTIONS:");
                 Console.WriteLine("\t--list-res - List the .resources files that will be modified and exit.");
+                Console.WriteLine("\t--verbose - Print more information during the mod loading process.");
                 return 1;
             }
 
@@ -1769,19 +1810,26 @@ namespace EternalModLoader
 
             bool listResources = false;
 
-            if (args.Length == 2)
+            if (args.Length > 1)
             {
-                if (args[1].Equals("--list-res"))
+                for (int i = 1; i < args.Length; i++)
                 {
-                    listResources = true;
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("ERROR: ");
-                    Console.ResetColor();
-                    Console.Error.WriteLine(string.Format("Unknown option '{0}'", args[1]));
-                    return 1;
+                    if (args[i].Equals("--list-res"))
+                    {
+                        listResources = true;
+                    }
+                    else if (args[i].Equals("--verbose"))
+                    {
+                        Verbose = true;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("ERROR: ");
+                        Console.ResetColor();
+                        Console.Error.WriteLine(string.Format("Unknown option '{0}'", args[i]));
+                        return 1;
+                    }
                 }
             }
 
@@ -1805,12 +1853,15 @@ namespace EternalModLoader
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("WARNING: ");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write(ResourceDataFileName);
-                Console.ResetColor();
-                Console.WriteLine(" was not found! There will be issues when adding new assets to containers...");
+                if (Verbose)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write(ResourceDataFileName);
+                    Console.ResetColor();
+                    Console.WriteLine(" was not found! There will be issues when adding existing new assets to containers...");
+                }
             }
 
             // Find zipped mods
@@ -2250,7 +2301,7 @@ namespace EternalModLoader
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("WARNING: ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write(soundBank.Name + ".resources");
+                    Console.Write(soundBank.Name + ".snd");
                     Console.ResetColor();
                     Console.Write(" was not found! Skipping ");
                     Console.ForegroundColor = ConsoleColor.Red;
