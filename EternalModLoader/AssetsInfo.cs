@@ -55,7 +55,16 @@ namespace EternalModLoader
     /// </summary>
     public class AssetsInfoResource
     {
+        /// <summary>
+        /// File name of the extra resource file to load on this map
+        /// </summary>
         public string Name;
+
+        /// <summary>
+        /// Indicates wheter or not the specified resource file should be removed
+        /// so that it doesn't get loaded on this map
+        /// </summary>
+        public bool Remove;
     }
 
     /// <summary>
@@ -92,6 +101,12 @@ namespace EternalModLoader
         /// Asset type for .mapresources
         /// </summary>
         public string MapResourceType;
+
+        /// <summary>
+        /// Indicates wheter or not the asset should be removed
+        /// from the container's map resources
+        /// </summary>
+        public bool Remove;
 
         /// <summary>
         /// Indicates whether or not the asset should be placed

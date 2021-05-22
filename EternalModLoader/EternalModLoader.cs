@@ -267,149 +267,132 @@ namespace EternalModLoader
                         // Add the extra resources to packagemapspec.json if specified
                         if (mod.AssetsInfo.ExtraResources != null)
                         {
-                            if (resourceInfo.Name.Contains("gameresources") || resourceInfo.Name.Contains("warehouse") || resourceInfo.Name.Contains("shell"))
+                            var packageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+
+                            if (!File.Exists(packageMapSpecPath))
                             {
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"Loading extra resources to {resourceInfo.Name} is not supported, skipping");
+                                Console.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceInfo.Name}");
                             }
                             else
                             {
-                                var packageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+                                var packageMapSpecFile = File.ReadAllBytes(packageMapSpecPath);
+                                PackageMapSpec packageMapSpec = null;
 
-                                if (!File.Exists(packageMapSpecPath))
+                                try
+                                {
+                                    // Try to parse the JSON
+                                    var serializerSettings = new JsonSerializerSettings();
+                                    serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                    packageMapSpec = JsonConvert.DeserializeObject<PackageMapSpec>(Encoding.UTF8.GetString(packageMapSpecFile), serializerSettings);
+                                }
+                                catch
                                 {
                                     Console.ForegroundColor = ConsoleColor.Red;
                                     Console.Write("ERROR: ");
                                     Console.ResetColor();
-                                    Console.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceInfo.Name}");
+                                    Console.WriteLine($"Failed to parse {packageMapSpecPath} - malformed JSON?");
                                 }
-                                else
+
+                                // Add the extra resources, then rewrite the JSON
+                                if (packageMapSpec != null)
                                 {
-                                    var packageMapSpecFile = File.ReadAllBytes(packageMapSpecPath);
-                                    PackageMapSpec packageMapSpec = null;
+                                    foreach (var extraResource in mod.AssetsInfo.ExtraResources)
+                                    {
+                                        FileInfo[] searchResult = null;
 
-                                    try
-                                    {
-                                        // Try to parse the JSON
-                                        var serializerSettings = new JsonSerializerSettings();
-                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                        packageMapSpec = JsonConvert.DeserializeObject<PackageMapSpec>(Encoding.UTF8.GetString(packageMapSpecFile), serializerSettings);
-                                    }
-                                    catch
-                                    {
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("ERROR: ");
-                                        Console.ResetColor();
-                                        Console.WriteLine($"Failed to parse {packageMapSpecPath} - malformed JSON?");
-                                    }
-
-                                    // Add the extra resources, then rewrite the JSON
-                                    if (packageMapSpec != null)
-                                    {
-                                        foreach (var extraResource in mod.AssetsInfo.ExtraResources)
+                                        try
                                         {
-                                            FileInfo[] searchResult = null;
+                                            // First check that the resource trying to be added actually exists
+                                            // by scanning the base folder and all its subdirectories
+                                            DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
+                                            searchResult = baseFolder.GetFiles(extraResource.Name, SearchOption.AllDirectories);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("ERROR: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine(ex);
+                                        }
 
-                                            try
+                                        if (searchResult == null || searchResult.Length == 0)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("WARNING: ");
+                                            Console.ResetColor();
+                                            Console.ForegroundColor = ConsoleColor.Yellow;
+                                            Console.WriteLine($"Trying to add non-existing extra resource \"{extraResource.Name}\" to \"{resourceInfo.Name}\", skipping");
+                                            Console.ResetColor();
+                                            continue;
+                                        }
+
+                                        // Add the extra resources before all the original resources the level loads
+                                        // Find the necessary map and file indexes
+                                        int fileIndex = -1;
+                                        int mapIndex = -1;
+
+                                        for (int i = 0; i < packageMapSpec.Files.Count; i++)
+                                        {
+                                            if (packageMapSpec.Files[i].Name.Contains(extraResource.Name))
                                             {
-                                                // First check that the resource trying to be added actually exists
-                                                // by scanning the base folder and all its subdirectories
-                                                DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
-                                                searchResult = baseFolder.GetFiles(extraResource.Name, SearchOption.AllDirectories);
+                                                fileIndex = i;
+                                                break;
                                             }
-                                            catch (Exception ex)
+                                        }
+
+                                        for (int i = 0; i < packageMapSpec.Maps.Count; i++)
+                                        {
+                                            if (packageMapSpec.Maps[i].Name.Contains(Path.GetFileNameWithoutExtension(mod.Name)))
                                             {
-                                                Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("ERROR: ");
-                                                Console.ResetColor();
-                                                Console.WriteLine(ex);
+                                                mapIndex = i;
+                                                break;
                                             }
+                                        }
 
-                                            if (searchResult == null || searchResult.Length == 0)
+                                        if (fileIndex == -1)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("ERROR: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine($"Invalid extra resource {extraResource.Name}, skipping");
+                                            continue;
+                                        }
+
+                                        if (mapIndex == -1)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("ERROR: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine($"Map reference not found for {mod.Name}, skipping");
+                                            continue;
+                                        }
+
+                                        if (fileIndex != -1 && mapIndex != -1)
+                                        {
+                                            // Remove the extra resource, if specified
+                                            if (extraResource.Remove)
                                             {
-                                                Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("WARNING: ");
-                                                Console.ResetColor();
-                                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                                Console.WriteLine($"Trying to add non-existing extra resource \"{extraResource.Name}\" to \"{resourceInfo.Name}\", skipping");
-                                                Console.ResetColor();
-                                                continue;
-                                            }
+                                                bool mapFileRefRemoved = false;
 
-                                            // Add the extra resources before all the original resources the level loads
-                                            // Find the necessary map and file indexes
-                                            int fileIndex = -1;
-                                            int mapIndex = -1;
-
-                                            for (int i = 0; i < packageMapSpec.Files.Count; i++)
-                                            {
-                                                if (packageMapSpec.Files[i].Name.Contains(extraResource.Name))
+                                                // Find the map file reference to remove
+                                                for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
                                                 {
-                                                    fileIndex = i;
-                                                    break;
-                                                }
-                                            }
-
-                                            for (int i = 0; i < packageMapSpec.Maps.Count; i++)
-                                            {
-                                                // Remove the "_patch" part in the filenames when searching for the map name
-                                                var normalizedResourceName = resourceInfo.Name;
-
-                                                if (normalizedResourceName.Contains("_patch"))
-                                                {
-                                                    normalizedResourceName = resourceInfo.Name.Substring(0, resourceInfo.Name.IndexOf("_patch"));
-                                                }
-
-                                                if (packageMapSpec.Maps[i].Name.Contains(normalizedResourceName))
-                                                {
-                                                    mapIndex = i;
-                                                    break;
-                                                }
-                                            }
-
-                                            if (fileIndex == -1)
-                                            {
-                                                Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("ERROR: ");
-                                                Console.ResetColor();
-                                                Console.WriteLine($"Invalid extra resource {extraResource.Name}, skipping");
-                                                continue;
-                                            }
-
-                                            if (mapIndex == -1)
-                                            {
-                                                Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("ERROR: ");
-                                                Console.ResetColor();
-                                                Console.WriteLine($"Map reference not found for {resourceInfo.Name}, skipping");
-                                                continue;
-                                            }
-
-                                            if (fileIndex != -1 && mapIndex != -1)
-                                            {
-                                                // Add the extra resource now to the map/file references
-                                                // before the resource that is normally loaded first
-                                                int lastIndex = -1;
-                                                bool alreadyExists = false;
-
-                                                for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
-                                                {
-                                                    if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                                    if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                                     {
-                                                        lastIndex = i;
-
-                                                        if (packageMapSpec.MapFileRefs[i].File == fileIndex)
-                                                        {
-                                                            alreadyExists = true;
-                                                            break;
-                                                        }
+                                                        packageMapSpec.MapFileRefs.RemoveAt(i);
+                                                        mapFileRefRemoved = true;
+                                                        break;
                                                     }
                                                 }
 
-                                                // Prevent adding the same map file reference multiple times
-                                                if (alreadyExists)
+                                                if (mapFileRefRemoved)
+                                                {
+                                                    Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                                }
+                                                else
                                                 {
                                                     if (Verbose)
                                                     {
@@ -417,47 +400,82 @@ namespace EternalModLoader
                                                         Console.Write("WARNING: ");
                                                         Console.ResetColor();
                                                         Console.ForegroundColor = ConsoleColor.Yellow;
-                                                        Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
+                                                        Console.WriteLine($"Resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" set to be removed was not found");
                                                         Console.ResetColor();
                                                     }
-
-                                                    continue;
                                                 }
 
-                                                if (lastIndex == -1)
+                                                continue;
+                                            }
+
+                                            // Add the extra resource now to the map/file references
+                                            // before the resource that is normally loaded first
+                                            int lastIndex = -1;
+                                            bool alreadyExists = false;
+
+                                            for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                            {
+                                                if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                                 {
-                                                    lastIndex = packageMapSpec.MapFileRefs.Count - 1;
+                                                    lastIndex = i;
+
+                                                    if (packageMapSpec.MapFileRefs[i].File == fileIndex)
+                                                    {
+                                                        alreadyExists = true;
+                                                        break;
+                                                    }
                                                 }
+                                            }
 
-                                                packageMapSpec.MapFileRefs.Insert(lastIndex + 1, new PackageMapSpecMapFileRef()
-                                                {
-                                                    File = fileIndex,
-                                                    Map = mapIndex
-                                                });
-
-                                                // Serialize the JSON and replace it
-                                                var serializerSettings = new JsonSerializerSettings();
-                                                serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                                serializerSettings.Formatting = Formatting.Indented;
-                                                var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, serializerSettings);
-
-                                                try
-                                                {
-                                                    File.Delete(packageMapSpecPath);
-                                                    File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
-                                                }
-                                                catch (Exception ex)
+                                            // Prevent adding the same map file reference multiple times
+                                            if (alreadyExists)
+                                            {
+                                                if (Verbose)
                                                 {
                                                     Console.ForegroundColor = ConsoleColor.Red;
-                                                    Console.Write("ERROR: ");
+                                                    Console.Write("WARNING: ");
                                                     Console.ResetColor();
-                                                    Console.WriteLine($"Couldn't replace {packageMapSpecPath}");
-                                                    Console.WriteLine(ex);
-                                                    continue;
+                                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                                    Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
+                                                    Console.ResetColor();
                                                 }
 
-                                                Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                                continue;
                                             }
+
+                                            if (lastIndex == -1)
+                                            {
+                                                lastIndex = packageMapSpec.MapFileRefs.Count - 1;
+                                            }
+
+                                            packageMapSpec.MapFileRefs.Insert(lastIndex + 1, new PackageMapSpecMapFileRef()
+                                            {
+                                                File = fileIndex,
+                                                Map = mapIndex
+                                            });
+
+                                            // Serialize the JSON and replace it
+                                            var serializerSettings = new JsonSerializerSettings();
+                                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                            serializerSettings.Formatting = Formatting.Indented;
+                                            var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, serializerSettings);
+
+                                            try
+                                            {
+                                                File.Delete(packageMapSpecPath);
+                                                File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Console.ForegroundColor = ConsoleColor.Red;
+                                                Console.Write("ERROR: ");
+                                                Console.ResetColor();
+                                                Console.WriteLine($"Couldn't replace {packageMapSpecPath}");
+                                                Console.WriteLine(ex);
+                                                continue;
+                                            }
+
+                                            Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
                                         }
                                     }
                                 }
@@ -579,6 +597,31 @@ namespace EternalModLoader
                                             Console.Write("WARNING: ");
                                             Console.ResetColor();
                                             Console.WriteLine($"Skipping empty resource declaration in \"{mod.Name}\"");
+                                        }
+
+                                        continue;
+                                    }
+
+                                    // Remove the asset if specified
+                                    if (newAsset.Remove)
+                                    {
+                                        var newAssetTypeIndex = mapResourcesFile.AssetTypes.IndexOf(newAsset.MapResourceType);
+                                        var assetToRemove = mapResourcesFile.Assets.FirstOrDefault(asset => asset.Name == newAsset.Name && asset.AssetTypeIndex == newAssetTypeIndex);
+
+                                        if (assetToRemove == null)
+                                        {
+                                            if (Verbose)
+                                            {
+                                                Console.ForegroundColor = ConsoleColor.Red;
+                                                Console.Write("WARNING: ");
+                                                Console.ResetColor();
+                                                Console.WriteLine($"Can't remove asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" because it doesn't exist in \"{chunk.ResourceName.NormalizedFileName}\"");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            mapResourcesFile.Assets.Remove(assetToRemove);
+                                            Console.WriteLine($"\tRemoved asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" from \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
                                         }
 
                                         continue;
@@ -1140,21 +1183,21 @@ namespace EternalModLoader
                 {
                     foreach (var newMod in resourceInfo.ModListNew)
                     {
-                        foreach (var assetsInfoResources in mod.AssetsInfo.NewAssets)
+                        foreach (var assetsInfoAssets in mod.AssetsInfo.NewAssets)
                         {
-                            if (string.IsNullOrEmpty(assetsInfoResources.Path) || string.IsNullOrWhiteSpace(assetsInfoResources.Path))
+                            if (string.IsNullOrEmpty(assetsInfoAssets.Path) || string.IsNullOrWhiteSpace(assetsInfoAssets.Path))
                             {
                                 continue;
                             }
 
-                            if (assetsInfoResources.Path == newMod.Name)
+                            if (assetsInfoAssets.Path == newMod.Name)
                             {
-                                newMod.ResourceType = assetsInfoResources.ResourceType;
-                                newMod.Version = assetsInfoResources.Version;
-                                newMod.StreamDbHash = assetsInfoResources.StreamDbHash;
-                                newMod.SpecialByte1 = assetsInfoResources.SpecialByte1;
-                                newMod.SpecialByte2 = assetsInfoResources.SpecialByte2;
-                                newMod.SpecialByte3 = assetsInfoResources.SpecialByte3;
+                                newMod.ResourceType = assetsInfoAssets.ResourceType;
+                                newMod.Version = assetsInfoAssets.Version;
+                                newMod.StreamDbHash = assetsInfoAssets.StreamDbHash;
+                                newMod.SpecialByte1 = assetsInfoAssets.SpecialByte1;
+                                newMod.SpecialByte2 = assetsInfoAssets.SpecialByte2;
+                                newMod.SpecialByte3 = assetsInfoAssets.SpecialByte3;
                                 Console.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
                                     newMod.ResourceType,
                                     newMod.Version,
