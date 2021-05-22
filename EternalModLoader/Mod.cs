@@ -9,11 +9,6 @@ namespace EternalModLoader
     public class Mod
     {
         /// <summary>
-        /// Load priority
-        /// </summary>
-        public int Priority;
-
-        /// <summary>
         /// Mod name
         /// </summary>
         public string Name;

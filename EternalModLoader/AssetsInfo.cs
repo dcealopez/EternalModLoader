@@ -94,6 +94,24 @@ namespace EternalModLoader
         public string MapResourceType;
 
         /// <summary>
+        /// Indicates whether or not the asset should be placed
+        /// before or after the asset with PlaceByName name and PlaceByType type
+        /// </summary>
+        public bool PlaceBefore;
+
+        /// <summary>
+        /// Place by (before/after) name
+        /// </summary>
+        public string PlaceByName;
+
+        /// <summary>
+        /// (Optional) Place by (before/after) type
+        /// Used in conjuction with PlaceByName, since multiple assets
+        /// can have the same name in map resources
+        /// </summary>
+        public string PlaceByType;
+
+        /// <summary>
         /// Special byte 1
         /// </summary>
         public byte SpecialByte1;

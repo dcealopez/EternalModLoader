@@ -218,147 +218,6 @@ namespace EternalModLoader
             return null;
         }
 
-        public static void DetermineLoadOrder(ResourceInfo resourceInfo)
-        {
-            List<string> types = new List<string>();
-
-            foreach (var mod in resourceInfo.ModList)
-            {
-                ResourceDataEntry resDataEntry = null;
-
-                if (!ResourceDataDictionary.TryGetValue(ResourceData.ResourceData.CalculateResourceFileNameHash(mod.Name), out resDataEntry))
-                {
-                    continue;
-                }
-
-                if (!types.Contains(resDataEntry.MapResourceType))
-                {
-                    types.Add(resDataEntry.MapResourceType);
-                }
-
-                switch (resDataEntry.MapResourceType)
-                {
-                    case "image":
-                        mod.Priority = 0;
-                        break;
-                    case "anim":
-                        mod.Priority = 1;
-                        break;
-                    case "havokShape":
-                        mod.Priority = 2;
-                        break;
-                    case "discreteanimation2":
-                        mod.Priority = 3;
-                        break;
-                    case "skeleton":
-                        mod.Priority = 4;
-                        break;
-                    case "baseModel":
-                        mod.Priority = 5;
-                        break;
-                    case "binarymd6def":
-                        mod.Priority = 6;
-                        break;
-                    case "binaryGoreContainer":
-                        mod.Priority = 7;
-                        break;
-                    case "soundevent":
-                        mod.Priority = 100;
-                        break;
-                    case "fx":
-                        mod.Priority = 101;
-                        break;
-                    case "lightrig":
-                        mod.Priority = 102;
-                        break;
-                    case "particle":
-                        mod.Priority = 103;
-                        break;
-                    case "material2":
-                        mod.Priority = 104;
-                        break;
-                    case "ribbon2":
-                        mod.Priority = 105;
-                        break;
-                    case "impactEffect":
-                        mod.Priority = 106;
-                        break;
-                    case "destructible":
-                        mod.Priority = 107;
-                        break;
-                    case "gorewounds":
-                        mod.Priority = 109;
-                        break;
-                    case "gorecontainer":
-                        mod.Priority = 110;
-                        break;
-                    case "targeting":
-                        mod.Priority = 111;
-                        break;
-                    case "twitchPain":
-                        mod.Priority = 112;
-                        break;
-                    case "md6Def":
-                        mod.Priority = 113;
-                        break;
-                    case "animWeb":
-                        mod.Priority = 114;
-                        break;
-                    case "aiUpgrades":
-                        mod.Priority = 115;
-                        break;
-                    case "aifsmmanager":
-                        mod.Priority = 116;
-                        break;
-                    case "aimovementgraph":
-                        mod.Priority = 117;
-                        break;
-                    case "aipaingraph":
-                        mod.Priority = 118;
-                        break;
-                    case "fkgraph":
-                        mod.Priority = 119;
-                        break;
-                    case "aiDamageStateGraph":
-                        mod.Priority = 120;
-                        break;
-                    case "aiDamageDeclCollection":
-                        mod.Priority = 121;
-                        break;
-                    case "aiComponent_Parasite":
-                        mod.Priority = 122;
-                        break;
-                    case "aiComponent_PositionAwareness":
-                        mod.Priority = 123;
-                        break;
-                    case "aiComponent_PathManager":
-                        mod.Priority = 124;
-                        break;
-                    case "aiComponentList":
-                        mod.Priority = 125;
-                        break;
-                    case "aiBehavior":
-                        mod.Priority = 126;
-                        break;
-                    case "entityDamage":
-                        mod.Priority = 127;
-                        break;
-                    case "lootDrop":
-                        mod.Priority = 128;
-                        break;
-                    case "lootDropComponent":
-                        mod.Priority = 129;
-                        break;
-                    case "entityDef":
-                        mod.Priority = 130;
-                        break;
-                    default: // others
-                        mod.Priority = 999;
-                        break;
-                }
-            }
-        }
-
         /// <summary>
         /// Loads the mods present in the specified resource info object
         /// </summary>
@@ -398,7 +257,7 @@ namespace EternalModLoader
 
             using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
             {
-                foreach (var mod in resourceInfo.ModList.OrderBy(mod => mod.Priority))
+                foreach (var mod in resourceInfo.ModList)
                 {
                     ResourceChunk chunk = null;
 
@@ -709,10 +568,10 @@ namespace EternalModLoader
                             // Add assets
                             if (mod.AssetsInfo.NewAssets != null)
                             {
-                                foreach (var newAssets in mod.AssetsInfo.NewAssets)
+                                foreach (var newAsset in mod.AssetsInfo.NewAssets)
                                 {
-                                    if (string.IsNullOrEmpty(newAssets.Name) || string.IsNullOrWhiteSpace(newAssets.Name) ||
-                                        string.IsNullOrEmpty(newAssets.MapResourceType) || string.IsNullOrWhiteSpace(newAssets.MapResourceType))
+                                    if (string.IsNullOrEmpty(newAsset.Name) || string.IsNullOrWhiteSpace(newAsset.Name) ||
+                                        string.IsNullOrEmpty(newAsset.MapResourceType) || string.IsNullOrWhiteSpace(newAsset.MapResourceType))
                                     {
                                         if (Verbose)
                                         {
@@ -729,7 +588,7 @@ namespace EternalModLoader
 
                                     foreach (var existingAsset in mapResourcesFile.Assets)
                                     {
-                                        if (existingAsset.Name == newAssets.Name && mapResourcesFile.AssetTypes[existingAsset.AssetTypeIndex] == newAssets.MapResourceType)
+                                        if (existingAsset.Name == newAsset.Name && mapResourcesFile.AssetTypes[existingAsset.AssetTypeIndex] == newAsset.MapResourceType)
                                         {
                                             alreadyExists = true;
                                             break;
@@ -744,7 +603,7 @@ namespace EternalModLoader
                                             Console.Write("WARNING: ");
                                             Console.ResetColor();
                                             Console.ForegroundColor = ConsoleColor.Yellow;
-                                            Console.WriteLine($"Trying to add asset \"{newAssets.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
+                                            Console.WriteLine($"Trying to add asset \"{newAsset.Name}\" that has already been added in \"{chunk.ResourceName.NormalizedFileName}\", skipping");
                                             Console.ResetColor();
                                         }
 
@@ -752,25 +611,70 @@ namespace EternalModLoader
                                     }
 
                                     // Find the asset type index
-                                    int assetTypeIndex = mapResourcesFile.AssetTypes.FindIndex(type => type == newAssets.MapResourceType);
+                                    int assetTypeIndex = mapResourcesFile.AssetTypes.FindIndex(type => type == newAsset.MapResourceType);
 
                                     // If not found, add the asset type at the end
                                     if (assetTypeIndex == -1)
                                     {
-                                        mapResourcesFile.AssetTypes.Add(newAssets.MapResourceType);
+                                        mapResourcesFile.AssetTypes.Add(newAsset.MapResourceType);
                                         assetTypeIndex = mapResourcesFile.AssetTypes.Count - 1;
 
-                                        Console.WriteLine($"\tAdded asset type \"{newAssets.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                        Console.WriteLine($"\tAdded asset type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
                                     }
 
-                                    mapResourcesFile.Assets.Add(new MapAsset()
+                                    // Determine where to place this new asset in map resources
+                                    MapAsset placeByExistingAsset = null;
+                                    int assetPosition = mapResourcesFile.Assets.Count;
+
+                                    if (newAsset.PlaceByName != null)
+                                    {
+                                        if (newAsset.PlaceByType != null)
+                                        {
+                                            int placeByTypeIndex = mapResourcesFile.AssetTypes.IndexOf(newAsset.PlaceByType);
+
+                                            if (placeByTypeIndex != -1)
+                                            {
+                                                placeByExistingAsset = mapResourcesFile.Assets.FirstOrDefault(asset => asset.Name == newAsset.PlaceByName && asset.AssetTypeIndex == placeByTypeIndex);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            placeByExistingAsset = mapResourcesFile.Assets.FirstOrDefault(asset => asset.Name == newAsset.PlaceByName);
+                                        }
+
+                                        if (placeByExistingAsset != null)
+                                        {
+                                            assetPosition = mapResourcesFile.Assets.IndexOf(placeByExistingAsset);
+
+                                            if (!newAsset.PlaceBefore)
+                                            {
+                                                assetPosition++;
+                                            }
+                                        }
+                                    }
+
+                                    if (Verbose)
+                                    {
+                                        Console.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                    }
+
+                                    var newMapAsset = new MapAsset()
                                     {
                                         AssetTypeIndex = assetTypeIndex,
-                                        Name = newAssets.Name,
+                                        Name = newAsset.Name,
                                         UnknownData4 = 128
-                                    });
+                                    };
 
-                                    Console.WriteLine($"\tAdded asset \"{newAssets.Name}\" with type \"{newAssets.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                    if (assetPosition == mapResourcesFile.Assets.Count)
+                                    {
+                                        mapResourcesFile.Assets.Add(newMapAsset);
+                                    }
+                                    else
+                                    {
+                                        mapResourcesFile.Assets.Insert(assetPosition, newMapAsset);
+                                    }
+
+                                    Console.WriteLine($"\tAdded asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
                                 }
                             }
 
@@ -823,7 +727,6 @@ namespace EternalModLoader
                             // This is a new mod, create a copy of it and add it to the new mods list
                             Mod newMod = new Mod(mod.Name);
                             newMod.FileBytes = new byte[mod.FileBytes.Length];
-                            newMod.Priority = mod.Priority;
 
                             Array.Copy(mod.FileBytes, newMod.FileBytes, mod.FileBytes.Length);
                             resourceInfo.ModListNew.Add(newMod);
@@ -1267,7 +1170,7 @@ namespace EternalModLoader
             }
 
             // Add the new mod files now
-            foreach (var mod in resourceInfo.ModListNew.OrderBy(mod => mod.Priority))
+            foreach (var mod in resourceInfo.ModListNew)
             {
                 if (resourceInfo.ContainsResourceWithName(mod.Name))
                 {
@@ -1304,7 +1207,7 @@ namespace EternalModLoader
                 }
 
                 // Use rs_streamfile by default if no data was found or specified
-                if (mod.ResourceType != null && mod.Version == null && mod.StreamDbHash == null)
+                if (mod.ResourceType == null && mod.Version == null && mod.StreamDbHash == null)
                 {
                     mod.ResourceType = mod.ResourceType == null ? "rs_streamfile" : mod.ResourceType;
                     mod.Version = mod.Version == null ? 0 : mod.Version;
@@ -2407,7 +2310,6 @@ namespace EternalModLoader
                 }
 
                 ReadResource(resource);
-                DetermineLoadOrder(resource);
                 LoadMods(resource);
             }
 
