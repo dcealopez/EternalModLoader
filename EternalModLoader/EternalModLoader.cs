@@ -301,24 +301,10 @@ namespace EternalModLoader
                                 {
                                     foreach (var extraResource in mod.AssetsInfo.ExtraResources)
                                     {
-                                        FileInfo[] searchResult = null;
+                                        // First check that the resource trying to be added actually exists
+                                        var extraResourcePath = PathToResource(extraResource.Name);
 
-                                        try
-                                        {
-                                            // First check that the resource trying to be added actually exists
-                                            // by scanning the base folder and all its subdirectories
-                                            DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
-                                            searchResult = baseFolder.GetFiles(extraResource.Name, SearchOption.AllDirectories);
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.Write("ERROR: ");
-                                            Console.ResetColor();
-                                            Console.WriteLine(ex);
-                                        }
-
-                                        if (searchResult == null || searchResult.Length == 0)
+                                        if (extraResourcePath == string.Empty)
                                         {
                                             Console.ForegroundColor = ConsoleColor.Red;
                                             Console.Write("WARNING: ");
@@ -696,7 +682,7 @@ namespace EternalModLoader
                                         }
                                     }
 
-                                    if (Verbose)
+                                    if (Verbose && placeByExistingAsset != null)
                                     {
                                         Console.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
                                     }
@@ -1779,6 +1765,8 @@ namespace EternalModLoader
         /// <returns>the path to the .resources file for the specified resource name, empty string if it wasn't found</returns>
         public static string PathToResource(string name)
         {
+            SearchOption searchOption = SearchOption.AllDirectories;
+            string searchPath = BasePath;
             string searchPattern;
 
             // Support for DLC1 hub resources files
@@ -1787,28 +1775,36 @@ namespace EternalModLoader
             if (name.ToLower().StartsWith("dlc_hub"))
             {
                 string dlcHubFileName = name.Substring(4, name.Length - 4);
-                searchPattern = Path.Combine("game", "dlc", "hub", $"{dlcHubFileName}.resources");
+                searchPattern = Path.Combine("game", "dlc", "hub", $"{dlcHubFileName}");
             }
             else if (name.ToLower().StartsWith("hub"))
             {
-                searchPattern = Path.Combine("game", "hub", $"{name}.resources");
+                searchPattern = Path.Combine("game", "hub", $"{name}");
             }
             else
             {
-                searchPattern = name + ".resources";
+                searchPattern = name;
+
+                if (name.Contains("gameresources") || name.Contains("warehouse") || name.Contains("meta") || name.Contains(".streamdb"))
+                {
+                    searchOption = SearchOption.TopDirectoryOnly;
+                }
+                else
+                {
+                    searchPath = Path.Combine(BasePath, "game");
+                }
             }
 
             try
             {
-                DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
-                var resourceFile = baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault();
+                DirectoryInfo searchDirectory = new DirectoryInfo(searchPath);
 
-                if (resourceFile == null)
+                foreach (var resourceFile in searchDirectory.EnumerateFiles(searchPattern, searchOption))
                 {
-                    return string.Empty;
+                    return resourceFile.FullName;
                 }
 
-                return resourceFile.FullName;
+                return string.Empty;
             }
             catch (Exception)
             {
@@ -1823,19 +1819,19 @@ namespace EternalModLoader
         /// <returns>the path to the .snd file for the specified sound bank name, empty string if it wasn't found</returns>
         public static string PathToSoundBank(string name)
         {
-            string searchPattern = Path.Combine("sound", "soundbanks", "pc", $"{name}.snd");
+            string searchPath = Path.Combine(BasePath, "sound", "soundbanks", "pc");
+            string searchPattern = $"{name}.snd";
 
             try
             {
-                DirectoryInfo baseFolder = new DirectoryInfo(BasePath);
-                var soundBankFile = baseFolder.GetFiles(searchPattern, SearchOption.AllDirectories).FirstOrDefault();
+                DirectoryInfo baseFolder = new DirectoryInfo(searchPath);
 
-                if (soundBankFile == null)
+                foreach (var soundBankFile in baseFolder.EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly))
                 {
-                    return string.Empty;
+                    return soundBankFile.FullName;
                 }
 
-                return soundBankFile.FullName;
+                return string.Empty;
             }
             catch (Exception)
             {
@@ -1929,7 +1925,7 @@ namespace EternalModLoader
             }
 
             // Find zipped mods
-            foreach (string zippedMod in Directory.GetFiles("Mods", "*.zip", SearchOption.TopDirectoryOnly))
+            foreach (string zippedMod in Directory.EnumerateFiles("Mods", "*.zip", SearchOption.TopDirectoryOnly))
             {
                 int zippedModCount = 0;
                 List<string> modFileNameList = new List<string>();
@@ -1972,7 +1968,7 @@ namespace EternalModLoader
                         }
 
                         // Check if this is a sound mod or not
-                        var resourcePath = PathToResource(resourceName);
+                        var resourcePath = PathToResource(resourceName + ".resources");
 
                         if (resourcePath == string.Empty)
                         {
@@ -2041,7 +2037,7 @@ namespace EternalModLoader
 
                             if (resource == null)
                             {
-                                resource = new ResourceInfo(resourceName, PathToResource(resourceName));
+                                resource = new ResourceInfo(resourceName, PathToResource(resourceName + ".resources"));
                                 ResourceList.Add(resource);
                             }
 
@@ -2118,7 +2114,7 @@ namespace EternalModLoader
             // Find unzipped mods
             int unzippedModCount = 0;
 
-            foreach (var file in Directory.GetFiles("Mods", "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.EnumerateFiles("Mods", "*", SearchOption.AllDirectories))
             {
                 if (file.EndsWith(".zip"))
                 {
@@ -2148,7 +2144,7 @@ namespace EternalModLoader
                 }
 
                 // Check if this is a sound mod or not
-                var resourcePath = PathToResource(resourceName);
+                var resourcePath = PathToResource(resourceName + ".resources");
 
                 if (resourcePath == string.Empty)
                 {
@@ -2218,7 +2214,7 @@ namespace EternalModLoader
 
                     if (resource == null)
                     {
-                        resource = new ResourceInfo(resourceName, PathToResource(resourceName));
+                        resource = new ResourceInfo(resourceName, PathToResource(resourceName + ".resources"));
                         ResourceList.Add(resource);
                     }
 
