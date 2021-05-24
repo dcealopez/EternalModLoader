@@ -356,65 +356,27 @@ namespace EternalModLoader
                                             continue;
                                         }
 
-                                        if (fileIndex != -1 && mapIndex != -1)
+                                        // Remove the extra resource, if specified
+                                        if (extraResource.Remove)
                                         {
-                                            // Remove the extra resource, if specified
-                                            if (extraResource.Remove)
+                                            bool mapFileRefRemoved = false;
+
+                                            // Find the map file reference to remove
+                                            for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
                                             {
-                                                bool mapFileRefRemoved = false;
-
-                                                // Find the map file reference to remove
-                                                for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
+                                                if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                                 {
-                                                    if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
-                                                    {
-                                                        packageMapSpec.MapFileRefs.RemoveAt(i);
-                                                        mapFileRefRemoved = true;
-                                                        break;
-                                                    }
-                                                }
-
-                                                if (mapFileRefRemoved)
-                                                {
-                                                    Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
-                                                }
-                                                else
-                                                {
-                                                    if (Verbose)
-                                                    {
-                                                        Console.ForegroundColor = ConsoleColor.Red;
-                                                        Console.Write("WARNING: ");
-                                                        Console.ResetColor();
-                                                        Console.ForegroundColor = ConsoleColor.Yellow;
-                                                        Console.WriteLine($"Resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" set to be removed was not found");
-                                                        Console.ResetColor();
-                                                    }
-                                                }
-
-                                                continue;
-                                            }
-
-                                            // Add the extra resource now to the map/file references
-                                            // before the resource that is normally loaded first
-                                            int lastIndex = -1;
-                                            bool alreadyExists = false;
-
-                                            for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
-                                            {
-                                                if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
-                                                {
-                                                    lastIndex = i;
-
-                                                    if (packageMapSpec.MapFileRefs[i].File == fileIndex)
-                                                    {
-                                                        alreadyExists = true;
-                                                        break;
-                                                    }
+                                                    packageMapSpec.MapFileRefs.RemoveAt(i);
+                                                    mapFileRefRemoved = true;
+                                                    break;
                                                 }
                                             }
 
-                                            // Prevent adding the same map file reference multiple times
-                                            if (alreadyExists)
+                                            if (mapFileRefRemoved)
+                                            {
+                                                Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                            }
+                                            else
                                             {
                                                 if (Verbose)
                                                 {
@@ -422,48 +384,83 @@ namespace EternalModLoader
                                                     Console.Write("WARNING: ");
                                                     Console.ResetColor();
                                                     Console.ForegroundColor = ConsoleColor.Yellow;
-                                                    Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
+                                                    Console.WriteLine($"Resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" set to be removed was not found");
                                                     Console.ResetColor();
                                                 }
-
-                                                continue;
                                             }
 
-                                            if (lastIndex == -1)
+                                            continue;
+                                        }
+
+                                        // Add the extra resource now to the map/file references
+                                        // before the resource that is normally loaded first
+                                        int lastIndex = -1;
+                                        bool alreadyExists = false;
+
+                                        for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                        {
+                                            if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                             {
-                                                lastIndex = packageMapSpec.MapFileRefs.Count - 1;
+                                                lastIndex = i;
+
+                                                if (packageMapSpec.MapFileRefs[i].File == fileIndex)
+                                                {
+                                                    alreadyExists = true;
+                                                    break;
+                                                }
                                             }
+                                        }
 
-                                            packageMapSpec.MapFileRefs.Insert(lastIndex + 1, new PackageMapSpecMapFileRef()
-                                            {
-                                                File = fileIndex,
-                                                Map = mapIndex
-                                            });
-
-                                            // Serialize the JSON and replace it
-                                            var serializerSettings = new JsonSerializerSettings();
-                                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                            serializerSettings.Formatting = Formatting.Indented;
-                                            var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, serializerSettings);
-
-                                            try
-                                            {
-                                                File.Delete(packageMapSpecPath);
-                                                File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
-                                            }
-                                            catch (Exception ex)
+                                        // Prevent adding the same map file reference multiple times
+                                        if (alreadyExists)
+                                        {
+                                            if (Verbose)
                                             {
                                                 Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("ERROR: ");
+                                                Console.Write("WARNING: ");
                                                 Console.ResetColor();
-                                                Console.WriteLine($"Couldn't replace {packageMapSpecPath}");
-                                                Console.WriteLine(ex);
-                                                continue;
+                                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                                Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
+                                                Console.ResetColor();
                                             }
 
-                                            Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                            continue;
                                         }
-                                    }
+
+                                        if (lastIndex == -1)
+                                        {
+                                            lastIndex = packageMapSpec.MapFileRefs.Count - 1;
+                                        }
+
+                                        packageMapSpec.MapFileRefs.Insert(lastIndex + 1, new PackageMapSpecMapFileRef()
+                                        {
+                                            File = fileIndex,
+                                            Map = mapIndex
+                                        });
+
+                                        // Serialize the JSON and replace it
+                                        var serializerSettings = new JsonSerializerSettings();
+                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                        serializerSettings.Formatting = Formatting.Indented;
+                                        var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, serializerSettings);
+
+                                        try
+                                        {
+                                            File.Delete(packageMapSpecPath);
+                                            File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.Write("ERROR: ");
+                                            Console.ResetColor();
+                                            Console.WriteLine($"Couldn't replace {packageMapSpecPath}");
+                                            Console.WriteLine(ex);
+                                            continue;
+                                        }
+
+                                        Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                }
                                 }
                             }
                         }
