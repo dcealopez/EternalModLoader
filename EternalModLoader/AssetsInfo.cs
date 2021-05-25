@@ -65,6 +65,17 @@ namespace EternalModLoader
         /// so that it doesn't get loaded on this map
         /// </summary>
         public bool Remove;
+
+        /// <summary>
+        /// Indicates whether or not the resource should be placed
+        /// before or after the resource with PlaceByName name
+        /// </summary>
+        public bool PlaceBefore;
+
+        /// <summary>
+        /// Place by (before/after) name
+        /// </summary>
+        public string PlaceByName;
     }
 
     /// <summary>

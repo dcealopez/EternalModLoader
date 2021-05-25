@@ -394,14 +394,14 @@ namespace EternalModLoader
 
                                         // Add the extra resource now to the map/file references
                                         // before the resource that is normally loaded first
-                                        int lastIndex = -1;
+                                        int insertIndex = -1;
                                         bool alreadyExists = false;
 
                                         for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
                                         {
                                             if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                             {
-                                                lastIndex = i;
+                                                insertIndex = i + 1;
 
                                                 if (packageMapSpec.MapFileRefs[i].File == fileIndex)
                                                 {
@@ -427,16 +427,62 @@ namespace EternalModLoader
                                             continue;
                                         }
 
-                                        if (lastIndex == -1)
+                                        // Place the extra resource before or after another (if specified)
+                                        if (!string.IsNullOrEmpty(extraResource.PlaceByName))
                                         {
-                                            lastIndex = packageMapSpec.MapFileRefs.Count - 1;
+                                            // First check that the resource trying to be added actually exists
+                                            var placeBeforeResourcePath = PathToResource(extraResource.Name);
+
+                                            if (placeBeforeResourcePath == string.Empty)
+                                            {
+                                                Console.ForegroundColor = ConsoleColor.Red;
+                                                Console.Write("WARNING: ");
+                                                Console.ResetColor();
+                                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                                Console.WriteLine($"placeByName resource \"{extraResource.PlaceByName}\" not found for extra resource entry \"{extraResource.Name}\", using normal placement");
+                                                Console.ResetColor();
+                                            }
+                                            else
+                                            {
+                                                // Find placement resource index
+                                                int placeBeforeFileIndex = -1;
+
+                                                for (int i = 0; i < packageMapSpec.Files.Count; i++)
+                                                {
+                                                    if (packageMapSpec.Files[i].Name.Contains(extraResource.PlaceByName))
+                                                    {
+                                                        placeBeforeFileIndex = i;
+                                                        break;
+                                                    }
+                                                }
+
+                                                // Find placement resource map-file reference
+                                                for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                                {
+                                                    if (packageMapSpec.MapFileRefs[i].Map == mapIndex && packageMapSpec.MapFileRefs[i].File == placeBeforeFileIndex)
+                                                    {
+                                                        insertIndex = i + (!extraResource.PlaceBefore ? 1 : 0);
+                                                        break;
+                                                    }
+                                                }
+                                            }
                                         }
 
-                                        packageMapSpec.MapFileRefs.Insert(lastIndex + 1, new PackageMapSpecMapFileRef()
+                                        // Create the map-file reference and add it in the proper position
+                                        var mapFileRef = new PackageMapSpecMapFileRef()
                                         {
                                             File = fileIndex,
                                             Map = mapIndex
-                                        });
+                                        };
+
+                                        if (insertIndex == -1 || insertIndex >= packageMapSpec.MapFileRefs.Count)
+                                        {
+                                            packageMapSpec.MapFileRefs.Add(mapFileRef);
+                                        }
+                                        else
+                                        {
+                                            packageMapSpec.MapFileRefs.Insert(insertIndex, mapFileRef);
+                                        }
 
                                         // Serialize the JSON and replace it
                                         var serializerSettings = new JsonSerializerSettings();
@@ -1455,16 +1501,34 @@ namespace EternalModLoader
                     foreach (var soundMod in soundBankInfo.ModList)
                     {
                         // Parse the identifier of the sound we want to replace
-                        int soundModId = -1;
-                        int.TryParse(Path.GetFileNameWithoutExtension(soundMod.Name), out soundModId);
+                        var soundFileNameWithoutExtension = Path.GetFileNameWithoutExtension(soundMod.Name);
+                        int soundModId;
 
-                        if (soundModId == -1)
+                        // First, assume that the file name (without extension) is the sound id
+                        if (!int.TryParse(soundFileNameWithoutExtension, out soundModId))
+                        {
+                            // If this is not the case, try to find the id at the end of the filename
+                            // Format: _#id{id here}
+                            var splittedName = soundFileNameWithoutExtension.Split('_');
+                            var idString = splittedName[splittedName.Length - 1];
+                            var idStringData = idString.Split('#');
+
+                            if (idStringData.Length == 2 && idStringData[0] == "id")
+                            {
+                                int.TryParse(idStringData[1], out soundModId);
+                            }
+                        }
+
+                        if (soundModId == 0)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("WARNING: ");
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Bad file name for sound file \"{soundMod.Name}\" - sound file names should be named after the sound number identifier, skipping");
+                            Console.WriteLine($"Bad file name for sound file \"{soundMod.Name}\" - sound file names should be named after the sound id, or have the sound id at the end of the filename with format \"_id#{{id here}}\", skipping");
+                            Console.WriteLine($"Examples of valid sound file names:");
+                            Console.WriteLine($"icon_music_boss_end_2_id#347947739.ogg");
+                            Console.WriteLine($"347947739.ogg");
                             Console.ResetColor();
                             continue;
                         }
@@ -1680,6 +1744,11 @@ namespace EternalModLoader
 
                         using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
                         {
+                            // Write the sound replacement data at the end of the sound bank
+                            memoryStream.Seek(0, SeekOrigin.End);
+                            uint soundModOffset = (uint)memoryStream.Position;
+                            memoryStream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
+
                             // Read the info and the header sizes
                             memoryStream.Seek(4, SeekOrigin.Begin);
 
@@ -1689,7 +1758,7 @@ namespace EternalModLoader
                             memoryStream.Seek(headerSize, SeekOrigin.Current);
 
                             // Loop through all the sound info to find the sound we want to replace
-                            for (int i = 0; i < (infoSize - headerSize) / 32; i++)
+                            for (uint i = 0, j = (infoSize - headerSize) / 32; i < j; i++)
                             {
                                 memoryStream.Seek(8, SeekOrigin.Current);
                                 uint soundId = binaryReader.ReadUInt32();
@@ -1700,22 +1769,17 @@ namespace EternalModLoader
                                     continue;
                                 }
 
-                                // Save the current sound info offset
                                 soundFound = true;
-                                long soundInfoOffset = memoryStream.Position;
-
-                                // Write the sound replacement data at the end of the sound bank
-                                memoryStream.Seek(0, SeekOrigin.End);
-                                uint soundModOffset = (uint)memoryStream.Position;
-                                memoryStream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
 
                                 // Replace the sound info offset and sizes
-                                memoryStream.Seek(soundInfoOffset, SeekOrigin.Begin);
                                 memoryStream.Write(BitConverter.GetBytes(encodedSize), 0, 4);
                                 memoryStream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
                                 memoryStream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
                                 memoryStream.Write(BitConverter.GetBytes(format), 0, 2);
-                                break;
+
+                                // We don't to break here, since some sounds are duplicated
+                                // and we don't know which one the game uses, so it's better to
+                                // replace all of their occurences
                             }
                         }
 
