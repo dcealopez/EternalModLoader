@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -1689,6 +1688,9 @@ namespace EternalModLoader
                                 memoryStream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
                                 memoryStream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
                                 ushort currentFormat = binaryReader.ReadUInt16();
+
+                                // Skip the last 6 bytes that we don't need
+                                memoryStream.Seek(6, SeekOrigin.Current);
 
                                 if (currentFormat != format)
                                 {
