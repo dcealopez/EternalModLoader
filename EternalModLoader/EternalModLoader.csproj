@@ -89,6 +89,7 @@
     <Compile Include="Blang\BlangJson.cs" />
     <Compile Include="ResourceName.cs" />
     <Compile Include="SoundBankInfo.cs" />
+    <Compile Include="SoundEncoding.cs" />
     <Compile Include="SoundMod.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
