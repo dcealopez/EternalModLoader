@@ -18,14 +18,14 @@ namespace EternalModLoader
         public IList<AssetsInfoMap> Maps { get; set; }
 
         /// <summary>
-        /// Extra resource files to load in the map
+        /// Resource files to load/remove in a map
         /// </summary>
-        public IList<AssetsInfoResource> ExtraResources { get; set; }
+        public IList<AssetsInfoResource> Resources { get; set; }
 
         /// <summary>
-        /// New assets list
+        /// Assets info list
         /// </summary>
-        public IList<AssetsInfoAsset> NewAssets { get; set; }
+        public IList<AssetsInfoAsset> Assets { get; set; }
     }
 
     /// <summary>
@@ -51,12 +51,12 @@ namespace EternalModLoader
     }
 
     /// <summary>
-    /// Extra resource file class
+    /// Resource file class
     /// </summary>
     public class AssetsInfoResource
     {
         /// <summary>
-        /// File name of the extra resource file to load on this map
+        /// File name of the resource file to load/remove on this map
         /// </summary>
         public string Name;
 

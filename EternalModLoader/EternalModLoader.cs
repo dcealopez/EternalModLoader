@@ -264,7 +264,7 @@ namespace EternalModLoader
                     if (mod.IsAssetsInfoJson && mod.AssetsInfo != null)
                     {
                         // Add the extra resources to packagemapspec.json if specified
-                        if (mod.AssetsInfo.ExtraResources != null)
+                        if (mod.AssetsInfo.Resources != null)
                         {
                             var packageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
 
@@ -298,7 +298,7 @@ namespace EternalModLoader
                                 // Add the extra resources, then rewrite the JSON
                                 if (packageMapSpec != null)
                                 {
-                                    foreach (var extraResource in mod.AssetsInfo.ExtraResources)
+                                    foreach (var extraResource in mod.AssetsInfo.Resources)
                                     {
                                         // First check that the resource trying to be added actually exists
                                         var extraResourcePath = PathToResource(extraResource.Name);
@@ -511,7 +511,7 @@ namespace EternalModLoader
                         }
 
                         // Find the .mapresources file this JSON file wants to edit, if needed
-                        if (mod.AssetsInfo.NewAssets != null || mod.AssetsInfo.Maps != null || mod.AssetsInfo.Layers != null)
+                        if (mod.AssetsInfo.Assets != null || mod.AssetsInfo.Maps != null || mod.AssetsInfo.Layers != null)
                         {
                             var assetsInfoFilenameParts = mod.Name.Split('/');
                             var mapResourcesFilename = assetsInfoFilenameParts[assetsInfoFilenameParts.Length - 1];
@@ -612,9 +612,9 @@ namespace EternalModLoader
                             }
 
                             // Add assets
-                            if (mod.AssetsInfo.NewAssets != null)
+                            if (mod.AssetsInfo.Assets != null)
                             {
-                                foreach (var newAsset in mod.AssetsInfo.NewAssets)
+                                foreach (var newAsset in mod.AssetsInfo.Assets)
                                 {
                                     if (string.IsNullOrEmpty(newAsset.Name) || string.IsNullOrWhiteSpace(newAsset.Name) ||
                                         string.IsNullOrEmpty(newAsset.MapResourceType) || string.IsNullOrWhiteSpace(newAsset.MapResourceType))
@@ -1207,11 +1207,11 @@ namespace EternalModLoader
             // Find the resource data for the new mod files and set them
             foreach (var mod in resourceInfo.ModList)
             {
-                if (mod.IsAssetsInfoJson && mod.AssetsInfo != null && mod.AssetsInfo.NewAssets != null)
+                if (mod.IsAssetsInfoJson && mod.AssetsInfo != null && mod.AssetsInfo.Assets != null)
                 {
                     foreach (var newMod in resourceInfo.ModListNew)
                     {
-                        foreach (var assetsInfoAssets in mod.AssetsInfo.NewAssets)
+                        foreach (var assetsInfoAssets in mod.AssetsInfo.Assets)
                         {
                             if (string.IsNullOrEmpty(assetsInfoAssets.Path) || string.IsNullOrWhiteSpace(assetsInfoAssets.Path))
                             {
