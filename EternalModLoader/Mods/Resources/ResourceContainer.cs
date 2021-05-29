@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 
-namespace EternalModLoader
+namespace EternalModLoader.Mods.Resources
 {
     /// <summary>
     /// Resource info class
     /// </summary>
-    public class ResourceInfo
+    public class ResourceContainer
     {
         /// <summary>
         /// Resource name
@@ -88,19 +88,19 @@ namespace EternalModLoader
         public List<ResourceChunk> ChunkList;
 
         /// <summary>
-        /// Mod files that will be replaced in this resource
-        /// </summary>
-        public List<Mod> ModList;
-
-        /// <summary>
-        /// Mod files that will be added in this resource
-        /// </summary>
-        public List<Mod> ModListNew;
-
-        /// <summary>
         /// List of all the file names in this resource
         /// </summary>
         public List<ResourceName> NamesList;
+
+        /// <summary>
+        /// Mods files for this resource
+        /// </summary>
+        public List<ResourceModFile> ModFileList;
+
+        /// <summary>
+        /// New mod files for this resource
+        /// </summary>
+        public List<ResourceModFile> NewModFileList;
 
         /// <summary>
         /// Resource info constructor
@@ -108,12 +108,12 @@ namespace EternalModLoader
         /// <param name="name">resource name</param>
         /// <param name="basePath">game base path</param>
         /// <param name="path">resource file path</param>
-        public ResourceInfo(string name, string path)
+        public ResourceContainer(string name, string path)
         {
             Name = name;
             Path = path;
-            ModList = new List<Mod>();
-            ModListNew = new List<Mod>();
+            ModFileList = new List<ResourceModFile>();
+            NewModFileList = new List<ResourceModFile>();
             NamesList = new List<ResourceName>();
             ChunkList = new List<ResourceChunk>();
         }

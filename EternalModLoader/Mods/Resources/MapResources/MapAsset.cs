@@ -1,4 +1,4 @@
-﻿namespace EternalModLoader.MapResources
+﻿namespace EternalModLoader.Mods.Resources.MapResources
 {
     /// <summary>
     /// Map Asset class

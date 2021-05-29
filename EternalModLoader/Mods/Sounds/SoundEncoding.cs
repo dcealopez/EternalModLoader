@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 
-namespace EternalModLoader
+namespace EternalModLoader.Mods.Sounds
 {
     /// <summary>
     /// Sound encoding class
@@ -24,7 +24,7 @@ namespace EternalModLoader
         /// <param name="opusDecPath">path to the opusdec executable</param>
         /// <param name="soundMod">sound mod</param>
         /// <returns>the decoded size of the opus file</returns>
-        public static int GetDecodedOpusSoundModFileSize(string opusDecPath, SoundMod soundMod)
+        public static int GetDecodedOpusSoundModFileSize(string opusDecPath, SoundModFile soundMod)
         {
             int decodedSize = -1;
 
@@ -77,7 +77,7 @@ namespace EternalModLoader
         /// <param name="opusEncPath">path to the opusenc executable</param>
         /// <param name="soundMod">sound mod</param>
         /// <returns>the encoded Opus file data</returns>
-        public static byte[] EncodeSoundModFileToOpus(string opusEncPath, SoundMod soundMod)
+        public static byte[] EncodeSoundModFileToOpus(string opusEncPath, SoundModFile soundMod)
         {
             // Write the .wav file to a temp file in the disk
             var tempSoundFilePath = Path.Combine(Path.GetTempPath(), soundMod.Name);

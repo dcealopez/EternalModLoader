@@ -74,23 +74,24 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EternalModLoader.cs" />
-    <Compile Include="Blang\BlangDecrypt.cs" />
-    <Compile Include="MapResources\MapAsset.cs" />
-    <Compile Include="MapResources\MapResourcesFile.cs" />
-    <Compile Include="Mod.cs" />
-    <Compile Include="AssetsInfo.cs" />
+    <Compile Include="Mods\Resources\Blang\BlangDecrypt.cs" />
+    <Compile Include="Mods\Resources\MapResources\MapAsset.cs" />
+    <Compile Include="Mods\Resources\MapResources\MapResourcesFile.cs" />
+    <Compile Include="Mods\Resources\ResourceModFile.cs" />
+    <Compile Include="Mods\Resources\AssetsInfo.cs" />
+    <Compile Include="Mods\Mod.cs" />
     <Compile Include="Oodle.cs" />
-    <Compile Include="PackageMapSpec.cs" />
+    <Compile Include="Mods\Resources\PackageMapSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ResourceChunk.cs" />
-    <Compile Include="ResourceData\ResourceData.cs" />
-    <Compile Include="ResourceData\ResourceDataEntry.cs" />
-    <Compile Include="ResourceInfo.cs" />
-    <Compile Include="Blang\BlangJson.cs" />
-    <Compile Include="ResourceName.cs" />
-    <Compile Include="SoundBankInfo.cs" />
-    <Compile Include="SoundEncoding.cs" />
-    <Compile Include="SoundMod.cs" />
+    <Compile Include="Mods\Resources\ResourceChunk.cs" />
+    <Compile Include="Mods\Resources\ResourceData\ResourceData.cs" />
+    <Compile Include="Mods\Resources\ResourceData\ResourceDataEntry.cs" />
+    <Compile Include="Mods\Resources\ResourceContainer.cs" />
+    <Compile Include="Mods\Resources\Blang\BlangJson.cs" />
+    <Compile Include="Mods\Resources\ResourceName.cs" />
+    <Compile Include="Mods\Sounds\SoundContainer.cs" />
+    <Compile Include="Mods\Sounds\SoundEncoding.cs" />
+    <Compile Include="Mods\Sounds\SoundModFile.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
