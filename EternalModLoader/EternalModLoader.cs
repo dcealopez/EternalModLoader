@@ -264,7 +264,7 @@ namespace EternalModLoader
 
             using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
             {
-                foreach (var modFile in resourceContainer.ModFileList.OrderBy(mod => mod.Parent.LoadPriority))
+                foreach (var modFile in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
                 {
                     ResourceChunk chunk = null;
 
@@ -1164,7 +1164,7 @@ namespace EternalModLoader
         /// <param name="resourceContainer">resource container object</param>
         public static void AddChunks(MemoryStream memoryStream, ResourceContainer resourceContainer)
         {
-            var newModFiles = resourceContainer.NewModFileList.OrderBy(mod => mod.Parent.LoadPriority).ToList();
+            var newModFiles = resourceContainer.NewModFileList.OrderByDescending(mod => mod.Parent.LoadPriority).ToList();
 
             if (newModFiles.Count == 0)
             {
@@ -1215,7 +1215,7 @@ namespace EternalModLoader
             int newChunksCount = 0;
 
             // Find the resource data for the new mod files and set them
-            foreach (var mod in resourceContainer.ModFileList.OrderBy(mod => mod.Parent.LoadPriority))
+            foreach (var mod in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
             {
                 if (mod.IsAssetsInfoJson && mod.AssetsInfo != null && mod.AssetsInfo.Assets != null)
                 {
@@ -1507,7 +1507,7 @@ namespace EternalModLoader
                     fileStream.CopyTo(memoryStream);
 
                     // Load the sound mods
-                    foreach (var soundMod in soundContainer.ModFiles.OrderBy(mod => mod.Parent.LoadPriority))
+                    foreach (var soundMod in soundContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
                     {
                         // Parse the identifier of the sound we want to replace
                         var soundFileNameWithoutExtension = Path.GetFileNameWithoutExtension(soundMod.Name);
