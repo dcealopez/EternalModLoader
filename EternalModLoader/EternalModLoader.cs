@@ -5,9 +5,12 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using BlangParser;
-using EternalModLoader.Blang;
-using EternalModLoader.MapResources;
-using EternalModLoader.ResourceData;
+using EternalModLoader.Mods;
+using EternalModLoader.Mods.Resources;
+using EternalModLoader.Mods.Resources.ResourceData;
+using EternalModLoader.Mods.Resources.Blang;
+using EternalModLoader.Mods.Resources.MapResources;
+using EternalModLoader.Mods.Sounds;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -20,6 +23,11 @@ namespace EternalModLoader
     /// </summary>
     public class EternalModLoader
     {
+        /// <summary>
+        /// Mod loader version
+        /// </summary>
+        public const int Version = 6;
+
         /// <summary>
         /// Resource data file name
         /// </summary>
@@ -43,12 +51,12 @@ namespace EternalModLoader
         /// <summary>
         /// Resource list
         /// </summary>
-        public static List<ResourceInfo> ResourceList = new List<ResourceInfo>();
+        public static List<ResourceContainer> ResourceList = new List<ResourceContainer>();
 
         /// <summary>
-        /// Sound bank list
+        /// Sound container list
         /// </summary>
-        public static List<SoundBankInfo> SoundBankList = new List<SoundBankInfo>();
+        public static List<SoundContainer> SoundContainerList = new List<SoundContainer>();
 
         /// <summary>
         /// Resource data dictionary, indexed by file name
@@ -56,12 +64,12 @@ namespace EternalModLoader
         public static Dictionary<ulong, ResourceDataEntry> ResourceDataDictionary = new Dictionary<ulong, ResourceDataEntry>();
 
         /// <summary>
-        /// Reads the resource info from the specified resource info object
+        /// Reads the resource container from the specified resource container object
         /// </summary>
-        /// <param name="resourceInfo">resource info object</param>
-        public static void ReadResource(ResourceInfo resourceInfo)
+        /// <param name="resourceContainer">resource container object</param>
+        public static void ReadResource(ResourceContainer resourceContainer)
         {
-            using (var fileStream = new FileStream(resourceInfo.Path, FileMode.Open, FileAccess.Read))
+            using (var fileStream = new FileStream(resourceContainer.Path, FileMode.Open, FileAccess.Read))
             {
                 using (var binaryReader = new BinaryReader(fileStream))
                 {
@@ -135,22 +143,22 @@ namespace EternalModLoader
                         currentNameBytes.Add(currentByte);
                     }
 
-                    resourceInfo.FileCount = fileCount;
-                    resourceInfo.TypeCount = dummy2Num;
-                    resourceInfo.StringsSize = stringsSize;
-                    resourceInfo.NamesOffset = namesOffset;
-                    resourceInfo.InfoOffset = infoOffset;
-                    resourceInfo.Dummy7Offset = dummy7OffOrg;
-                    resourceInfo.DataOffset = dataOff;
-                    resourceInfo.IdclOffset = idclOff;
-                    resourceInfo.UnknownCount = unknownCount;
-                    resourceInfo.FileCount2 = fileCount * 2;
-                    resourceInfo.NamesOffsetEnd = namesOffsetEnd;
-                    resourceInfo.UnknownOffset = namesEnd;
-                    resourceInfo.UnknownOffset2 = namesEnd;
-                    resourceInfo.NamesList = namesList;
+                    resourceContainer.FileCount = fileCount;
+                    resourceContainer.TypeCount = dummy2Num;
+                    resourceContainer.StringsSize = stringsSize;
+                    resourceContainer.NamesOffset = namesOffset;
+                    resourceContainer.InfoOffset = infoOffset;
+                    resourceContainer.Dummy7Offset = dummy7OffOrg;
+                    resourceContainer.DataOffset = dataOff;
+                    resourceContainer.IdclOffset = idclOff;
+                    resourceContainer.UnknownCount = unknownCount;
+                    resourceContainer.FileCount2 = fileCount * 2;
+                    resourceContainer.NamesOffsetEnd = namesOffsetEnd;
+                    resourceContainer.UnknownOffset = namesEnd;
+                    resourceContainer.UnknownOffset2 = namesEnd;
+                    resourceContainer.NamesList = namesList;
 
-                    ReadChunkInfo(fileStream, binaryReader, resourceInfo);
+                    ReadChunkInfo(fileStream, binaryReader, resourceContainer);
                 }
             }
         }
@@ -160,30 +168,30 @@ namespace EternalModLoader
         /// </summary>
         /// <param name="fileStream">file stream used to read the resource file</param>
         /// <param name="binaryReader">binary reader used to read the resource file</param>
-        /// <param name="resourceInfo">resource info object</param>
-        private static void ReadChunkInfo(FileStream fileStream, BinaryReader binaryReader, ResourceInfo resourceInfo)
+        /// <param name="resourceContainer">resource container object</param>
+        private static void ReadChunkInfo(FileStream fileStream, BinaryReader binaryReader, ResourceContainer resourceContainer)
         {
-            fileStream.Seek(resourceInfo.Dummy7Offset + (resourceInfo.TypeCount * 4), SeekOrigin.Begin);
+            fileStream.Seek(resourceContainer.Dummy7Offset + (resourceContainer.TypeCount * 4), SeekOrigin.Begin);
             long dummy7Off = fileStream.Position;
 
-            for (int i = 0; i < resourceInfo.FileCount; i++)
+            for (int i = 0; i < resourceContainer.FileCount; i++)
             {
-                fileStream.Seek(0x20 + resourceInfo.InfoOffset + (0x90 * i), SeekOrigin.Begin);
+                fileStream.Seek(0x20 + resourceContainer.InfoOffset + (0x90 * i), SeekOrigin.Begin);
                 long nameId = binaryReader.ReadInt64();
 
-                fileStream.Seek(0x38 + resourceInfo.InfoOffset + (0x90 * i), SeekOrigin.Begin);
+                fileStream.Seek(0x38 + resourceContainer.InfoOffset + (0x90 * i), SeekOrigin.Begin);
                 long fileOffset = binaryReader.ReadInt64();
                 long sizeOffset = fileStream.Position;
                 long sizeZ = binaryReader.ReadInt64();
                 long size = binaryReader.ReadInt64();
 
-                fileStream.Seek(0x70 + resourceInfo.InfoOffset + (0x90 * i), SeekOrigin.Begin);
+                fileStream.Seek(0x70 + resourceContainer.InfoOffset + (0x90 * i), SeekOrigin.Begin);
                 byte compressionMode = binaryReader.ReadByte();
 
                 nameId = ((nameId + 1) * 8) + dummy7Off;
                 fileStream.Seek(nameId, SeekOrigin.Begin);
                 nameId = binaryReader.ReadInt64();
-                var name = resourceInfo.NamesList[(int)nameId];
+                var name = resourceContainer.NamesList[(int)nameId];
 
                 var chunk = new ResourceChunk(name, fileOffset)
                 {
@@ -194,19 +202,19 @@ namespace EternalModLoader
                     CompressionMode = compressionMode
                 };
 
-                resourceInfo.ChunkList.Add(chunk);
+                resourceContainer.ChunkList.Add(chunk);
             }
         }
 
         /// <summary>
-        /// Find a chunk in a resource info object by filename
+        /// Find a chunk in a resource container by filename
         /// </summary>
         /// <param name="name">file name</param>
-        /// <param name="resourceInfo">resource info object</param>
+        /// <param name="resourceContainer">resource container object</param>
         /// <returns>the ResourceChunk object, null if it wasn't found</returns>
-        public static ResourceChunk GetChunk(string name, ResourceInfo resourceInfo)
+        public static ResourceChunk GetChunk(string name, ResourceContainer resourceContainer)
         {
-            foreach (var chunk in resourceInfo.ChunkList)
+            foreach (var chunk in resourceContainer.ChunkList)
             {
                 if (chunk.ResourceName.FullFileName == name || chunk.ResourceName.NormalizedFileName == name)
                 {
@@ -218,12 +226,12 @@ namespace EternalModLoader
         }
 
         /// <summary>
-        /// Loads the mods present in the specified resource info object
+        /// Loads the mods present in the specified resource container object
         /// </summary>
-        /// <param name="resourceInfo">resource info object</param>
-        public static void LoadMods(ResourceInfo resourceInfo)
+        /// <param name="resourceContainer">resource container object</param>
+        public static void LoadMods(ResourceContainer resourceContainer)
         {
-            using (var fileStream = new FileStream(resourceInfo.Path, FileMode.Open, FileAccess.ReadWrite))
+            using (var fileStream = new FileStream(resourceContainer.Path, FileMode.Open, FileAccess.ReadWrite))
             {
                 using (var memoryStream = new MemoryStream())
                 {
@@ -231,8 +239,8 @@ namespace EternalModLoader
                     fileStream.CopyTo(memoryStream);
 
                     // Load the mods
-                    ReplaceChunks(memoryStream, resourceInfo);
-                    AddChunks(memoryStream, resourceInfo);
+                    ReplaceChunks(memoryStream, resourceContainer);
+                    AddChunks(memoryStream, resourceContainer);
 
                     // Copy the memory stream into the filestream now
                     fileStream.SetLength(memoryStream.Length);
@@ -247,8 +255,8 @@ namespace EternalModLoader
         /// Replaces the chunks of the files with the modded ones
         /// </summary>
         /// <param name="memoryStream">memory stream where the resource file is stored</param>
-        /// <param name="resourceInfo">resource info object</param>
-        public static void ReplaceChunks(MemoryStream memoryStream, ResourceInfo resourceInfo)
+        /// <param name="resourceContainer">resource container object</param>
+        public static void ReplaceChunks(MemoryStream memoryStream, ResourceContainer resourceContainer)
         {
             int fileCount = 0;
             const int BufferSize = 4096; // For file expansion when we need to add bytes and shift files
@@ -256,15 +264,15 @@ namespace EternalModLoader
 
             using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
             {
-                foreach (var mod in resourceInfo.ModList)
+                foreach (var modFile in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
                 {
                     ResourceChunk chunk = null;
 
                     // Handle AssetsInfo JSON files
-                    if (mod.IsAssetsInfoJson && mod.AssetsInfo != null)
+                    if (modFile.IsAssetsInfoJson && modFile.AssetsInfo != null)
                     {
                         // Add the extra resources to packagemapspec.json if specified
-                        if (mod.AssetsInfo.Resources != null)
+                        if (modFile.AssetsInfo.Resources != null)
                         {
                             var packageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
 
@@ -273,7 +281,7 @@ namespace EternalModLoader
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceInfo.Name}");
+                                Console.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
                             }
                             else
                             {
@@ -298,7 +306,7 @@ namespace EternalModLoader
                                 // Add the extra resources, then rewrite the JSON
                                 if (packageMapSpec != null)
                                 {
-                                    foreach (var extraResource in mod.AssetsInfo.Resources)
+                                    foreach (var extraResource in modFile.AssetsInfo.Resources)
                                     {
                                         // First check that the resource trying to be added actually exists
                                         var extraResourcePath = PathToResource(extraResource.Name);
@@ -309,7 +317,7 @@ namespace EternalModLoader
                                             Console.Write("WARNING: ");
                                             Console.ResetColor();
                                             Console.ForegroundColor = ConsoleColor.Yellow;
-                                            Console.WriteLine($"Trying to add non-existing extra resource \"{extraResource.Name}\" to \"{resourceInfo.Name}\", skipping");
+                                            Console.WriteLine($"Trying to add non-existing extra resource \"{extraResource.Name}\" to \"{resourceContainer.Name}\", skipping");
                                             Console.ResetColor();
                                             continue;
                                         }
@@ -330,7 +338,7 @@ namespace EternalModLoader
 
                                         for (int i = 0; i < packageMapSpec.Maps.Count; i++)
                                         {
-                                            if (packageMapSpec.Maps[i].Name.Contains(Path.GetFileNameWithoutExtension(mod.Name)))
+                                            if (packageMapSpec.Maps[i].Name.Contains(Path.GetFileNameWithoutExtension(modFile.Name)))
                                             {
                                                 mapIndex = i;
                                                 break;
@@ -351,7 +359,7 @@ namespace EternalModLoader
                                             Console.ForegroundColor = ConsoleColor.Red;
                                             Console.Write("ERROR: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Map reference not found for {mod.Name}, skipping");
+                                            Console.WriteLine($"Map reference not found for {modFile.Name}, skipping");
                                             continue;
                                         }
 
@@ -505,19 +513,19 @@ namespace EternalModLoader
                                         }
 
                                         Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
-                                }
+                                    }
                                 }
                             }
                         }
 
                         // Find the .mapresources file this JSON file wants to edit, if needed
-                        if (mod.AssetsInfo.Assets != null || mod.AssetsInfo.Maps != null || mod.AssetsInfo.Layers != null)
+                        if (modFile.AssetsInfo.Assets != null || modFile.AssetsInfo.Maps != null || modFile.AssetsInfo.Layers != null)
                         {
-                            var assetsInfoFilenameParts = mod.Name.Split('/');
+                            var assetsInfoFilenameParts = modFile.Name.Split('/');
                             var mapResourcesFilename = assetsInfoFilenameParts[assetsInfoFilenameParts.Length - 1];
                             mapResourcesFilename = mapResourcesFilename.Substring(0, mapResourcesFilename.Length - 4) + "mapresources";
 
-                            foreach (var file in resourceInfo.ChunkList)
+                            foreach (var file in resourceContainer.ChunkList)
                             {
                                 var nameParts = file.ResourceName.FullFileName.Split('/');
 
@@ -533,7 +541,7 @@ namespace EternalModLoader
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"Failed to find the .mapresources counterpart for AssetsInfo file: {mod.Name} - please check that the name for the AssetsInfo file is correct");
+                                Console.WriteLine($"Failed to find the .mapresources counterpart for AssetsInfo file: {modFile.Name} - please check that the name for the AssetsInfo file is correct");
                                 continue;
                             }
 
@@ -562,9 +570,9 @@ namespace EternalModLoader
                             var mapResourcesFile = MapResourcesFile.Parse(decompressedMapResources);
 
                             // Add layers
-                            if (mod.AssetsInfo.Layers != null)
+                            if (modFile.AssetsInfo.Layers != null)
                             {
-                                foreach (var newLayers in mod.AssetsInfo.Layers)
+                                foreach (var newLayers in modFile.AssetsInfo.Layers)
                                 {
                                     if (mapResourcesFile.Layers.Contains(newLayers.Name))
                                     {
@@ -582,14 +590,14 @@ namespace EternalModLoader
                                     }
 
                                     mapResourcesFile.Layers.Add(newLayers.Name);
-                                    Console.WriteLine($"\tAdded layer \"{newLayers.Name}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                    Console.WriteLine($"\tAdded layer \"{newLayers.Name}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
 
                             // Add maps
-                            if (mod.AssetsInfo.Maps != null)
+                            if (modFile.AssetsInfo.Maps != null)
                             {
-                                foreach (var newMaps in mod.AssetsInfo.Maps)
+                                foreach (var newMaps in modFile.AssetsInfo.Maps)
                                 {
                                     if (mapResourcesFile.Maps.Contains(newMaps.Name))
                                     {
@@ -607,14 +615,14 @@ namespace EternalModLoader
                                     }
 
                                     mapResourcesFile.Maps.Add(newMaps.Name);
-                                    Console.WriteLine($"\tAdded map \"{newMaps.Name}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                    Console.WriteLine($"\tAdded map \"{newMaps.Name}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
 
                             // Add assets
-                            if (mod.AssetsInfo.Assets != null)
+                            if (modFile.AssetsInfo.Assets != null)
                             {
-                                foreach (var newAsset in mod.AssetsInfo.Assets)
+                                foreach (var newAsset in modFile.AssetsInfo.Assets)
                                 {
                                     if (string.IsNullOrEmpty(newAsset.Name) || string.IsNullOrWhiteSpace(newAsset.Name) ||
                                         string.IsNullOrEmpty(newAsset.MapResourceType) || string.IsNullOrWhiteSpace(newAsset.MapResourceType))
@@ -624,7 +632,7 @@ namespace EternalModLoader
                                             Console.ForegroundColor = ConsoleColor.Red;
                                             Console.Write("WARNING: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Skipping empty resource declaration in \"{mod.Name}\"");
+                                            Console.WriteLine($"Skipping empty resource declaration in \"{modFile.Name}\"");
                                         }
 
                                         continue;
@@ -649,7 +657,7 @@ namespace EternalModLoader
                                         else
                                         {
                                             mapResourcesFile.Assets.Remove(assetToRemove);
-                                            Console.WriteLine($"\tRemoved asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" from \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                            Console.WriteLine($"\tRemoved asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" from \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                         }
 
                                         continue;
@@ -690,7 +698,7 @@ namespace EternalModLoader
                                         mapResourcesFile.AssetTypes.Add(newAsset.MapResourceType);
                                         assetTypeIndex = mapResourcesFile.AssetTypes.Count - 1;
 
-                                        Console.WriteLine($"\tAdded asset type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                        Console.WriteLine($"\tAdded asset type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                     }
 
                                     // Determine where to place this new asset in map resources
@@ -726,7 +734,7 @@ namespace EternalModLoader
 
                                     if (Verbose && placeByExistingAsset != null)
                                     {
-                                        Console.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                        Console.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                     }
 
                                     var newMapAsset = new MapAsset()
@@ -745,7 +753,7 @@ namespace EternalModLoader
                                         mapResourcesFile.Assets.Insert(assetPosition, newMapAsset);
                                     }
 
-                                    Console.WriteLine($"\tAdded asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                    Console.WriteLine($"\tAdded asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
 
@@ -767,22 +775,22 @@ namespace EternalModLoader
                             // Set the necessary info for the map resources
                             chunk.Size = decompressedMapResources.Length;
                             chunk.SizeZ = compressedMapResources.Length;
-                            mod.UncompressedSize = decompressedMapResources.Length;
-                            mod.FileBytes = compressedMapResources;
+                            modFile.UncompressedSize = decompressedMapResources.Length;
+                            modFile.FileBytes = compressedMapResources;
                         }
                         else
                         {
                             continue;
                         }
                     }
-                    else if (mod.IsBlangJson)
+                    else if (modFile.IsBlangJson)
                     {
                         // Handle custom .blang JSON files
-                        var modName = mod.Name;
+                        var modName = modFile.Name;
                         var modFilePathParts = modName.Split('/');
                         var name = modName.Remove(0, modFilePathParts[0].Length + 1);
-                        mod.Name = name.Substring(0, name.Length - 4) + "blang";
-                        chunk = GetChunk(mod.Name, resourceInfo);
+                        modFile.Name = name.Substring(0, name.Length - 4) + "blang";
+                        chunk = GetChunk(modFile.Name, resourceContainer);
 
                         if (chunk == null)
                         {
@@ -791,21 +799,21 @@ namespace EternalModLoader
                     }
                     else
                     {
-                        chunk = GetChunk(mod.Name, resourceInfo);
+                        chunk = GetChunk(modFile.Name, resourceContainer);
 
                         if (chunk == null)
                         {
                             // This is a new mod, create a copy of it and add it to the new mods list
-                            Mod newMod = new Mod(mod.Name);
-                            newMod.FileBytes = new byte[mod.FileBytes.Length];
+                            ResourceModFile newMod = new ResourceModFile(modFile.Parent, modFile.Name);
+                            newMod.FileBytes = new byte[modFile.FileBytes.Length];
 
-                            Array.Copy(mod.FileBytes, newMod.FileBytes, mod.FileBytes.Length);
-                            resourceInfo.ModListNew.Add(newMod);
+                            Array.Copy(modFile.FileBytes, newMod.FileBytes, modFile.FileBytes.Length);
+                            resourceContainer.NewModFileList.Add(newMod);
 
                             // Get the data to add to mapresources from the resource data file, if available
                             ResourceDataEntry resourceData;
 
-                            if (!ResourceDataDictionary.TryGetValue(ResourceData.ResourceData.CalculateResourceFileNameHash(mod.Name), out resourceData))
+                            if (!ResourceDataDictionary.TryGetValue(ResourceData.CalculateResourceFileNameHash(modFile.Name), out resourceData))
                             {
                                 continue;
                             }
@@ -817,7 +825,7 @@ namespace EternalModLoader
                                     Console.ForegroundColor = ConsoleColor.Red;
                                     Console.Write("WARNING: ");
                                     Console.ResetColor();
-                                    Console.WriteLine($"Mapresources data for asset \"{mod.Name}\" is null, skipping");
+                                    Console.WriteLine($"Mapresources data for asset \"{modFile.Name}\" is null, skipping");
                                 }
 
                                 continue;
@@ -826,17 +834,17 @@ namespace EternalModLoader
                             {
                                 if (string.IsNullOrEmpty(resourceData.MapResourceName))
                                 {
-                                    resourceData.MapResourceName = mod.Name;
+                                    resourceData.MapResourceName = modFile.Name;
                                 }
                             }
 
                             // Find the mapresources chunk in the current container
                             // If this is a "gameresources" container, only search for "common.mapresources"
-                            foreach (var file in resourceInfo.ChunkList)
+                            foreach (var file in resourceContainer.ChunkList)
                             {
                                 if (file.ResourceName.NormalizedFileName.EndsWith(".mapresources"))
                                 {
-                                    if (resourceInfo.Name.StartsWith("gameresources") && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources"))
+                                    if (resourceContainer.Name.StartsWith("gameresources") && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources"))
                                     {
                                         continue;
                                     }
@@ -911,7 +919,7 @@ namespace EternalModLoader
                                 mapResourcesFile.AssetTypes.Add(resourceData.MapResourceType);
                                 assetTypeIndex = mapResourcesFile.AssetTypes.Count - 1;
 
-                                Console.WriteLine($"\tAdded asset type \"{resourceData.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                                Console.WriteLine($"\tAdded asset type \"{resourceData.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                             }
 
                             mapResourcesFile.Assets.Add(new MapAsset()
@@ -921,7 +929,7 @@ namespace EternalModLoader
                                 UnknownData4 = 128
                             });
 
-                            Console.WriteLine($"\tAdded asset \"{resourceData.MapResourceName}\" with type \"{resourceData.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceInfo.Name}\"");
+                            Console.WriteLine($"\tAdded asset \"{resourceData.MapResourceName}\" with type \"{resourceData.MapResourceType}\" to \"{chunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
 
                             // Serialize the map resources data
                             decompressedMapResources = mapResourcesFile.ToByteArray();
@@ -943,9 +951,9 @@ namespace EternalModLoader
                             chunk.SizeZ = compressedMapResources.Length;
 
                             // Modify this mod object to "fake" it as if it was an AssetsInfo JSON file
-                            mod.IsAssetsInfoJson = true;
-                            mod.UncompressedSize = decompressedMapResources.Length;
-                            mod.FileBytes = compressedMapResources;
+                            modFile.IsAssetsInfoJson = true;
+                            modFile.UncompressedSize = decompressedMapResources.Length;
+                            modFile.FileBytes = compressedMapResources;
                         }
                     }
 
@@ -953,10 +961,10 @@ namespace EternalModLoader
 
                     long fileOffset = binaryReader.ReadInt64();
                     long size = binaryReader.ReadInt64();
-                    long sizeDiff = mod.FileBytes.Length - size;
+                    long sizeDiff = modFile.FileBytes.Length - size;
 
                     // If the mod is a blang JSON file, modify the .blang file
-                    if (mod.IsBlangJson)
+                    if (modFile.IsBlangJson)
                     {
                         BlangJson blangJson;
 
@@ -964,7 +972,7 @@ namespace EternalModLoader
                         {
                             var serializerSettings = new JsonSerializerSettings();
                             serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
+                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileBytes), serializerSettings);
 
                             if (blangJson == null || blangJson.Strings.Count == 0)
                             {
@@ -984,7 +992,7 @@ namespace EternalModLoader
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                            Console.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(modFile.Name)}.json");
                             continue;
                         }
 
@@ -993,14 +1001,14 @@ namespace EternalModLoader
                         byte[] blangFileBytes = new byte[size];
                         memoryStream.Read(blangFileBytes, 0, (int)size);
 
-                        int res = BlangCrypt.IdCrypt(ref blangFileBytes, $"strings/{Path.GetFileName(mod.Name)}", true);
+                        int res = BlangCrypt.IdCrypt(ref blangFileBytes, $"strings/{Path.GetFileName(modFile.Name)}", true);
 
                         if (res != 0)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name}");
+                            Console.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name}");
                             continue;
                         }
 
@@ -1017,7 +1025,7 @@ namespace EternalModLoader
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name} - are you trying to change strings in the wrong .resources archive?");
+                                Console.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name} - are you trying to change strings in the wrong .resources archive?");
                                 continue;
                             }
 
@@ -1033,7 +1041,7 @@ namespace EternalModLoader
                                 {
                                     stringFound = true;
                                     blangString.Text = blangJsonString.Text;
-                                    Console.WriteLine($"\tReplaced string \"{blangString.Identifier}\" to \"{mod.Name}\"");
+                                    Console.WriteLine($"\tReplaced string \"{blangString.Identifier}\" to \"{modFile.Name}\"");
                                     break;
                                 }
                             }
@@ -1049,22 +1057,22 @@ namespace EternalModLoader
                                 Text = blangJsonString.Text,
                             });
 
-                            Console.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{mod.Name}\" in \"{resourceInfo.Name}\"");
+                            Console.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
                         }
 
                         byte[] cryptDataBuffer = blangFile.WriteToStream().ToArray();
-                        res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(mod.Name)}", false);
+                        res = BlangCrypt.IdCrypt(ref cryptDataBuffer, $"strings/{Path.GetFileName(modFile.Name)}", false);
 
                         if (res != 0)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to parse {resourceInfo.Name}/{mod.Name}");
+                            Console.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name}");
                             continue;
                         }
 
-                        mod.FileBytes = cryptDataBuffer;
+                        modFile.FileBytes = cryptDataBuffer;
                     }
 
                     // We will need to expand the file if the new size is greater than the old one
@@ -1090,12 +1098,12 @@ namespace EternalModLoader
                         // Write the new file bytes now that the file has been expanded
                         // and there's enough space
                         memoryStream.Seek(fileOffset, SeekOrigin.Begin);
-                        memoryStream.Write(mod.FileBytes, 0, mod.FileBytes.Length);
+                        memoryStream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
                     }
                     else
                     {
                         memoryStream.Seek(fileOffset, SeekOrigin.Begin);
-                        memoryStream.Write(mod.FileBytes, 0, mod.FileBytes.Length);
+                        memoryStream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
 
                         // Zero out the remaining bytes if the file is shorter
                         if (sizeDiff < 0)
@@ -1106,11 +1114,11 @@ namespace EternalModLoader
 
                     // Replace the file size data
                     memoryStream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
-                    memoryStream.Write(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, 8);
+                    memoryStream.Write(BitConverter.GetBytes((long)modFile.FileBytes.Length), 0, 8);
 
                     // Write the uncompressed size if we are modifying a map resources file
-                    bool isMapResources = mod.IsAssetsInfoJson && mod.UncompressedSize != 0 && mod.FileBytes != null;
-                    memoryStream.Write(BitConverter.GetBytes(isMapResources ? mod.UncompressedSize : (long)mod.FileBytes.Length), 0, 8);
+                    bool isMapResources = modFile.IsAssetsInfoJson && modFile.UncompressedSize != 0 && modFile.FileBytes != null;
+                    memoryStream.Write(BitConverter.GetBytes(isMapResources ? modFile.UncompressedSize : (long)modFile.FileBytes.Length), 0, 8);
 
                     // Clear the compression flag if needed
                     memoryStream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
@@ -1119,18 +1127,18 @@ namespace EternalModLoader
                     // If the file was expanded, update file offsets for every file after the one we replaced
                     if (sizeDiff > 0)
                     {
-                        for (int i = resourceInfo.ChunkList.IndexOf(chunk) + 1; i < resourceInfo.ChunkList.Count; i++)
+                        for (int i = resourceContainer.ChunkList.IndexOf(chunk) + 1; i < resourceContainer.ChunkList.Count; i++)
                         {
-                            memoryStream.Seek(resourceInfo.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                            memoryStream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
                             fileOffset = binaryReader.ReadInt64();
-                            memoryStream.Seek(resourceInfo.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                            memoryStream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
                             memoryStream.Write(BitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
                         }
                     }
 
-                    if (!mod.IsBlangJson && !mod.IsAssetsInfoJson)
+                    if (!modFile.IsBlangJson && !modFile.IsAssetsInfoJson)
                     {
-                        Console.WriteLine(string.Format("\tReplaced {0}", mod.Name));
+                        Console.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
                         fileCount++;
                     }
                 }
@@ -1144,7 +1152,7 @@ namespace EternalModLoader
                 Console.ResetColor();
                 Console.Write("in ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(resourceInfo.Path);
+                Console.WriteLine(resourceContainer.Path);
                 Console.ResetColor();
             }
         }
@@ -1153,51 +1161,53 @@ namespace EternalModLoader
         /// Adds new file chunks to the resource file
         /// </summary>
         /// <param name="memoryStream">memory stream where the resource file is stored</param>
-        /// <param name="resourceInfo">resource info object</param>
-        public static void AddChunks(MemoryStream memoryStream, ResourceInfo resourceInfo)
+        /// <param name="resourceContainer">resource container object</param>
+        public static void AddChunks(MemoryStream memoryStream, ResourceContainer resourceContainer)
         {
-            if (resourceInfo.ModListNew.Count == 0)
+            var newModFiles = resourceContainer.NewModFileList.OrderByDescending(mod => mod.Parent.LoadPriority).ToList();
+
+            if (newModFiles.Count == 0)
             {
                 return;
             }
 
             // Copy individual sections
-            byte[] header = new byte[resourceInfo.InfoOffset];
+            byte[] header = new byte[resourceContainer.InfoOffset];
             memoryStream.Seek(0, SeekOrigin.Begin);
             memoryStream.Read(header, 0, header.Length);
 
-            byte[] info = new byte[resourceInfo.NamesOffset - resourceInfo.InfoOffset];
-            memoryStream.Seek(resourceInfo.InfoOffset, SeekOrigin.Begin);
+            byte[] info = new byte[resourceContainer.NamesOffset - resourceContainer.InfoOffset];
+            memoryStream.Seek(resourceContainer.InfoOffset, SeekOrigin.Begin);
             memoryStream.Read(info, 0, info.Length);
 
-            byte[] nameOffsets = new byte[resourceInfo.NamesOffsetEnd - resourceInfo.NamesOffset];
-            memoryStream.Seek(resourceInfo.NamesOffset, SeekOrigin.Begin);
+            byte[] nameOffsets = new byte[resourceContainer.NamesOffsetEnd - resourceContainer.NamesOffset];
+            memoryStream.Seek(resourceContainer.NamesOffset, SeekOrigin.Begin);
             memoryStream.Read(nameOffsets, 0, nameOffsets.Length);
 
-            byte[] names = new byte[resourceInfo.UnknownOffset - resourceInfo.NamesOffsetEnd];
-            memoryStream.Seek(resourceInfo.NamesOffsetEnd, SeekOrigin.Begin);
+            byte[] names = new byte[resourceContainer.UnknownOffset - resourceContainer.NamesOffsetEnd];
+            memoryStream.Seek(resourceContainer.NamesOffsetEnd, SeekOrigin.Begin);
             memoryStream.Read(names, 0, names.Length);
 
-            byte[] unknown = new byte[resourceInfo.Dummy7Offset - resourceInfo.UnknownOffset];
-            memoryStream.Seek(resourceInfo.UnknownOffset, SeekOrigin.Begin);
+            byte[] unknown = new byte[resourceContainer.Dummy7Offset - resourceContainer.UnknownOffset];
+            memoryStream.Seek(resourceContainer.UnknownOffset, SeekOrigin.Begin);
             memoryStream.Read(unknown, 0, unknown.Length);
 
-            long nameIdsOffset = resourceInfo.Dummy7Offset + (resourceInfo.TypeCount * 4);
+            long nameIdsOffset = resourceContainer.Dummy7Offset + (resourceContainer.TypeCount * 4);
 
-            byte[] typeIds = new byte[nameIdsOffset - resourceInfo.Dummy7Offset];
-            memoryStream.Seek(resourceInfo.Dummy7Offset, SeekOrigin.Begin);
+            byte[] typeIds = new byte[nameIdsOffset - resourceContainer.Dummy7Offset];
+            memoryStream.Seek(resourceContainer.Dummy7Offset, SeekOrigin.Begin);
             memoryStream.Read(typeIds, 0, typeIds.Length);
 
-            byte[] nameIds = new byte[resourceInfo.IdclOffset - nameIdsOffset];
+            byte[] nameIds = new byte[resourceContainer.IdclOffset - nameIdsOffset];
             memoryStream.Seek(nameIdsOffset, SeekOrigin.Begin);
             memoryStream.Read(nameIds, 0, nameIds.Length);
 
-            byte[] idcl = new byte[resourceInfo.DataOffset - resourceInfo.IdclOffset];
-            memoryStream.Seek(resourceInfo.IdclOffset, SeekOrigin.Begin);
+            byte[] idcl = new byte[resourceContainer.DataOffset - resourceContainer.IdclOffset];
+            memoryStream.Seek(resourceContainer.IdclOffset, SeekOrigin.Begin);
             memoryStream.Read(idcl, 0, idcl.Length);
 
-            byte[] data = new byte[memoryStream.Length - resourceInfo.DataOffset];
-            memoryStream.Seek(resourceInfo.DataOffset, SeekOrigin.Begin);
+            byte[] data = new byte[memoryStream.Length - resourceContainer.DataOffset];
+            memoryStream.Seek(resourceContainer.DataOffset, SeekOrigin.Begin);
             memoryStream.Read(data, 0, data.Length);
 
             int infoOldLength = info.Length;
@@ -1205,11 +1215,11 @@ namespace EternalModLoader
             int newChunksCount = 0;
 
             // Find the resource data for the new mod files and set them
-            foreach (var mod in resourceInfo.ModList)
+            foreach (var mod in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
             {
                 if (mod.IsAssetsInfoJson && mod.AssetsInfo != null && mod.AssetsInfo.Assets != null)
                 {
-                    foreach (var newMod in resourceInfo.ModListNew)
+                    foreach (var newMod in newModFiles)
                     {
                         foreach (var assetsInfoAssets in mod.AssetsInfo.Assets)
                         {
@@ -1241,9 +1251,9 @@ namespace EternalModLoader
             }
 
             // Add the new mod files now
-            foreach (var mod in resourceInfo.ModListNew)
+            foreach (var mod in newModFiles)
             {
-                if (resourceInfo.ContainsResourceWithName(mod.Name))
+                if (resourceContainer.ContainsResourceWithName(mod.Name))
                 {
                     if (Verbose)
                     {
@@ -1251,7 +1261,7 @@ namespace EternalModLoader
                         Console.Write("WARNING: ");
                         Console.ResetColor();
                         Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Trying to add resource \"{mod.Name}\" that has already been added to \"{resourceInfo.Name}\", skipping");
+                        Console.WriteLine($"Trying to add resource \"{mod.Name}\" that has already been added to \"{resourceContainer.Name}\", skipping");
                         Console.ResetColor();
                     }
 
@@ -1267,7 +1277,7 @@ namespace EternalModLoader
                 // Retrieve the resource data for this file (if needed & available)
                 ResourceDataEntry resourceData;
 
-                if (ResourceDataDictionary.TryGetValue(ResourceData.ResourceData.CalculateResourceFileNameHash(mod.Name), out resourceData))
+                if (ResourceDataDictionary.TryGetValue(ResourceData.CalculateResourceFileNameHash(mod.Name), out resourceData))
                 {
                     mod.ResourceType = mod.ResourceType == null ? resourceData.ResourceType : mod.ResourceType;
                     mod.Version = mod.Version == null ? resourceData.Version : mod.Version;
@@ -1301,7 +1311,7 @@ namespace EternalModLoader
                 // Check if the resource type name exists in the current container, add if it doesn't
                 if (mod.ResourceType != null)
                 {
-                    if (resourceInfo.NamesList.FirstOrDefault(name => name.NormalizedFileName == mod.ResourceType) == default(ResourceName))
+                    if (resourceContainer.NamesList.FirstOrDefault(name => name.NormalizedFileName == mod.ResourceType) == default(ResourceName))
                     {
                         // Add type name
                         long typeLastOffset = BitConverter.ToInt64(nameOffsets.Skip(nameOffsets.Length - 8).Take(8).ToArray(), 0);
@@ -1327,13 +1337,13 @@ namespace EternalModLoader
                         Buffer.BlockCopy(BitConverter.GetBytes(typeLastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
 
                         // Add the type name to the list to keep the indexes in the proper order
-                        resourceInfo.NamesList.Add(new ResourceName()
+                        resourceContainer.NamesList.Add(new ResourceName()
                         {
                             FullFileName = mod.ResourceType,
                             NormalizedFileName = mod.ResourceType
                         });
 
-                        Console.WriteLine(string.Format("\tAdded resource type name \"{0}\" to \"{1}\"", mod.ResourceType, resourceInfo.Name));
+                        Console.WriteLine(string.Format("\tAdded resource type name \"{0}\" to \"{1}\"", mod.ResourceType, resourceContainer.Name));
                     }
                 }
 
@@ -1361,7 +1371,7 @@ namespace EternalModLoader
                 Buffer.BlockCopy(BitConverter.GetBytes(lastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
 
                 // Add the name to the list to keep the indexes in the proper order
-                resourceInfo.NamesList.Add(new ResourceName()
+                resourceContainer.NamesList.Add(new ResourceName()
                 {
                     FullFileName = mod.Name,
                     NormalizedFileName = mod.Name
@@ -1371,20 +1381,20 @@ namespace EternalModLoader
                 long fileOffset = 0;
                 long placement = (0x10 - (data.Length % 0x10)) + 0x30;
                 Array.Resize(ref data, (int)(data.Length + placement));
-                fileOffset = data.Length + resourceInfo.DataOffset;
+                fileOffset = data.Length + resourceContainer.DataOffset;
                 Array.Resize(ref data, data.Length + mod.FileBytes.Length);
                 Buffer.BlockCopy(mod.FileBytes, 0, data, data.Length - mod.FileBytes.Length, mod.FileBytes.Length);
 
                 // Add the asset type nameId and the filename nameId in nameIds
                 long nameId = 0;
                 long nameIdOffset = 0;
-                nameId = resourceInfo.GetResourceNameId(mod.Name);
+                nameId = resourceContainer.GetResourceNameId(mod.Name);
                 Array.Resize(ref nameIds, nameIds.Length + 8);
                 nameIdOffset = (nameIds.Length / 8) - 1;
                 Array.Resize(ref nameIds, nameIds.Length + 8);
 
                 // Find the asset type name id, if it's not found, use zero
-                long assetTypeNameId = resourceInfo.GetResourceNameId(mod.ResourceType);
+                long assetTypeNameId = resourceContainer.GetResourceNameId(mod.ResourceType);
 
                 if (assetTypeNameId == -1)
                 {
@@ -1430,21 +1440,21 @@ namespace EternalModLoader
             // Rebuild the entire container now
             long namesOffsetAdd = info.Length - infoOldLength;
             long newSize = nameOffsets.Length + names.Length;
-            long unknownAdd = namesOffsetAdd + (newSize - resourceInfo.StringsSize);
+            long unknownAdd = namesOffsetAdd + (newSize - resourceContainer.StringsSize);
             long typeIdsAdd = unknownAdd;
             long nameIdsAdd = typeIdsAdd;
             long idclAdd = nameIdsAdd + (nameIds.Length - nameIdsOldLength);
             long dataAdd = idclAdd;
 
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.FileCount + newChunksCount), 0, header, 0x20, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.FileCount2 + (newChunksCount * 2)), 0, header, 0x2C, 4);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.FileCount + newChunksCount), 0, header, 0x20, 4);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.FileCount2 + (newChunksCount * 2)), 0, header, 0x2C, 4);
             Buffer.BlockCopy(BitConverter.GetBytes((int)newSize), 0, header, 0x38, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.NamesOffset + namesOffsetAdd), 0, header, 0x40, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.UnknownOffset + unknownAdd), 0, header, 0x48, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.UnknownOffset2 + unknownAdd), 0, header, 0x58, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.Dummy7Offset + typeIdsAdd), 0, header, 0x60, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.DataOffset + dataAdd), 0, header, 0x68, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceInfo.IdclOffset + idclAdd), 0, header, 0x74, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.NamesOffset + namesOffsetAdd), 0, header, 0x40, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.UnknownOffset + unknownAdd), 0, header, 0x48, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.UnknownOffset2 + unknownAdd), 0, header, 0x58, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.Dummy7Offset + typeIdsAdd), 0, header, 0x60, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.DataOffset + dataAdd), 0, header, 0x68, 8);
+            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.IdclOffset + idclAdd), 0, header, 0x74, 8);
 
             byte[] newOffsetBuffer = new byte[8];
 
@@ -1476,20 +1486,20 @@ namespace EternalModLoader
                 Console.ResetColor();
                 Console.Write("in ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(resourceInfo.Path);
+                Console.WriteLine(resourceContainer.Path);
                 Console.ResetColor();
             }
         }
 
         /// <summary>
-        /// Loads the sound mods present in the specified sound bank info object
+        /// Loads the sound mods present in the specified sound container object
         /// </summary>
-        /// <param name="soundBankInfo">sound bank info object</param>
-        public static void LoadSoundMods(SoundBankInfo soundBankInfo)
+        /// <param name="soundContainer">sound container info object</param>
+        public static void LoadSoundMods(SoundContainer soundContainer)
         {
             int fileCount = 0;
 
-            using (var fileStream = new FileStream(soundBankInfo.Path, FileMode.Open, FileAccess.ReadWrite))
+            using (var fileStream = new FileStream(soundContainer.Path, FileMode.Open, FileAccess.ReadWrite))
             {
                 using (var memoryStream = new MemoryStream())
                 {
@@ -1497,7 +1507,7 @@ namespace EternalModLoader
                     fileStream.CopyTo(memoryStream);
 
                     // Load the sound mods
-                    foreach (var soundMod in soundBankInfo.ModList)
+                    foreach (var soundMod in soundContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
                     {
                         // Parse the identifier of the sound we want to replace
                         var soundFileNameWithoutExtension = Path.GetFileNameWithoutExtension(soundMod.Name);
@@ -1651,12 +1661,12 @@ namespace EternalModLoader
                             continue;
                         }
 
-                        // Load the sound mod into the sound bank
+                        // Load the sound mod into the sound container
                         bool soundFound = false;
 
                         using (var binaryReader = new BinaryReader(memoryStream, Encoding.Default, true))
                         {
-                            // Write the sound replacement data at the end of the sound bank
+                            // Write the sound replacement data at the end of the sound container
                             memoryStream.Seek(0, SeekOrigin.End);
                             uint soundModOffset = (uint)memoryStream.Position;
                             memoryStream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
@@ -1719,7 +1729,7 @@ namespace EternalModLoader
                             Console.Write("WARNING: ");
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Couldn't find sound with id \"{soundModId}\" in \"{soundBankInfo.Name}\", sound will not be replaced");
+                            Console.WriteLine($"Couldn't find sound with id \"{soundModId}\" in \"{soundContainer.Name}\", sound will not be replaced");
                             Console.ResetColor();
                             continue;
                         }
@@ -1744,7 +1754,7 @@ namespace EternalModLoader
                 Console.ResetColor();
                 Console.Write("in ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(soundBankInfo.Path);
+                Console.WriteLine(soundContainer.Path);
                 Console.ResetColor();
             }
         }
@@ -1804,11 +1814,11 @@ namespace EternalModLoader
         }
 
         /// <summary>
-        /// Gets the path to the .snd file for the specified sound bank name
+        /// Gets the path to the .snd file for the specified sound container name
         /// </summary>
         /// <param name="name">resource name</param>
-        /// <returns>the path to the .snd file for the specified sound bank name, empty string if it wasn't found</returns>
-        public static string PathToSoundBank(string name)
+        /// <returns>the path to the .snd file for the specified sound container name, empty string if it wasn't found</returns>
+        public static string PathToSoundContainer(string name)
         {
             string searchPath = Path.Combine(BasePath, "sound", "soundbanks", "pc");
             string searchPattern = $"{name}.snd";
@@ -1817,9 +1827,9 @@ namespace EternalModLoader
             {
                 DirectoryInfo baseFolder = new DirectoryInfo(searchPath);
 
-                foreach (var soundBankFile in baseFolder.EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly))
+                foreach (var soundContainerFile in baseFolder.EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly))
                 {
-                    return soundBankFile.FullName;
+                    return soundContainerFile.FullName;
                 }
 
                 return string.Empty;
@@ -1841,11 +1851,18 @@ namespace EternalModLoader
             if (args.Length == 0)
             {
                 Console.WriteLine("Loads DOOM Eternal mods from ZIPs or loose files in 'Mods' folder into the game installation specified in the game path");
-                Console.WriteLine("USAGE: EternalModLoader <game path> [OPTIONS]");
+                Console.WriteLine("USAGE: EternalModLoader <game path | --version> [OPTIONS]");
+                Console.WriteLine("\t--version - Prints the version number of the mod loader and exits with exit code same as the version number.");
                 Console.WriteLine("OPTIONS:");
                 Console.WriteLine("\t--list-res - List the .resources files that will be modified and exit.");
                 Console.WriteLine("\t--verbose - Print more information during the mod loading process.");
                 return 1;
+            }
+
+            if (args[0].Equals("--version"))
+            {
+                Console.WriteLine(Version);
+                return Version;
             }
 
             BasePath = Path.Combine(args[0], "base");
@@ -1891,7 +1908,7 @@ namespace EternalModLoader
             {
                 try
                 {
-                    ResourceDataDictionary = ResourceData.ResourceData.Parse(resourceDataFilePath);
+                    ResourceDataDictionary = ResourceData.Parse(resourceDataFilePath);
                 }
                 catch (Exception e)
                 {
@@ -1934,6 +1951,54 @@ namespace EternalModLoader
                         modFileNameList.Add(zipEntry.FullName);
                     }
 
+                    // Mod object for this mod
+                    Mod mod = new Mod()
+                    {
+                        Name = Path.GetFileName(zippedMod),
+                    };
+
+                    // Read the mod info from the EternalMod JSON if it exists
+                    var eternalModJsonFile = modFileNameList.FirstOrDefault(file => file.Equals("EternalMod.json", StringComparison.InvariantCultureIgnoreCase));
+
+                    if (eternalModJsonFile != null)
+                    {
+                        try
+                        {
+                            var stream = zipArchive.GetEntry(eternalModJsonFile).Open();
+                            byte[] eternalModJsonFileBytes = null;
+
+                            using (var memoryStream = new MemoryStream())
+                            {
+                                stream.CopyTo(memoryStream);
+                                eternalModJsonFileBytes = memoryStream.ToArray();
+                            }
+
+                            // Try to parse the JSON
+                            var serializerSettings = new JsonSerializerSettings();
+                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                            mod = JsonConvert.DeserializeObject<Mod>(Encoding.UTF8.GetString(eternalModJsonFileBytes), serializerSettings);
+
+                            // If the mod requires a higher mod loader version, print a warning and don't load the mod
+                            if (mod.RequiredVersion > Version)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("WARNING: ");
+                                Console.ResetColor();
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.WriteLine($"Mod \"{zippedMod}\" requires mod loader version {mod.RequiredVersion} but the current mod loader version is {Version}, skipping.");
+                                Console.ResetColor();
+                                continue;
+                            }
+                        }
+                        catch
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("ERROR: ");
+                            Console.ResetColor();
+                            Console.WriteLine($"Failed to parse {eternalModJsonFile} - malformed JSON? - using defaults.");
+                        }
+                    }
+
                     foreach (string modFileName in modFileNameList)
                     {
                         bool isSoundMod = false;
@@ -1963,7 +2028,7 @@ namespace EternalModLoader
 
                         if (resourcePath == string.Empty)
                         {
-                            resourcePath = PathToSoundBank(resourceName);
+                            resourcePath = PathToSoundContainer(resourceName);
 
                             if (resourcePath != string.Empty)
                             {
@@ -1973,19 +2038,13 @@ namespace EternalModLoader
 
                         if (isSoundMod)
                         {
-                            // Get the sound bank info object, create it if it doesn't exist
-                            var soundBankInfo = SoundBankList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
+                            // Get the sound container info object, create it if it doesn't exist
+                            var soundContainer = SoundContainerList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
 
-                            if (soundBankInfo == null)
+                            if (soundContainer == null)
                             {
-                                soundBankInfo = new SoundBankInfo()
-                                {
-                                    ModList = new List<SoundMod>(),
-                                    Name = resourceName,
-                                    Path = resourcePath
-                                };
-
-                                SoundBankList.Add(soundBankInfo);
+                                soundContainer = new SoundContainer(resourceName, resourcePath);
+                                SoundContainerList.Add(soundContainer);
                             }
 
                             // Create the mod object and read the unzipped files
@@ -2006,18 +2065,16 @@ namespace EternalModLoader
                                 }
 
                                 // Load the sound mod
-                                SoundMod sndMod = new SoundMod();
-                                sndMod.Name = Path.GetFileName(modFile);
-
+                                SoundModFile soundModFile = new SoundModFile(mod, Path.GetFileName(modFile));
                                 var stream = zipArchive.GetEntry(modFileName).Open();
 
                                 using (var memoryStream = new MemoryStream())
                                 {
                                     stream.CopyTo(memoryStream);
-                                    sndMod.FileBytes = memoryStream.ToArray();
+                                    soundModFile.FileBytes = memoryStream.ToArray();
                                 }
 
-                                soundBankInfo.ModList.Add(sndMod);
+                                soundContainer.ModFiles.Add(soundModFile);
                                 zippedModCount++;
                             }
                         }
@@ -2028,20 +2085,20 @@ namespace EternalModLoader
 
                             if (resource == null)
                             {
-                                resource = new ResourceInfo(resourceName, PathToResource(resourceName + ".resources"));
+                                resource = new ResourceContainer(resourceName, PathToResource(resourceName + ".resources"));
                                 ResourceList.Add(resource);
                             }
 
                             // Create the mod object and read the unzipped files
                             if (!listResources)
                             {
-                                Mod mod = new Mod(modFile);
+                                ResourceModFile resourceModFile = new ResourceModFile(mod, modFile);
                                 var stream = zipArchive.GetEntry(modFileName).Open();
 
                                 using (var memoryStream = new MemoryStream())
                                 {
                                     stream.CopyTo(memoryStream);
-                                    mod.FileBytes = memoryStream.ToArray();
+                                    resourceModFile.FileBytes = memoryStream.ToArray();
                                 }
 
                                 // Read the JSON files in 'assetsinfo' under 'EternalMod'
@@ -2055,16 +2112,16 @@ namespace EternalModLoader
                                         {
                                             var serializerSettings = new JsonSerializerSettings();
                                             serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                            mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileBytes), serializerSettings);
-                                            mod.IsAssetsInfoJson = true;
-                                            mod.FileBytes = null;
+                                            resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileBytes), serializerSettings);
+                                            resourceModFile.IsAssetsInfoJson = true;
+                                            resourceModFile.FileBytes = null;
                                         }
                                         catch
                                         {
                                             Console.ForegroundColor = ConsoleColor.Red;
                                             Console.Write("ERROR: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                            Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
                                             continue;
                                         }
                                     }
@@ -2073,7 +2130,7 @@ namespace EternalModLoader
                                         && Path.GetExtension(modFilePathParts[3]).Equals(".json", StringComparison.InvariantCultureIgnoreCase))
                                     {
                                         // Detect custom language files
-                                        mod.IsBlangJson = true;
+                                        resourceModFile.IsBlangJson = true;
                                     }
                                     else
                                     {
@@ -2081,7 +2138,7 @@ namespace EternalModLoader
                                     }
                                 }
 
-                                resource.ModList.Add(mod);
+                                resource.ModFileList.Add(resourceModFile);
                                 zippedModCount++;
                             }
                         }
@@ -2104,6 +2161,9 @@ namespace EternalModLoader
 
             // Find unzipped mods
             int unzippedModCount = 0;
+
+            Mod globalLooseMod = new Mod();
+            globalLooseMod.LoadPriority = int.MinValue;
 
             foreach (var file in Directory.EnumerateFiles("Mods", "*", SearchOption.AllDirectories))
             {
@@ -2139,7 +2199,7 @@ namespace EternalModLoader
 
                 if (resourcePath == string.Empty)
                 {
-                    resourcePath = PathToSoundBank(resourceName);
+                    resourcePath = PathToSoundContainer(resourceName);
 
                     if (resourcePath != string.Empty)
                     {
@@ -2149,19 +2209,13 @@ namespace EternalModLoader
 
                 if (isSoundMod)
                 {
-                    // Get the sound bank info object, create it if it doesn't exist
-                    var soundBankInfo = SoundBankList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
+                    // Get the sound container info object, create it if it doesn't exist
+                    var soundContainer = SoundContainerList.FirstOrDefault(sndBank => sndBank.Name.Equals(resourceName));
 
-                    if (soundBankInfo == null)
+                    if (soundContainer == null)
                     {
-                        soundBankInfo = new SoundBankInfo()
-                        {
-                            ModList = new List<SoundMod>(),
-                            Name = resourceName,
-                            Path = resourcePath
-                        };
-
-                        SoundBankList.Add(soundBankInfo);
+                        soundContainer = new SoundContainer(resourceName, resourcePath);
+                        SoundContainerList.Add(soundContainer);
                     }
 
                     // Create the mod object and read the unzipped files
@@ -2182,19 +2236,18 @@ namespace EternalModLoader
                         }
 
                         // Load the sound mod
-                        SoundMod sndMod = new SoundMod();
-                        sndMod.Name = Path.GetFileName(fileName);
+                        SoundModFile soundModFile = new SoundModFile(globalLooseMod, Path.GetFileName(fileName));
 
                         using (var streamReader = new StreamReader(file))
                         {
                             using (var memoryStream = new MemoryStream())
                             {
                                 streamReader.BaseStream.CopyTo(memoryStream);
-                                sndMod.FileBytes = memoryStream.ToArray();
+                                soundModFile.FileBytes = memoryStream.ToArray();
                             }
                         }
 
-                        soundBankInfo.ModList.Add(sndMod);
+                        soundContainer.ModFiles.Add(soundModFile);
                         unzippedModCount++;
                     }
                 }
@@ -2205,14 +2258,14 @@ namespace EternalModLoader
 
                     if (resource == null)
                     {
-                        resource = new ResourceInfo(resourceName, PathToResource(resourceName + ".resources"));
+                        resource = new ResourceContainer(resourceName, PathToResource(resourceName + ".resources"));
                         ResourceList.Add(resource);
                     }
 
                     // Create the mod object and read the files
                     if (!listResources)
                     {
-                        Mod mod = new Mod(fileName);
+                        ResourceModFile mod = new ResourceModFile(globalLooseMod, fileName);
 
                         using (var streamReader = new StreamReader(file))
                         {
@@ -2260,7 +2313,7 @@ namespace EternalModLoader
                             }
                         }
 
-                        resource.ModList.Add(mod);
+                        resource.ModFileList.Add(mod);
                         unzippedModCount++;
                     }
                 }
@@ -2301,20 +2354,20 @@ namespace EternalModLoader
                 }
 
                 // Sound mods
-                foreach (var soundBank in SoundBankList)
+                foreach (var soundContainer in SoundContainerList)
                 {
-                    if (soundBank.Path == string.Empty)
+                    if (soundContainer.Path == string.Empty)
                     {
                         continue;
                     }
 
                     if (Path.DirectorySeparatorChar == '\\')
                     {
-                        Console.WriteLine($".{soundBank.Path.Substring(soundBank.Path.IndexOf("\\base\\"))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("\\base\\"))}");
                     }
                     else
                     {
-                        Console.WriteLine($".{soundBank.Path.Substring(soundBank.Path.IndexOf("/base/"))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("/base/"))}");
                     }
                 }
 
@@ -2333,7 +2386,7 @@ namespace EternalModLoader
                     Console.ResetColor();
                     Console.Write(" was not found! Skipping ");
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write(string.Format("{0} file(s)", resource.ModList.Count));
+                    Console.Write(string.Format("{0} file(s)", resource.ModFileList.Count));
                     Console.ResetColor();
                     Console.WriteLine("...");
                     continue;
@@ -2344,24 +2397,24 @@ namespace EternalModLoader
             }
 
             // Load the sound mods
-            foreach (var soundBank in SoundBankList)
+            foreach (var soundContainer in SoundContainerList)
             {
-                if (string.IsNullOrEmpty(soundBank.Path))
+                if (string.IsNullOrEmpty(soundContainer.Path))
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("WARNING: ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write(soundBank.Name + ".snd");
+                    Console.Write(soundContainer.Name + ".snd");
                     Console.ResetColor();
                     Console.Write(" was not found! Skipping ");
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write(string.Format("{0} file(s)", soundBank.ModList.Count));
+                    Console.Write(string.Format("{0} file(s)", soundContainer.ModFiles.Count));
                     Console.ResetColor();
                     Console.WriteLine("...");
                     continue;
                 }
 
-                LoadSoundMods(soundBank);
+                LoadSoundMods(soundContainer);
             }
 
             Console.ForegroundColor = ConsoleColor.Green;

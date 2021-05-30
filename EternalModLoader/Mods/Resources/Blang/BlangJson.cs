@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace EternalModLoader
+namespace EternalModLoader.Mods.Resources.Blang
 {
     /// <summary>
     /// BlangJson class for JSON deserialization

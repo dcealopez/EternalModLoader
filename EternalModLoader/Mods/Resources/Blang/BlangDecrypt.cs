@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace EternalModLoader.Blang
+namespace EternalModLoader.Mods.Resources.Blang
 {
     /// <summary>
     /// BlangCrypt class

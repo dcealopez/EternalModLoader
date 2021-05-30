@@ -1,13 +1,18 @@
 ﻿using System;
 
-namespace EternalModLoader
+namespace EternalModLoader.Mods.Resources
 {
 
     /// <summary>
     /// Mod class
     /// </summary>
-    public class Mod
+    public class ResourceModFile
     {
+        /// <summary>
+        /// Parent mod where this mod file is from
+        /// </summary>
+        public Mod Parent;
+
         /// <summary>
         /// Mod name
         /// </summary>
@@ -70,11 +75,13 @@ namespace EternalModLoader
         public byte? SpecialByte3 = null;
 
         /// <summary>
-        /// Mod constructor
+        /// Resource mod file constructor
         /// </summary>
+        /// <param name="parent">parent mod</param>
         /// <param name="name">mod name</param>
-        public Mod(string name)
+        public ResourceModFile(Mod parent, string name)
         {
+            Parent = parent;
             Name = name;
         }
     }

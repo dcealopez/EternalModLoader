@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace EternalModLoader.ResourceData
+namespace EternalModLoader.Mods.Resources.ResourceData
 {
     /// <summary>
     /// Resource data class

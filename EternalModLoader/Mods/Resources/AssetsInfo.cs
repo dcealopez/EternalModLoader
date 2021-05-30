@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace EternalModLoader
+namespace EternalModLoader.Mods.Resources
 {
     /// <summary>
     /// AssetsInfo JSON object class

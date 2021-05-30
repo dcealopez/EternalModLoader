@@ -1,4 +1,4 @@
-﻿namespace EternalModLoader
+﻿namespace EternalModLoader.Mods.Resources
 {
     /// <summary>
     /// Resource name class
