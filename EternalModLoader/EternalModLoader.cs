@@ -1514,6 +1514,9 @@ namespace EternalModLoader
                 // Clear the compression mode
                 newFileInfo[newFileInfo.Length - 0x20] = 0;
 
+                // Set meta entries to use to 0
+                Buffer.BlockCopy(BitConverter.GetBytes((short)0), 0, newFileInfo, newFileInfo.Length - 0x10, 2);
+
                 // Add the new file info section in the correct position
                 Array.Resize(ref info, info.Length + 0x90);
 
