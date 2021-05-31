@@ -84,11 +84,6 @@ namespace EternalModLoader.Mods.Resources
     public class AssetsInfoAsset
     {
         /// <summary>
-        /// Path to the resource in the container
-        /// </summary>
-        public string Path;
-
-        /// <summary>
         /// The hash for the resource in StreamDb for .resources
         /// </summary>
         public ulong StreamDbHash;

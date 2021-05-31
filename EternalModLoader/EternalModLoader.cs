@@ -1223,24 +1223,35 @@ namespace EternalModLoader
                     {
                         foreach (var assetsInfoAssets in mod.AssetsInfo.Assets)
                         {
-                            if (string.IsNullOrEmpty(assetsInfoAssets.Path) || string.IsNullOrWhiteSpace(assetsInfoAssets.Path))
+                            string normalPath = assetsInfoAssets.Name;
+                            string declPath = normalPath;
+
+                            if (assetsInfoAssets.MapResourceType != null)
                             {
-                                continue;
+                                declPath = $"generated/decls/{assetsInfoAssets.MapResourceType.ToLowerInvariant()}/{assetsInfoAssets.Name}.decl";
                             }
 
-                            if (assetsInfoAssets.Path == newMod.Name)
+                            if (newMod.Name == declPath || newMod.Name == normalPath)
                             {
-                                newMod.ResourceType = assetsInfoAssets.ResourceType;
+                                newMod.ResourceType = assetsInfoAssets.ResourceType == null ? "rs_streamfile" : assetsInfoAssets.ResourceType;
                                 newMod.Version = assetsInfoAssets.Version;
                                 newMod.StreamDbHash = assetsInfoAssets.StreamDbHash;
                                 newMod.SpecialByte1 = assetsInfoAssets.SpecialByte1;
                                 newMod.SpecialByte2 = assetsInfoAssets.SpecialByte2;
                                 newMod.SpecialByte3 = assetsInfoAssets.SpecialByte3;
-                                Console.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
-                                    newMod.ResourceType,
-                                    newMod.Version,
-                                    newMod.StreamDbHash,
-                                    newMod.Name));
+                                newMod.PlaceBefore = assetsInfoAssets.PlaceBefore;
+                                newMod.PlaceByName = assetsInfoAssets.PlaceByName;
+                                newMod.PlaceByType = assetsInfoAssets.PlaceByType;
+
+                                if (Verbose)
+                                {
+                                    Console.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
+                                        newMod.ResourceType,
+                                        newMod.Version,
+                                        newMod.StreamDbHash,
+                                        newMod.Name));
+                                }
+
                                 break;
                             }
                         }
@@ -1407,31 +1418,114 @@ namespace EternalModLoader
                 // Add the asset filename nameId
                 Buffer.BlockCopy(BitConverter.GetBytes(nameId), 0, nameIds, nameIds.Length - 8, 8);
 
-                // Add info
+                // Place the info section in the correct location if specified
+                long newInfoSectionOffset = -1;
+
+                if (!string.IsNullOrEmpty(mod.PlaceByName))
+                {
+                    long existingNameId = -1;
+                    long existingNameOffset = -1;
+
+                    // Search for the decl name
+                    if (!string.IsNullOrEmpty(mod.PlaceByType))
+                    {
+                        existingNameId = resourceContainer.GetResourceNameId($"generated/decls/{mod.PlaceByType.ToLowerInvariant()}/{mod.PlaceByName}.decl");
+                    }
+
+                    // If it wasn't found, this is probably not a decl
+                    if (existingNameId == -1)
+                    {
+                        existingNameId = resourceContainer.GetResourceNameId(mod.PlaceByName);
+                    }
+
+                    // Find the name and info section offsets
+                    if (existingNameId != -1)
+                    {
+                        using (var nameIdsMemoryStream = new MemoryStream(nameIds))
+                        {
+                            using (var nameIdsBinaryReader = new BinaryReader(nameIdsMemoryStream))
+                            {
+                                for (int i = 0, j = (nameIds.Length / 8); i < j; i++)
+                                {
+                                    long curNameId = nameIdsBinaryReader.ReadInt64();
+
+                                    if (curNameId == existingNameId)
+                                    {
+                                        existingNameOffset = i - 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (existingNameOffset != -1)
+                        {
+                            using (var memStream = new MemoryStream(info))
+                            {
+                                using (var binReader = new BinaryReader(memStream))
+                                {
+                                    for (int i = 0, j = (info.Length / 0x90); i < j; i++)
+                                    {
+                                        memStream.Position += 32;
+                                        long nameOffset = binReader.ReadInt64();
+                                        memStream.Position += 0x70 - 8;
+
+                                        if (nameOffset == existingNameOffset)
+                                        {
+                                            newInfoSectionOffset = i * 0x90;
+
+                                            if (!mod.PlaceBefore)
+                                            {
+                                                newInfoSectionOffset += 0x90;
+                                            }
+
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Create the file info section
                 byte[] lastInfo = info.Skip(info.Length - 0x90).ToArray();
-                Array.Resize(ref info, info.Length + 0x90);
-                Buffer.BlockCopy(lastInfo, 0, info, info.Length - 0x90, lastInfo.Length);
-                Buffer.BlockCopy(BitConverter.GetBytes(nameIdOffset), 0, info, info.Length - 0x70, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(fileOffset), 0, info, info.Length - 0x58, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, info, info.Length - 0x50, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, info, info.Length - 0x48, 8);
+                byte[] newFileInfo = new byte[0x90];
+                Buffer.BlockCopy(lastInfo, 0, newFileInfo, 0, lastInfo.Length);
+                Buffer.BlockCopy(BitConverter.GetBytes(nameIdOffset), 0, newFileInfo, newFileInfo.Length - 0x70, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(fileOffset), 0, newFileInfo, newFileInfo.Length - 0x58, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, newFileInfo, newFileInfo.Length - 0x50, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileBytes.Length), 0, newFileInfo, newFileInfo.Length - 0x48, 8);
 
                 // Set the DataMurmurHash
-                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, info, info.Length - 0x40, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x40, 8);
 
                 // Set the StreamDB resource hash
-                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, info, info.Length - 0x30, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x30, 8);
 
                 // Set the correct asset version
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.Version.Value), 0, info, info.Length - 0x28, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.Version.Value), 0, newFileInfo, newFileInfo.Length - 0x28, 4);
 
                 // Set the special byte values
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte1.Value), 0, info, info.Length - 0x24, 4);
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte2.Value), 0, info, info.Length - 0x1E, 4);
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, info, info.Length - 0x1D, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte1.Value), 0, newFileInfo, newFileInfo.Length - 0x24, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte2.Value), 0, newFileInfo, newFileInfo.Length - 0x1E, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, newFileInfo, newFileInfo.Length - 0x1D, 4);
 
                 // Clear the compression mode
-                info[info.Length - 0x20] = 0;
+                newFileInfo[newFileInfo.Length - 0x20] = 0;
+
+                // Add the new file info section in the correct position
+                Array.Resize(ref info, info.Length + 0x90);
+
+                if (newInfoSectionOffset != -1)
+                {
+                    Buffer.BlockCopy(info, (int)newInfoSectionOffset, info, (int)newInfoSectionOffset + 0x90, info.Length - (int)newInfoSectionOffset - 0x90);
+                    Buffer.BlockCopy(newFileInfo, 0, info, (int)newInfoSectionOffset, 0x90);
+                }
+                else
+                {
+                    Buffer.BlockCopy(newFileInfo, 0, info, info.Length - 0x90, 0x90);
+                }
 
                 Console.WriteLine(string.Format("\tAdded {0}", mod.Name));
                 newChunksCount++;
