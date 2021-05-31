@@ -1517,7 +1517,7 @@ namespace EternalModLoader
                 // Add the new file info section in the correct position
                 Array.Resize(ref info, info.Length + 0x90);
 
-                if (newInfoSectionOffset != -1)
+                if (newInfoSectionOffset != -1 && mod.ResourceType == "rs_streamfile")
                 {
                     Buffer.BlockCopy(info, (int)newInfoSectionOffset, info, (int)newInfoSectionOffset + 0x90, info.Length - (int)newInfoSectionOffset - 0x90);
                     Buffer.BlockCopy(newFileInfo, 0, info, (int)newInfoSectionOffset, 0x90);
