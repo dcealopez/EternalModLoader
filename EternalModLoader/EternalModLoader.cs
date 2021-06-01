@@ -1421,7 +1421,7 @@ namespace EternalModLoader
                 // Place the info section in the correct location if specified
                 long newInfoSectionOffset = -1;
 
-                if (!string.IsNullOrEmpty(mod.PlaceByName))
+                /*if (!string.IsNullOrEmpty(mod.PlaceByName))
                 {
                     long existingNameId = -1;
                     long existingNameOffset = -1;
@@ -1486,7 +1486,7 @@ namespace EternalModLoader
                             }
                         }
                     }
-                }
+                }*/
 
                 // Create the file info section
                 byte[] lastInfo = info.Skip(info.Length - 0x90).ToArray();
@@ -1520,7 +1520,7 @@ namespace EternalModLoader
                 // Add the new file info section in the correct position
                 Array.Resize(ref info, info.Length + 0x90);
 
-                if (newInfoSectionOffset != -1 && mod.ResourceType == "rs_streamfile")
+                if (newInfoSectionOffset != -1)
                 {
                     Buffer.BlockCopy(info, (int)newInfoSectionOffset, info, (int)newInfoSectionOffset + 0x90, info.Length - (int)newInfoSectionOffset - 0x90);
                     Buffer.BlockCopy(newFileInfo, 0, info, (int)newInfoSectionOffset, 0x90);
