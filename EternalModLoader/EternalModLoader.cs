@@ -336,19 +336,24 @@ namespace EternalModLoader
                                             }
                                         }
 
+                                        // Special cases for the hubs
+                                        string modFileMapName = Path.GetFileNameWithoutExtension(modFile.Name);
+
+                                        if (resourceContainer.Name.StartsWith("dlc_hub"))
+                                        {
+                                            modFileMapName = "game/dlc/hub/hub";
+                                        }
+                                        else if (resourceContainer.Name.StartsWith("hub"))
+                                        {
+                                            modFileMapName = "game/hub/hub";
+                                        }
+
                                         for (int i = 0; i < packageMapSpec.Maps.Count; i++)
                                         {
-                                            if (packageMapSpec.Maps[i].Name.EndsWith(Path.GetFileNameWithoutExtension(modFile.Name)))
+                                            if (packageMapSpec.Maps[i].Name.EndsWith(modFileMapName))
                                             {
-                                                // Special case for the regular hub
-                                                // Prevent matching it with the hub from the DLC
-                                                if (!modFile.Name.Contains("dlc") && modFile.Name.Contains("hub") && packageMapSpec.Maps[i].Name.Contains("dlc"))
-                                                {
-                                                    continue;
-                                                }
-
                                                 mapIndex = i;
-                                                break;
+                                                break;  
                                             }
                                         }
 
