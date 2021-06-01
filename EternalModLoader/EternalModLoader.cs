@@ -338,7 +338,7 @@ namespace EternalModLoader
 
                                         for (int i = 0; i < packageMapSpec.Maps.Count; i++)
                                         {
-                                            if (packageMapSpec.Maps[i].Name.Contains(Path.GetFileNameWithoutExtension(modFile.Name)))
+                                            if (packageMapSpec.Maps[i].Name.EndsWith(Path.GetFileNameWithoutExtension(modFile.Name)))
                                             {
                                                 mapIndex = i;
                                                 break;
