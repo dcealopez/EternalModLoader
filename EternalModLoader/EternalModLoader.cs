@@ -340,6 +340,13 @@ namespace EternalModLoader
                                         {
                                             if (packageMapSpec.Maps[i].Name.EndsWith(Path.GetFileNameWithoutExtension(modFile.Name)))
                                             {
+                                                // Special case for the regular hub
+                                                // Prevent matching it with the hub from the DLC
+                                                if (!modFile.Name.Contains("dlc") && modFile.Name.Contains("hub") && packageMapSpec.Maps[i].Name.Contains("dlc"))
+                                                {
+                                                    continue;
+                                                }
+
                                                 mapIndex = i;
                                                 break;
                                             }
