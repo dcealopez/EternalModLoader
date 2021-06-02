@@ -353,7 +353,7 @@ namespace EternalModLoader
                                             if (packageMapSpec.Maps[i].Name.EndsWith(modFileMapName))
                                             {
                                                 mapIndex = i;
-                                                break;  
+                                                break;
                                             }
                                         }
 
@@ -1432,73 +1432,6 @@ namespace EternalModLoader
 
                 // Place the info section in the correct location if specified
                 long newInfoSectionOffset = -1;
-
-                /*if (!string.IsNullOrEmpty(mod.PlaceByName))
-                {
-                    long existingNameId = -1;
-                    long existingNameOffset = -1;
-
-                    // Search for the decl name
-                    if (!string.IsNullOrEmpty(mod.PlaceByType))
-                    {
-                        existingNameId = resourceContainer.GetResourceNameId($"generated/decls/{mod.PlaceByType.ToLowerInvariant()}/{mod.PlaceByName}.decl");
-                    }
-
-                    // If it wasn't found, this is probably not a decl
-                    if (existingNameId == -1)
-                    {
-                        existingNameId = resourceContainer.GetResourceNameId(mod.PlaceByName);
-                    }
-
-                    // Find the name and info section offsets
-                    if (existingNameId != -1)
-                    {
-                        using (var nameIdsMemoryStream = new MemoryStream(nameIds))
-                        {
-                            using (var nameIdsBinaryReader = new BinaryReader(nameIdsMemoryStream))
-                            {
-                                for (int i = 0, j = (nameIds.Length / 8); i < j; i++)
-                                {
-                                    long curNameId = nameIdsBinaryReader.ReadInt64();
-
-                                    if (curNameId == existingNameId)
-                                    {
-                                        existingNameOffset = i - 1;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (existingNameOffset != -1)
-                        {
-                            using (var memStream = new MemoryStream(info))
-                            {
-                                using (var binReader = new BinaryReader(memStream))
-                                {
-                                    for (int i = 0, j = (info.Length / 0x90); i < j; i++)
-                                    {
-                                        memStream.Position += 32;
-                                        long nameOffset = binReader.ReadInt64();
-                                        memStream.Position += 0x70 - 8;
-
-                                        if (nameOffset == existingNameOffset)
-                                        {
-                                            newInfoSectionOffset = i * 0x90;
-
-                                            if (!mod.PlaceBefore)
-                                            {
-                                                newInfoSectionOffset += 0x90;
-                                            }
-
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }*/
 
                 // Create the file info section
                 byte[] lastInfo = info.Skip(info.Length - 0x90).ToArray();
