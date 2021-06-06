@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace EternalModLoader.Mods.Resources
+﻿namespace EternalModLoader.Mods.Resources
 {
 
     /// <summary>
@@ -17,12 +15,6 @@ namespace EternalModLoader.Mods.Resources
         /// Mod name
         /// </summary>
         public string Name;
-
-        /// <summary>
-        /// The uncompressed size of the .mapresources file
-        /// This is used only for AssetsInfo JSON files
-        /// </summary>
-        public long UncompressedSize;
 
         /// <summary>
         /// Mod file bytes
