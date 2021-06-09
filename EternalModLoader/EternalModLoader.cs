@@ -27,7 +27,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 7;
+        public const int Version = 8;
 
         /// <summary>
         /// Resource data file name
@@ -249,6 +249,7 @@ namespace EternalModLoader
         {
             ResourceChunk mapResourcesChunk = null;
             MapResourcesFile mapResourcesFile = null;
+            byte[] originalDecompressedMapResourcesData = null;
             int fileCount = 0;
 
             using (var binaryReader = new BinaryReader(fileStream, Encoding.Default, true))
@@ -276,23 +277,24 @@ namespace EternalModLoader
                         fileStream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
 
                         // Decompress the data
-                        byte[] decompressedMapResources = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
+                        originalDecompressedMapResourcesData = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
 
-                        if (decompressedMapResources == null)
+                        if (originalDecompressedMapResourcesData == null)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.Write("ERROR: ");
                             Console.ResetColor();
                             Console.WriteLine($"Failed to decompress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" - are you trying to add assets in the wrong .resources archive?");
-                            continue;
+                            break;
                         }
 
                         // Deserialize the decompressed data
-                        mapResourcesFile = MapResourcesFile.Parse(decompressedMapResources);
+                        mapResourcesFile = MapResourcesFile.Parse(originalDecompressedMapResourcesData);
                         break;
                     }
                 }
 
+                // Load mod files now
                 foreach (var modFile in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
                 {
                     ResourceChunk chunk = null;
@@ -475,11 +477,23 @@ namespace EternalModLoader
                                             continue;
                                         }
 
-                                        // Place the extra resource before or after another (if specified)
-                                        if (!string.IsNullOrEmpty(extraResource.PlaceByName))
+                                        // Place the resource as the first resource for the map (highest priority)
+                                        if (extraResource.PlaceFirst)
                                         {
-                                            // First check that the resource trying to be added actually exists
-                                            var placeBeforeResourcePath = PathToResource(extraResource.Name);
+                                            for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                            {
+                                                if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                                {
+                                                    insertIndex = i;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        else if (!string.IsNullOrEmpty(extraResource.PlaceByName))
+                                        {
+                                            // Place the extra resource before or after another (if specified)
+                                            // First check that the placeByName resource actually exists
+                                            var placeBeforeResourcePath = PathToResource(extraResource.PlaceByName);
 
                                             if (placeBeforeResourcePath == string.Empty)
                                             {
@@ -1006,48 +1020,52 @@ namespace EternalModLoader
                     }
                 }
 
-                // Serialize the map resources data
-                var decompressedMapResourcesData = mapResourcesFile.ToByteArray();
-
-                // If the .mapresources file has changed, modify it
-                if (decompressedMapResourcesData.Length != mapResourcesChunk.Size)
+                // Modify the map resources file if needed
+                if (mapResourcesFile != null && mapResourcesChunk != null && originalDecompressedMapResourcesData != null)
                 {
-                    // Compress the data
-                    byte[] compressedMapResourcesData = Oodle.Compress(decompressedMapResourcesData, Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                    // Serialize the map resources data
+                    var decompressedMapResourcesData = mapResourcesFile.ToByteArray();
 
-                    if (compressedMapResourcesData == null)
+                    // Only modify the .mapresources file if it has changed
+                    if (!Utils.ArraysEqual(decompressedMapResourcesData, originalDecompressedMapResourcesData))
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("ERROR: ");
-                        Console.ResetColor();
-                        Console.WriteLine($"Failed to compress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\"");
-                    }
-                    else
-                    {
-                        // Set the necessary info for the map resources
-                        mapResourcesChunk.Size = decompressedMapResourcesData.Length;
-                        mapResourcesChunk.SizeZ = compressedMapResourcesData.Length;
+                        // Compress the data
+                        byte[] compressedMapResourcesData = Oodle.Compress(decompressedMapResourcesData, Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
 
-                        // Add the data at the end of the container
-                        long dataSectionLength = fileStream.Length - resourceContainer.DataOffset;
-                        long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                        long newContainerSize = fileStream.Length + compressedMapResourcesData.Length + placement;
+                        if (compressedMapResourcesData == null)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("ERROR: ");
+                            Console.ResetColor();
+                            Console.WriteLine($"Failed to compress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\"");
+                        }
+                        else
+                        {
+                            // Set the necessary info for the map resources
+                            mapResourcesChunk.Size = decompressedMapResourcesData.Length;
+                            mapResourcesChunk.SizeZ = compressedMapResourcesData.Length;
 
-                        long dataOffset = newContainerSize - compressedMapResourcesData.Length;
-                        fileStream.SetLength(newContainerSize);
-                        fileStream.Seek(dataOffset, SeekOrigin.Begin);
-                        fileStream.Write(compressedMapResourcesData, 0, compressedMapResourcesData.Length);
+                            // Add the data at the end of the container
+                            long dataSectionLength = fileStream.Length - resourceContainer.DataOffset;
+                            long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
+                            long newContainerSize = fileStream.Length + compressedMapResourcesData.Length + placement;
 
-                        // Set the new data offset
-                        fileStream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
-                        fileStream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+                            long dataOffset = newContainerSize - compressedMapResourcesData.Length;
+                            fileStream.SetLength(newContainerSize);
+                            fileStream.Seek(dataOffset, SeekOrigin.Begin);
+                            fileStream.Write(compressedMapResourcesData, 0, compressedMapResourcesData.Length);
 
-                        // Replace the file size data
-                        fileStream.Seek(mapResourcesChunk.SizeOffset, SeekOrigin.Begin);
-                        fileStream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
-                        fileStream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
+                            // Set the new data offset
+                            fileStream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
+                            fileStream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
 
-                        Console.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
+                            // Replace the file size data
+                            fileStream.Seek(mapResourcesChunk.SizeOffset, SeekOrigin.Begin);
+                            fileStream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
+                            fileStream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
+
+                            Console.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
+                        }
                     }
                 }
             }

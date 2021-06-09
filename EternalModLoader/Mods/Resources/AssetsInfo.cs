@@ -61,10 +61,16 @@ namespace EternalModLoader.Mods.Resources
         public string Name;
 
         /// <summary>
-        /// Indicates wheter or not the specified resource file should be removed
+        /// Indicates whether or not the specified resource file should be removed
         /// so that it doesn't get loaded on this map
         /// </summary>
         public bool Remove;
+
+        /// <summary>
+        /// Indicates whether or not the specified resource file should be placed
+        /// as the first resource in the map (i.e: highest priority)
+        /// </summary>
+        public bool PlaceFirst;
 
         /// <summary>
         /// Indicates whether or not the resource should be placed
@@ -109,7 +115,7 @@ namespace EternalModLoader.Mods.Resources
         public string MapResourceType;
 
         /// <summary>
-        /// Indicates wheter or not the asset should be removed
+        /// Indicates whether or not the asset should be removed
         /// from the container's map resources
         /// </summary>
         public bool Remove;
