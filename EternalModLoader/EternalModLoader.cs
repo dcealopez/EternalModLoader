@@ -424,7 +424,7 @@ namespace EternalModLoader
 
                                             if (mapFileRefRemoved)
                                             {
-                                                Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                                Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
                                             }
                                             else
                                             {
@@ -442,56 +442,45 @@ namespace EternalModLoader
                                             continue;
                                         }
 
+                                        // If the resource is already referenced to be loaded in the map, delete it first
+                                        // to allow us to move it wherever we want
+                                        for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
+                                        {
+                                            if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                            {
+                                                packageMapSpec.MapFileRefs.RemoveAt(i);
+
+                                                if (Verbose)
+                                                {
+                                                    Console.WriteLine($"\tResource \"{packageMapSpec.Files[fileIndex].Name}\" being added to map \"{packageMapSpec.Maps[mapIndex].Name}\" already exists. The load order will be modified as specified.");
+                                                }
+
+                                                break;
+                                            }
+                                        }
+
                                         // Add the extra resource now to the map/file references
-                                        // before the resource that is normally loaded first
+                                        // before the resource that normally appears last in the list for the map
                                         int insertIndex = -1;
-                                        bool alreadyExists = false;
 
                                         for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
                                         {
                                             if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
                                             {
-                                                insertIndex = i + 1;
-
-                                                if (packageMapSpec.MapFileRefs[i].File == fileIndex)
-                                                {
-                                                    alreadyExists = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        // Prevent adding the same map file reference multiple times
-                                        if (alreadyExists)
-                                        {
-                                            if (Verbose)
-                                            {
-                                                Console.ForegroundColor = ConsoleColor.Red;
-                                                Console.Write("WARNING: ");
-                                                Console.ResetColor();
-                                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                                Console.WriteLine($"Extra resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" was already added, skipping");
-                                                Console.ResetColor();
-                                            }
-
-                                            continue;
-                                        }
-
-                                        // Place the resource as the first resource for the map (highest priority)
-                                        if (extraResource.PlaceFirst)
-                                        {
-                                            for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
-                                            {
-                                                if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                                // If specified, place the resource as the first resource for the map (highest priority)
+                                                if (extraResource.PlaceFirst)
                                                 {
                                                     insertIndex = i;
                                                     break;
                                                 }
+
+                                                insertIndex = i + 1;
                                             }
                                         }
-                                        else if (!string.IsNullOrEmpty(extraResource.PlaceByName))
+
+                                        // Place the extra resource before or after another (if specified)
+                                        if (!string.IsNullOrEmpty(extraResource.PlaceByName) && !extraResource.PlaceFirst)
                                         {
-                                            // Place the extra resource before or after another (if specified)
                                             // First check that the placeByName resource actually exists
                                             var placeBeforeResourcePath = PathToResource(extraResource.PlaceByName);
 
@@ -567,7 +556,20 @@ namespace EternalModLoader
                                             continue;
                                         }
 
-                                        Console.WriteLine($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\" in \"{packageMapSpecPath}\"");
+                                        Console.Write($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
+
+                                        if (extraResource.PlaceFirst)
+                                        {
+                                            Console.WriteLine(" with the highest priority.");
+                                        }
+                                        else if (!string.IsNullOrEmpty(extraResource.PlaceByName) && insertIndex != -1)
+                                        {
+                                            Console.WriteLine($" {(extraResource.PlaceBefore ? "before" : "after")} \"{extraResource.PlaceByName}\"");
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine(" with the lowest priority");
+                                        }
                                     }
                                 }
                             }
