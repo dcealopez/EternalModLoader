@@ -50,6 +50,12 @@ namespace EternalModLoader
         public static bool Verbose;
 
         /// <summary>
+        /// Slow mod loading mode
+        /// Produces slightly lighter files, less disk usage, but it's slower
+        /// </summary>
+        public static bool SlowMode;
+
+        /// <summary>
         /// Resource list
         /// </summary>
         public static List<ResourceContainer> ResourceList = new List<ResourceContainer>();
@@ -235,17 +241,38 @@ namespace EternalModLoader
             using (var fileStream = new FileStream(resourceContainer.Path, FileMode.Open, FileAccess.ReadWrite))
             {
                 // Load the mods
-                ReplaceChunks(fileStream, resourceContainer);
-                AddChunks(fileStream, resourceContainer);
+                if (!SlowMode)
+                {
+                    ReplaceChunks(fileStream, resourceContainer);
+                    AddChunks(fileStream, resourceContainer);
+                }
+                else
+                {
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        // Copy the stream into memory for faster manipulation of the data
+                        fileStream.CopyTo(memoryStream);
+
+                        // Load the mods
+                        ReplaceChunks(memoryStream, resourceContainer);
+                        AddChunks(memoryStream, resourceContainer);
+
+                        // Copy the memory stream into the filestream now
+                        fileStream.SetLength(memoryStream.Length);
+                        fileStream.Seek(0, SeekOrigin.Begin);
+                        memoryStream.Seek(0, SeekOrigin.Begin);
+                        memoryStream.CopyTo(fileStream);
+                    }
+                }
             }
         }
 
         /// <summary>
         /// Replaces the chunks of the files with the modded ones
         /// </summary>
-        /// <param name="fileStream">file stream for the resource file</param>
+        /// <param name="stream">file/memory stream for the resource file</param>
         /// <param name="resourceContainer">resource container object</param>
-        public static void ReplaceChunks(FileStream fileStream, ResourceContainer resourceContainer)
+        public static void ReplaceChunks(Stream stream, ResourceContainer resourceContainer)
         {
             ResourceChunk mapResourcesChunk = null;
             MapResourcesFile mapResourcesFile = null;
@@ -253,7 +280,7 @@ namespace EternalModLoader
             bool invalidMapResources = false;
             int fileCount = 0;
 
-            using (var binaryReader = new BinaryReader(fileStream, Encoding.Default, true))
+            using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
             {
                 // Load mod files now
                 foreach (var modFile in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
@@ -557,11 +584,11 @@ namespace EternalModLoader
                                         // Read the mapresources file data (it should be compressed)
                                         byte[] mapResourcesBytes = new byte[mapResourcesChunk.SizeZ];
 
-                                        fileStream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
+                                        stream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
                                         long mapResourcesFileOffset = binaryReader.ReadInt64();
 
-                                        fileStream.Seek(mapResourcesFileOffset, SeekOrigin.Begin);
-                                        fileStream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
+                                        stream.Seek(mapResourcesFileOffset, SeekOrigin.Begin);
+                                        stream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
 
                                         // Decompress the data
                                         originalDecompressedMapResourcesData = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
@@ -849,11 +876,11 @@ namespace EternalModLoader
                                         // Read the mapresources file data (it should be compressed)
                                         byte[] mapResourcesBytes = new byte[mapResourcesChunk.SizeZ];
 
-                                        fileStream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
+                                        stream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
                                         long mapResourcesFileOffset = binaryReader.ReadInt64();
 
-                                        fileStream.Seek(mapResourcesFileOffset, SeekOrigin.Begin);
-                                        fileStream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
+                                        stream.Seek(mapResourcesFileOffset, SeekOrigin.Begin);
+                                        stream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
 
                                         // Decompress the data
                                         originalDecompressedMapResourcesData = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
@@ -932,7 +959,7 @@ namespace EternalModLoader
                         }
                     }
 
-                    fileStream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+                    stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
 
                     long fileOffset = binaryReader.ReadInt64();
                     long size = binaryReader.ReadInt64();
@@ -971,10 +998,10 @@ namespace EternalModLoader
                             continue;
                         }
 
-                        fileStream.Seek(fileOffset, SeekOrigin.Begin);
+                        stream.Seek(fileOffset, SeekOrigin.Begin);
 
                         byte[] blangFileBytes = new byte[size];
-                        fileStream.Read(blangFileBytes, 0, (int)size);
+                        stream.Read(blangFileBytes, 0, (int)size);
 
                         int res = BlangCrypt.IdCrypt(ref blangFileBytes, $"strings/{Path.GetFileName(modFile.Name)}", true);
 
@@ -1050,28 +1077,85 @@ namespace EternalModLoader
                         modFile.FileBytes = cryptDataBuffer;
                     }
 
-                    // Add the data at the end of the container
-                    long dataSectionLength = fileStream.Length - resourceContainer.DataOffset;
-                    long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                    long newContainerSize = fileStream.Length + modFile.FileBytes.Length + placement;
+                    // Add the mod file data
+                    if (!SlowMode)
+                    {
+                        // Add the data at the end of the container
+                        long dataSectionLength = stream.Length - resourceContainer.DataOffset;
+                        long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
+                        long newContainerSize = stream.Length + modFile.FileBytes.Length + placement;
 
-                    long dataOffset = newContainerSize - modFile.FileBytes.Length;
-                    fileStream.SetLength(newContainerSize);
-                    fileStream.Seek(dataOffset, SeekOrigin.Begin);
-                    fileStream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
+                        long dataOffset = newContainerSize - modFile.FileBytes.Length;
+                        stream.SetLength(newContainerSize);
+                        stream.Seek(dataOffset, SeekOrigin.Begin);
+                        stream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
 
-                    // Set the new data offset
-                    fileStream.Seek(chunk.FileOffset, SeekOrigin.Begin);
-                    fileStream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+                        // Set the new data offset
+                        stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+                        stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+                    }
+                    else
+                    {
+                        // We will need to expand the file if the new size is greater than the old one
+                        // If its shorter, we will replace all the bytes and zero out the remaining bytes
+                        if (sizeDiff > 0)
+                        {
+                            int bufferSize = 4096; // For file expansion when we need to add bytes and shift files
+                            var buffer = new byte[bufferSize];
+                            var length = stream.Length;
+
+                            // Expand the memory stream so the new file fits
+                            stream.SetLength(length + sizeDiff);
+                            int toRead;
+
+                            while (length > (fileOffset + size))
+                            {
+                                toRead = length - bufferSize >= (fileOffset + size) ? bufferSize : (int)(length - (fileOffset + size));
+                                length -= toRead;
+                                stream.Seek(length, SeekOrigin.Begin);
+                                stream.Read(buffer, 0, toRead);
+                                stream.Seek(length + sizeDiff, SeekOrigin.Begin);
+                                stream.Write(buffer, 0, toRead);
+                            }
+
+                            // Write the new file bytes now that the file has been expanded
+                            // and there's enough space
+                            stream.Seek(fileOffset, SeekOrigin.Begin);
+                            stream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
+                        }
+                        else
+                        {
+                            stream.Seek(fileOffset, SeekOrigin.Begin);
+                            stream.Write(modFile.FileBytes, 0, modFile.FileBytes.Length);
+
+                            // Zero out the remaining bytes if the file is shorter
+                            if (sizeDiff < 0)
+                            {
+                                stream.Write(new byte[-sizeDiff], 0, (int)-sizeDiff);
+                            }
+                        }
+                    }
 
                     // Replace the file size data
-                    fileStream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
-                    fileStream.Write(BitConverter.GetBytes((long)modFile.FileBytes.Length), 0, 8);
-                    fileStream.Write(BitConverter.GetBytes((long)modFile.FileBytes.Length), 0, 8);
+                    stream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
+                    stream.Write(BitConverter.GetBytes((long)modFile.FileBytes.Length), 0, 8);
+                    stream.Write(BitConverter.GetBytes((long)modFile.FileBytes.Length), 0, 8);
 
                     // Clear the compression flag
-                    fileStream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
-                    fileStream.WriteByte(0);
+                    stream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
+                    stream.WriteByte(0);
+
+                    // (Slow mode) If the file was expanded, update file offsets for every file after the one we replaced
+                    if (SlowMode && sizeDiff > 0)
+                    {
+                        for (int i = resourceContainer.ChunkList.IndexOf(chunk) + 1; i < resourceContainer.ChunkList.Count; i++)
+                        {
+                            stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                            fileOffset = binaryReader.ReadInt64();
+                            stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                            stream.Write(BitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
+                        }
+                    }
 
                     if (!modFile.IsBlangJson && !modFile.IsAssetsInfoJson)
                     {
@@ -1106,23 +1190,23 @@ namespace EternalModLoader
                             mapResourcesChunk.SizeZ = compressedMapResourcesData.Length;
 
                             // Add the data at the end of the container
-                            long dataSectionLength = fileStream.Length - resourceContainer.DataOffset;
+                            long dataSectionLength = stream.Length - resourceContainer.DataOffset;
                             long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                            long newContainerSize = fileStream.Length + compressedMapResourcesData.Length + placement;
+                            long newContainerSize = stream.Length + compressedMapResourcesData.Length + placement;
 
                             long dataOffset = newContainerSize - compressedMapResourcesData.Length;
-                            fileStream.SetLength(newContainerSize);
-                            fileStream.Seek(dataOffset, SeekOrigin.Begin);
-                            fileStream.Write(compressedMapResourcesData, 0, compressedMapResourcesData.Length);
+                            stream.SetLength(newContainerSize);
+                            stream.Seek(dataOffset, SeekOrigin.Begin);
+                            stream.Write(compressedMapResourcesData, 0, compressedMapResourcesData.Length);
 
                             // Set the new data offset
-                            fileStream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
-                            fileStream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+                            stream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
+                            stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
 
                             // Replace the file size data
-                            fileStream.Seek(mapResourcesChunk.SizeOffset, SeekOrigin.Begin);
-                            fileStream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
-                            fileStream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
+                            stream.Seek(mapResourcesChunk.SizeOffset, SeekOrigin.Begin);
+                            stream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
+                            stream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
 
                             Console.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
                         }
@@ -1146,9 +1230,9 @@ namespace EternalModLoader
         /// <summary>
         /// Adds new file chunks to the resource file
         /// </summary>
-        /// <param name="fileStream">file stream for the resource file</param>
+        /// <param name="stream">file/memory stream for the resource file</param>
         /// <param name="resourceContainer">resource container object</param>
-        public static void AddChunks(FileStream fileStream, ResourceContainer resourceContainer)
+        public static void AddChunks(Stream stream, ResourceContainer resourceContainer)
         {
             var newModFiles = resourceContainer.NewModFileList.OrderByDescending(mod => mod.Parent.LoadPriority).ToList();
 
@@ -1159,38 +1243,48 @@ namespace EternalModLoader
 
             // Copy individual sections
             byte[] header = new byte[resourceContainer.InfoOffset];
-            fileStream.Seek(0, SeekOrigin.Begin);
-            fileStream.Read(header, 0, header.Length);
+            stream.Seek(0, SeekOrigin.Begin);
+            stream.Read(header, 0, header.Length);
 
             byte[] info = new byte[resourceContainer.NamesOffset - resourceContainer.InfoOffset];
-            fileStream.Seek(resourceContainer.InfoOffset, SeekOrigin.Begin);
-            fileStream.Read(info, 0, info.Length);
+            stream.Seek(resourceContainer.InfoOffset, SeekOrigin.Begin);
+            stream.Read(info, 0, info.Length);
 
             byte[] nameOffsets = new byte[resourceContainer.NamesOffsetEnd - resourceContainer.NamesOffset];
-            fileStream.Seek(resourceContainer.NamesOffset, SeekOrigin.Begin);
-            fileStream.Read(nameOffsets, 0, nameOffsets.Length);
+            stream.Seek(resourceContainer.NamesOffset, SeekOrigin.Begin);
+            stream.Read(nameOffsets, 0, nameOffsets.Length);
 
             byte[] names = new byte[resourceContainer.UnknownOffset - resourceContainer.NamesOffsetEnd];
-            fileStream.Seek(resourceContainer.NamesOffsetEnd, SeekOrigin.Begin);
-            fileStream.Read(names, 0, names.Length);
+            stream.Seek(resourceContainer.NamesOffsetEnd, SeekOrigin.Begin);
+            stream.Read(names, 0, names.Length);
 
             byte[] unknown = new byte[resourceContainer.Dummy7Offset - resourceContainer.UnknownOffset];
-            fileStream.Seek(resourceContainer.UnknownOffset, SeekOrigin.Begin);
-            fileStream.Read(unknown, 0, unknown.Length);
+            stream.Seek(resourceContainer.UnknownOffset, SeekOrigin.Begin);
+            stream.Read(unknown, 0, unknown.Length);
 
             long nameIdsOffset = resourceContainer.Dummy7Offset + (resourceContainer.TypeCount * 4);
 
             byte[] typeIds = new byte[nameIdsOffset - resourceContainer.Dummy7Offset];
-            fileStream.Seek(resourceContainer.Dummy7Offset, SeekOrigin.Begin);
-            fileStream.Read(typeIds, 0, typeIds.Length);
+            stream.Seek(resourceContainer.Dummy7Offset, SeekOrigin.Begin);
+            stream.Read(typeIds, 0, typeIds.Length);
 
             byte[] nameIds = new byte[resourceContainer.IdclOffset - nameIdsOffset];
-            fileStream.Seek(nameIdsOffset, SeekOrigin.Begin);
-            fileStream.Read(nameIds, 0, nameIds.Length);
+            stream.Seek(nameIdsOffset, SeekOrigin.Begin);
+            stream.Read(nameIds, 0, nameIds.Length);
 
             byte[] idcl = new byte[resourceContainer.DataOffset - resourceContainer.IdclOffset];
-            fileStream.Seek(resourceContainer.IdclOffset, SeekOrigin.Begin);
-            fileStream.Read(idcl, 0, idcl.Length);
+            stream.Seek(resourceContainer.IdclOffset, SeekOrigin.Begin);
+            stream.Read(idcl, 0, idcl.Length);
+
+            // Read the data section if in slow mode
+            byte[] data = null;
+
+            if (SlowMode)
+            {
+                data = new byte[stream.Length - resourceContainer.DataOffset];
+                stream.Seek(resourceContainer.DataOffset, SeekOrigin.Begin);
+                stream.Read(data, 0, data.Length);
+            }
 
             int infoOldLength = info.Length;
             int nameIdsOldLength = nameIds.Length;
@@ -1370,15 +1464,29 @@ namespace EternalModLoader
                     NormalizedFileName = mod.Name
                 });
 
-                // Add the data at the end of the container
-                long currentDataSectionLength = fileStream.Length - resourceContainer.DataOffset;
-                long placement = (0x10 - (currentDataSectionLength % 0x10)) + 0x30;
-                long newContainerSize = fileStream.Length + mod.FileBytes.Length + placement;
+                // Add the mod file data now
+                long fileOffset = 0;
 
-                long fileOffset = newContainerSize - mod.FileBytes.Length;
-                fileStream.SetLength(newContainerSize);
-                fileStream.Seek(fileOffset, SeekOrigin.Begin);
-                fileStream.Write(mod.FileBytes, 0, mod.FileBytes.Length);
+                if (!SlowMode)
+                {
+                    // Add the data at the end of the container
+                    long currentDataSectionLength = stream.Length - resourceContainer.DataOffset;
+                    long placement = (0x10 - (currentDataSectionLength % 0x10)) + 0x30;
+                    long newContainerSize = stream.Length + mod.FileBytes.Length + placement;
+                    fileOffset = newContainerSize - mod.FileBytes.Length;
+
+                    stream.SetLength(newContainerSize);
+                    stream.Seek(fileOffset, SeekOrigin.Begin);
+                    stream.Write(mod.FileBytes, 0, mod.FileBytes.Length);
+                }
+                else
+                {
+                    long placement = (0x10 - (data.Length % 0x10)) + 0x30;
+                    Array.Resize(ref data, (int)(data.Length + placement));
+                    fileOffset = data.Length + resourceContainer.DataOffset;
+                    Array.Resize(ref data, data.Length + mod.FileBytes.Length);
+                    Buffer.BlockCopy(mod.FileBytes, 0, data, data.Length - mod.FileBytes.Length, mod.FileBytes.Length);
+                }
 
                 // Add the asset type nameId and the filename nameId in nameIds
                 long nameId = 0;
@@ -1480,39 +1588,55 @@ namespace EternalModLoader
             }
 
             // Rebuild the container now
-            long dataSectionLength = fileStream.Length - resourceContainer.DataOffset;
-            long newContainerLength = header.Length + info.Length + nameOffsets.Length + names.Length + unknown.Length + typeIds.Length + nameIds.Length + idcl.Length + dataSectionLength;
+            long newContainerLength = 0;
 
-            // Shift the data section first
-            const int bufferSize = 4096;
-            var buffer = new byte[bufferSize];
-
-            // Expand file
-            long extraBytes = newContainerLength - fileStream.Length;
-            long currentPos = fileStream.Length;
-            int bytesToRead;
-
-            while (currentPos > resourceContainer.DataOffset)
+            if (!SlowMode)
             {
-                bytesToRead = currentPos - bufferSize >= resourceContainer.DataOffset ? bufferSize : (int)(currentPos - resourceContainer.DataOffset);
-                currentPos -= bytesToRead;
-                fileStream.Position = currentPos;
-                fileStream.Read(buffer, 0, bytesToRead);
-                fileStream.Position = currentPos + extraBytes;
-                fileStream.Write(buffer, 0, bytesToRead);
-                fileStream.Flush();
+                long dataSectionLength = stream.Length - resourceContainer.DataOffset;
+                newContainerLength = header.Length + info.Length + nameOffsets.Length + names.Length + unknown.Length + typeIds.Length + nameIds.Length + idcl.Length + dataSectionLength;
+
+                // Shift the data section first
+                const int bufferSize = 4096;
+                var buffer = new byte[bufferSize];
+
+                // Expand file
+                long extraBytes = newContainerLength - stream.Length;
+                long currentPos = stream.Length;
+                int bytesToRead;
+
+                while (currentPos > resourceContainer.DataOffset)
+                {
+                    bytesToRead = currentPos - bufferSize >= resourceContainer.DataOffset ? bufferSize : (int)(currentPos - resourceContainer.DataOffset);
+                    currentPos -= bytesToRead;
+                    stream.Position = currentPos;
+                    stream.Read(buffer, 0, bytesToRead);
+                    stream.Position = currentPos + extraBytes;
+                    stream.Write(buffer, 0, bytesToRead);
+                    stream.Flush();
+                }
+            }
+            else
+            {
+                newContainerLength = header.Length + info.Length + nameOffsets.Length + names.Length + unknown.Length + typeIds.Length + nameIds.Length + idcl.Length + data.Length;
+                stream.SetLength(newContainerLength);
             }
 
             // Write the rest of the data at the beginning
-            fileStream.Seek(0, SeekOrigin.Begin);
-            fileStream.Write(header, 0, header.Length);
-            fileStream.Write(info, 0, info.Length);
-            fileStream.Write(nameOffsets, 0, nameOffsets.Length);
-            fileStream.Write(names, 0, names.Length);
-            fileStream.Write(unknown, 0, unknown.Length);
-            fileStream.Write(typeIds, 0, typeIds.Length);
-            fileStream.Write(nameIds, 0, nameIds.Length);
-            fileStream.Write(idcl, 0, idcl.Length);
+            stream.Seek(0, SeekOrigin.Begin);
+            stream.Write(header, 0, header.Length);
+            stream.Write(info, 0, info.Length);
+            stream.Write(nameOffsets, 0, nameOffsets.Length);
+            stream.Write(names, 0, names.Length);
+            stream.Write(unknown, 0, unknown.Length);
+            stream.Write(typeIds, 0, typeIds.Length);
+            stream.Write(nameIds, 0, nameIds.Length);
+            stream.Write(idcl, 0, idcl.Length);
+
+            // Write the data section if in slow mode
+            if (SlowMode)
+            {
+                stream.Write(data, 0, data.Length);
+            }
 
             if (newChunksCount != 0)
             {
@@ -1528,246 +1652,277 @@ namespace EternalModLoader
         }
 
         /// <summary>
-        /// Loads the sound mods present in the specified sound container object
+        /// Loads the sound mods present in the given sound container
         /// </summary>
-        /// <param name="soundContainer">sound container info object</param>
+        /// <param name="soundContainer">sound container to load the sound mods to</param>
         public static void LoadSoundMods(SoundContainer soundContainer)
+        {
+            using (var fileStream = new FileStream(soundContainer.Path, FileMode.Open, FileAccess.ReadWrite))
+            {
+                // Load the mods
+                if (!SlowMode)
+                {
+                    ReplaceSounds(fileStream, soundContainer);
+                }
+                else
+                {
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        // Copy the stream into memory for faster manipulation of the data
+                        fileStream.CopyTo(memoryStream);
+
+                        // Load the mods
+                        ReplaceSounds(memoryStream, soundContainer);
+
+                        // Copy the memory stream into the filestream now
+                        fileStream.SetLength(memoryStream.Length);
+                        fileStream.Seek(0, SeekOrigin.Begin);
+                        memoryStream.Seek(0, SeekOrigin.Begin);
+                        memoryStream.CopyTo(fileStream);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replaces the sound mods present in the specified sound container object
+        /// </summary>
+        /// <param name="stream">file/memory stream for the sound container file</param>
+        /// <param name="soundContainer">sound container info object</param>
+        public static void ReplaceSounds(Stream stream, SoundContainer soundContainer)
         {
             int fileCount = 0;
 
-            using (var fileStream = new FileStream(soundContainer.Path, FileMode.Open, FileAccess.ReadWrite))
+            // Load the sound mods
+            foreach (var soundMod in soundContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
             {
-                // Load the sound mods
-                foreach (var soundMod in soundContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
+                // Parse the identifier of the sound we want to replace
+                var soundFileNameWithoutExtension = Path.GetFileNameWithoutExtension(soundMod.Name);
+                int soundModId;
+
+                // First, assume that the file name (without extension) is the sound id
+                if (!int.TryParse(soundFileNameWithoutExtension, out soundModId))
                 {
-                    // Parse the identifier of the sound we want to replace
-                    var soundFileNameWithoutExtension = Path.GetFileNameWithoutExtension(soundMod.Name);
-                    int soundModId;
+                    // If this is not the case, try to find the id at the end of the filename
+                    // Format: _#id{id here}
+                    var splittedName = soundFileNameWithoutExtension.Split('_');
+                    var idString = splittedName[splittedName.Length - 1];
+                    var idStringData = idString.Split('#');
 
-                    // First, assume that the file name (without extension) is the sound id
-                    if (!int.TryParse(soundFileNameWithoutExtension, out soundModId))
+                    if (idStringData.Length == 2 && idStringData[0] == "id")
                     {
-                        // If this is not the case, try to find the id at the end of the filename
-                        // Format: _#id{id here}
-                        var splittedName = soundFileNameWithoutExtension.Split('_');
-                        var idString = splittedName[splittedName.Length - 1];
-                        var idStringData = idString.Split('#');
-
-                        if (idStringData.Length == 2 && idStringData[0] == "id")
-                        {
-                            int.TryParse(idStringData[1], out soundModId);
-                        }
+                        int.TryParse(idStringData[1], out soundModId);
                     }
-
-                    if (soundModId == 0)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("WARNING: ");
-                        Console.ResetColor();
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Bad file name for sound file \"{soundMod.Name}\" - sound file names should be named after the sound id, or have the sound id at the end of the filename with format \"_id#{{id here}}\", skipping");
-                        Console.WriteLine($"Examples of valid sound file names:");
-                        Console.WriteLine($"icon_music_boss_end_2_id#347947739.ogg");
-                        Console.WriteLine($"347947739.ogg");
-                        Console.ResetColor();
-                        continue;
-                    }
-
-                    // Determine the sound format by extension
-                    var soundExtension = Path.GetExtension(soundMod.Name);
-                    int encodedSize = soundMod.FileBytes.Length;
-                    int decodedSize = encodedSize;
-                    bool needsEncoding = false;
-                    short format = -1;
-
-                    switch (soundExtension)
-                    {
-                        case ".wem":
-                            format = 3;
-                            break;
-                        case ".ogg":
-                        case ".opus":
-                            format = 2;
-                            break;
-                        default:
-                            needsEncoding = true;
-                            break;
-                    }
-
-                    // If the file needs to be encoded, encode it using opusenc first
-                    if (needsEncoding)
-                    {
-                        try
-                        {
-                            var opusEncPath = Path.Combine(BasePath, "opusenc.exe");
-                            encodedSize = -1;
-
-                            if (!File.Exists(opusEncPath))
-                            {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Couldn't find \"{opusEncPath}\" to encode \"{soundMod.Name}\", skipping");
-                                Console.ResetColor();
-                                continue;
-                            }
-
-                            var opusFileData = SoundEncoding.EncodeSoundModFileToOpus(opusEncPath, soundMod);
-
-                            if (opusFileData != null)
-                            {
-                                soundMod.FileBytes = opusFileData;
-                                encodedSize = soundMod.FileBytes.Length;
-                                format = 2;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Error.Write("ERROR: ");
-                            Console.ResetColor();
-                            Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
-                            continue;
-                        }
-                    }
-
-                    if (format == -1)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("WARNING: ");
-                        Console.ResetColor();
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Couldn't determine the sound file format for \"{soundMod.Name}\", skipping");
-                        Console.ResetColor();
-                        continue;
-                    }
-                    else if (format == 2)
-                    {
-                        try
-                        {
-                            // Determine the decoded size of the sound file
-                            // if the format is .ogg or .opus
-                            var opusDecPath = Path.Combine(BasePath, "opusdec.exe");
-
-                            if (!File.Exists(opusDecPath))
-                            {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Couldn't find \"{opusDecPath}\" to decode \"{soundMod.Name}\", skipping");
-                                Console.ResetColor();
-                                continue;
-                            }
-
-                            decodedSize = SoundEncoding.GetDecodedOpusSoundModFileSize(opusDecPath, soundMod);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Error.Write("ERROR: ");
-                            Console.ResetColor();
-                            Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
-                            continue;
-                        }
-                    }
-
-                    if (decodedSize == -1 || encodedSize == -1)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("WARNING: ");
-                        Console.ResetColor();
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Unsupported sound mod file format for file \"{soundMod.Name}\", skipping");
-
-                        if (soundExtension == ".ogg")
-                        {
-                            Console.WriteLine($".ogg files must be in the Ogg Opus format, Ogg Vorbis is not supported");
-                        }
-
-                        Console.WriteLine($"Supported sound mod file formats are: {string.Join(", ", SoundEncoding.SupportedFileFormats)}");
-
-                        Console.ResetColor();
-                        continue;
-                    }
-
-                    // Load the sound mod into the sound container
-                    bool soundFound = false;
-
-                    using (var binaryReader = new BinaryReader(fileStream, Encoding.Default, true))
-                    {
-                        // Write the sound replacement data at the end of the sound container
-                        fileStream.Seek(0, SeekOrigin.End);
-                        uint soundModOffset = (uint)fileStream.Position;
-                        fileStream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
-
-                        // Read the info and the header sizes
-                        fileStream.Seek(4, SeekOrigin.Begin);
-
-                        uint infoSize = binaryReader.ReadUInt32();
-                        uint headerSize = binaryReader.ReadUInt32();
-
-                        fileStream.Seek(headerSize, SeekOrigin.Current);
-
-                        // Loop through all the sound info to find the sound we want to replace
-                        for (uint i = 0, j = (infoSize - headerSize) / 32; i < j; i++)
-                        {
-                            fileStream.Seek(8, SeekOrigin.Current);
-                            uint soundId = binaryReader.ReadUInt32();
-
-                            if (soundId != soundModId)
-                            {
-                                fileStream.Seek(20, SeekOrigin.Current);
-                                continue;
-                            }
-
-                            soundFound = true;
-
-                            // Replace the sound info offset and sizes
-                            fileStream.Write(BitConverter.GetBytes(encodedSize), 0, 4);
-                            fileStream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
-                            fileStream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
-                            ushort currentFormat = binaryReader.ReadUInt16();
-
-                            // Skip the last 6 bytes that we don't need
-                            fileStream.Seek(6, SeekOrigin.Current);
-
-                            if (currentFormat != format)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
-                                Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Format mismatch: sound file \"{soundMod.Name}\" needs to be format {currentFormat} ({(currentFormat == 3 ? ".wem" : string.Join(", ", SoundEncoding.SupportedOggConversionFileFormats))})");
-                                Console.WriteLine($"The sound will be replaced but it might not work in-game.");
-                                Console.ResetColor();
-
-                                // To avoid showing this warning multiple times, in case we find
-                                // another sound with the same id
-                                format = (short)currentFormat;
-                            }
-
-                            // We don't to break here, since some sounds are duplicated
-                            // and we don't know which one the game uses, so it's better to
-                            // replace all of their occurences
-                        }
-                    }
-
-                    if (!soundFound)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("WARNING: ");
-                        Console.ResetColor();
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Couldn't find sound with id \"{soundModId}\" in \"{soundContainer.Name}\", sound will not be replaced");
-                        Console.ResetColor();
-                        continue;
-                    }
-
-                    Console.WriteLine(string.Format("\tReplaced sound with id {0} [{1}]", soundModId, soundMod.Name));
-                    fileCount++;
                 }
+
+                if (soundModId == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Bad file name for sound file \"{soundMod.Name}\" - sound file names should be named after the sound id, or have the sound id at the end of the filename with format \"_id#{{id here}}\", skipping");
+                    Console.WriteLine($"Examples of valid sound file names:");
+                    Console.WriteLine($"icon_music_boss_end_2_id#347947739.ogg");
+                    Console.WriteLine($"347947739.ogg");
+                    Console.ResetColor();
+                    continue;
+                }
+
+                // Determine the sound format by extension
+                var soundExtension = Path.GetExtension(soundMod.Name);
+                int encodedSize = soundMod.FileBytes.Length;
+                int decodedSize = encodedSize;
+                bool needsEncoding = false;
+                short format = -1;
+
+                switch (soundExtension)
+                {
+                    case ".wem":
+                        format = 3;
+                        break;
+                    case ".ogg":
+                    case ".opus":
+                        format = 2;
+                        break;
+                    default:
+                        needsEncoding = true;
+                        break;
+                }
+
+                // If the file needs to be encoded, encode it using opusenc first
+                if (needsEncoding)
+                {
+                    try
+                    {
+                        var opusEncPath = Path.Combine(BasePath, "opusenc.exe");
+                        encodedSize = -1;
+
+                        if (!File.Exists(opusEncPath))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Couldn't find \"{opusEncPath}\" to encode \"{soundMod.Name}\", skipping");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        var opusFileData = SoundEncoding.EncodeSoundModFileToOpus(opusEncPath, soundMod);
+
+                        if (opusFileData != null)
+                        {
+                            soundMod.FileBytes = opusFileData;
+                            encodedSize = soundMod.FileBytes.Length;
+                            format = 2;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Error.Write("ERROR: ");
+                        Console.ResetColor();
+                        Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
+                        continue;
+                    }
+                }
+
+                if (format == -1)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Couldn't determine the sound file format for \"{soundMod.Name}\", skipping");
+                    Console.ResetColor();
+                    continue;
+                }
+                else if (format == 2)
+                {
+                    try
+                    {
+                        // Determine the decoded size of the sound file
+                        // if the format is .ogg or .opus
+                        var opusDecPath = Path.Combine(BasePath, "opusdec.exe");
+
+                        if (!File.Exists(opusDecPath))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Couldn't find \"{opusDecPath}\" to decode \"{soundMod.Name}\", skipping");
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        decodedSize = SoundEncoding.GetDecodedOpusSoundModFileSize(opusDecPath, soundMod);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Error.Write("ERROR: ");
+                        Console.ResetColor();
+                        Console.Error.WriteLine($"While loading sound mod file {soundMod.Name}: {ex}");
+                        continue;
+                    }
+                }
+
+                if (decodedSize == -1 || encodedSize == -1)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Unsupported sound mod file format for file \"{soundMod.Name}\", skipping");
+
+                    if (soundExtension == ".ogg")
+                    {
+                        Console.WriteLine($".ogg files must be in the Ogg Opus format, Ogg Vorbis is not supported");
+                    }
+
+                    Console.WriteLine($"Supported sound mod file formats are: {string.Join(", ", SoundEncoding.SupportedFileFormats)}");
+
+                    Console.ResetColor();
+                    continue;
+                }
+
+                // Load the sound mod into the sound container
+                bool soundFound = false;
+
+                using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
+                {
+                    // Write the sound replacement data at the end of the sound container
+                    stream.Seek(0, SeekOrigin.End);
+                    uint soundModOffset = (uint)stream.Position;
+                    stream.Write(soundMod.FileBytes, 0, soundMod.FileBytes.Length);
+
+                    // Read the info and the header sizes
+                    stream.Seek(4, SeekOrigin.Begin);
+
+                    uint infoSize = binaryReader.ReadUInt32();
+                    uint headerSize = binaryReader.ReadUInt32();
+
+                    stream.Seek(headerSize, SeekOrigin.Current);
+
+                    // Loop through all the sound info to find the sound we want to replace
+                    for (uint i = 0, j = (infoSize - headerSize) / 32; i < j; i++)
+                    {
+                        stream.Seek(8, SeekOrigin.Current);
+                        uint soundId = binaryReader.ReadUInt32();
+
+                        if (soundId != soundModId)
+                        {
+                            stream.Seek(20, SeekOrigin.Current);
+                            continue;
+                        }
+
+                        soundFound = true;
+
+                        // Replace the sound info offset and sizes
+                        stream.Write(BitConverter.GetBytes(encodedSize), 0, 4);
+                        stream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
+                        stream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
+                        ushort currentFormat = binaryReader.ReadUInt16();
+
+                        // Skip the last 6 bytes that we don't need
+                        stream.Seek(6, SeekOrigin.Current);
+
+                        if (currentFormat != format)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("WARNING: ");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Format mismatch: sound file \"{soundMod.Name}\" needs to be format {currentFormat} ({(currentFormat == 3 ? ".wem" : string.Join(", ", SoundEncoding.SupportedOggConversionFileFormats))})");
+                            Console.WriteLine($"The sound will be replaced but it might not work in-game.");
+                            Console.ResetColor();
+
+                            // To avoid showing this warning multiple times, in case we find
+                            // another sound with the same id
+                            format = (short)currentFormat;
+                        }
+
+                        // We don't to break here, since some sounds are duplicated
+                        // and we don't know which one the game uses, so it's better to
+                        // replace all of their occurences
+                    }
+                }
+
+                if (!soundFound)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("WARNING: ");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Couldn't find sound with id \"{soundModId}\" in \"{soundContainer.Name}\", sound will not be replaced");
+                    Console.ResetColor();
+                    continue;
+                }
+
+                Console.WriteLine(string.Format("\tReplaced sound with id {0} [{1}]", soundModId, soundMod.Name));
+                fileCount++;
             }
 
             if (fileCount > 0)
@@ -1913,6 +2068,10 @@ namespace EternalModLoader
                     else if (args[i].Equals("--verbose"))
                     {
                         Verbose = true;
+                    }
+                    else if (args[i].Equals("--slow"))
+                    {
+                        SlowMode = true;
                     }
                     else
                     {
