@@ -1612,7 +1612,6 @@ namespace EternalModLoader
                     stream.Read(buffer, 0, bytesToRead);
                     stream.Position = currentPos + extraBytes;
                     stream.Write(buffer, 0, bytesToRead);
-                    stream.Flush();
                 }
             }
             else
