@@ -2035,6 +2035,7 @@ namespace EternalModLoader
                 Console.WriteLine("OPTIONS:");
                 Console.WriteLine("\t--list-res - List the .resources files that will be modified and exit.");
                 Console.WriteLine("\t--verbose - Print more information during the mod loading process.");
+                Console.WriteLine("\t--slow - Slow mod loading mode that produces lighter files and uses less disk.");
                 return 1;
             }
 
