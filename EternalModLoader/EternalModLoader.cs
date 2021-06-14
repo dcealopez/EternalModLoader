@@ -265,11 +265,6 @@ namespace EternalModLoader
         /// <param name="resourceContainer">resource container object</param>
         public static void LoadMods(ResourceContainer resourceContainer)
         {
-            if (BufferSize == -1)
-            {
-                SetOptimalBufferSize(Path.GetPathRoot(resourceContainer.Path));
-            }
-
             using (var fileStream = new FileStream(resourceContainer.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite, BufferSize, FileOptions.SequentialScan))
             {
                 // Read the resource file and reset the position afterwards
@@ -1714,11 +1709,6 @@ namespace EternalModLoader
         /// <param name="soundContainer">sound container to load the sound mods to</param>
         public static void LoadSoundMods(SoundContainer soundContainer)
         {
-            if (BufferSize == -1)
-            {
-                SetOptimalBufferSize(Path.GetPathRoot(soundContainer.Path));
-            }
-
             using (var fileStream = new FileStream(soundContainer.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
             {
                 // Read the sound entries in the container
@@ -2134,6 +2124,27 @@ namespace EternalModLoader
                 }
             }
 
+            // Set the optimal buffer size for I/O file operations
+            if (BufferSize == -1)
+            {
+                DirectoryInfo baseDirectoryInfo = null;
+
+                try
+                {
+                    baseDirectoryInfo = new DirectoryInfo(BasePath);
+                    SetOptimalBufferSize(Path.GetPathRoot(baseDirectoryInfo.FullName));
+                }
+                catch (Exception ex)
+                {
+                    BufferSize = 4096;
+
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("ERROR: ");
+                    Console.ResetColor();
+                    Console.Error.WriteLine($"Error while determining the optimal buffer size, using 4096 as the default: {ex}");
+                }
+            }
+
             // Load the compressed resource data file (if we are not going to load mods, this isn't necessary)
             if (!listResources)
             {
@@ -2492,7 +2503,7 @@ namespace EternalModLoader
                     {
                         ResourceModFile mod = new ResourceModFile(globalLooseMod, fileName);
 
-                        using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+                        using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                         {
                             mod.FileData = new MemoryStream();
                             fileStream.CopyTo(mod.FileData);
