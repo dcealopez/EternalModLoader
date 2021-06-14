@@ -1801,6 +1801,7 @@ namespace EternalModLoader
                     int encodedSize = (int)soundMod.FileData.Length;
                     int decodedSize = encodedSize;
                     bool needsEncoding = false;
+                    bool needsDecoding = true;
                     short format = -1;
 
                     switch (soundExtension)
@@ -1811,6 +1812,12 @@ namespace EternalModLoader
                         case ".ogg":
                         case ".opus":
                             format = 2;
+                            break;
+                        case ".wav":
+                            format = 2;
+                            decodedSize = encodedSize + 20;
+                            needsDecoding = false;
+                            needsEncoding = true;
                             break;
                         default:
                             needsEncoding = true;
@@ -1865,7 +1872,7 @@ namespace EternalModLoader
                         Console.ResetColor();
                         continue;
                     }
-                    else if (format == 2)
+                    else if (format == 2 && needsDecoding)
                     {
                         try
                         {
