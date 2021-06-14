@@ -43,7 +43,7 @@ namespace EternalModLoader.Mods.Sounds
                 File.Delete(tempDecSoundFilePath);
             }
 
-            File.WriteAllBytes(tempEncSoundFilePath, soundMod.FileBytes);
+            File.WriteAllBytes(tempEncSoundFilePath, soundMod.FileData.ToArray());
 
             // Decode the file to .wav to get the decoded size
             var opusDecProcess = new Process();
@@ -94,7 +94,7 @@ namespace EternalModLoader.Mods.Sounds
                 File.Delete(tempEncSoundFilePath);
             }
 
-            File.WriteAllBytes(tempSoundFilePath, soundMod.FileBytes);
+            File.WriteAllBytes(tempSoundFilePath, soundMod.FileData.ToArray());
 
             // Encode the file to .ogg
             var opusEncProcess = new Process();

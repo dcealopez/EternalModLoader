@@ -23,6 +23,11 @@ namespace EternalModLoader.Mods.Sounds
         public List<SoundModFile> ModFiles;
 
         /// <summary>
+        /// List of sound entries in this sound container
+        /// </summary>
+        public List<SoundEntry> SoundEntries;
+
+        /// <summary>
         /// Sound container constructor
         /// </summary>
         /// <param name="name">sound container name</param>
@@ -32,6 +37,7 @@ namespace EternalModLoader.Mods.Sounds
             Name = name;
             Path = path;
             ModFiles = new List<SoundModFile>();
+            SoundEntries = new List<SoundEntry>();
         }
     }
 }

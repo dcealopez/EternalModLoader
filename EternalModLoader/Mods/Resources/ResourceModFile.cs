@@ -1,4 +1,6 @@
-﻿namespace EternalModLoader.Mods.Resources
+﻿using System.IO;
+
+namespace EternalModLoader.Mods.Resources
 {
 
     /// <summary>
@@ -17,9 +19,9 @@
         public string Name;
 
         /// <summary>
-        /// Mod file bytes
+        /// Mod file data memory stream
         /// </summary>
-        public byte[] FileBytes;
+        public MemoryStream FileData;
 
         /// <summary>
         /// True if the mod file is a .blang JSON
@@ -93,6 +95,36 @@
         {
             Parent = parent;
             Name = name;
+        }
+
+        /// <summary>
+        /// Copies the mod file data stream to the given stream
+        /// </summary>
+        /// <param name="stream">destination stream</param>
+        public void CopyFileDataToStream(Stream stream)
+        {
+            if (FileData == null)
+            {
+                return;
+            }
+
+            FileData.Position = 0;
+            FileData.CopyTo(stream);
+        }
+
+        /// <summary>
+        /// Disposes the mod file data
+        /// </summary>
+        public void DisposeFileData()
+        {
+            if (FileData == null)
+            {
+                return;
+            }
+
+            FileData.Close();
+            FileData.Dispose();
+            FileData = null;
         }
     }
 }

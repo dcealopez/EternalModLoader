@@ -75,11 +75,13 @@
   <ItemGroup>
     <Compile Include="EternalModLoader.cs" />
     <Compile Include="Mods\Resources\Blang\BlangDecrypt.cs" />
+    <Compile Include="Mods\Resources\Blang\BlangFileEntry.cs" />
     <Compile Include="Mods\Resources\MapResources\MapAsset.cs" />
     <Compile Include="Mods\Resources\MapResources\MapResourcesFile.cs" />
     <Compile Include="Mods\Resources\ResourceModFile.cs" />
     <Compile Include="Mods\Resources\AssetsInfo.cs" />
     <Compile Include="Mods\Mod.cs" />
+    <Compile Include="Mods\Sounds\SoundEntry.cs" />
     <Compile Include="Oodle.cs" />
     <Compile Include="Mods\Resources\PackageMapSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
