@@ -56,6 +56,16 @@ namespace EternalModLoader
         public static bool SlowMode;
 
         /// <summary>
+        /// Compress uncompressed textures while loading mods?
+        /// </summary>
+        public static bool CompressTextures;
+
+        /// <summary>
+        /// Divinity magic header for compressed texture files
+        /// </summary>
+        public static byte[] DivinityMagic = new byte[] { 0x44, 0x49, 0x56, 0x49, 0x4E, 0x49, 0x54, 0x59 };
+
+        /// <summary>
         /// Resource list
         /// </summary>
         public static List<ResourceContainer> ResourceList = new List<ResourceContainer>();
@@ -1224,7 +1234,45 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, modFile.FileData.Length, modFile.FileData.Length, true);
+                    // Replace the mod file data now
+                    long compressedSize = modFile.FileData.Length;
+                    long uncompressedSize = compressedSize;
+                    bool clearCompressionFlag = true;
+
+                    // If this is a texture, check if it's compressed, or compress it if necessary
+                    if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga"))
+                    {
+                        byte[] divinityMagic = new byte[8];
+                        modFile.FileData.Position = 0;
+                        modFile.FileData.Read(divinityMagic, 0, 8);
+
+                        if (Utils.ArraysEqual(divinityMagic, DivinityMagic))
+                        {
+                            // This is a compressed texture, read the uncompressed size
+                            byte[] uncompressedSizeBytes = new byte[8];
+                            modFile.FileData.Read(uncompressedSizeBytes, 0, 8);
+                            uncompressedSize = BitConverter.ToInt64(uncompressedSizeBytes, 0);
+
+                            // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
+                            byte[] compressedTextureData = new byte[modFile.FileData.Length - 16];
+                            modFile.FileData.Read(compressedTextureData, 16, (int)modFile.FileData.Length - 16);
+                            modFile.FileData.Dispose();
+                            modFile.FileData = new MemoryStream(compressedTextureData, false);
+                            clearCompressionFlag = false;
+                        }
+                        else if (CompressTextures)
+                        {
+                            // Compress the texture
+                            var compressedData = Oodle.Compress(modFile.FileData.ToArray(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                            modFile.FileData.Dispose();
+                            modFile.FileData = new MemoryStream(compressedData, false);
+                            compressedSize = compressedData.Length;
+                            clearCompressionFlag = false;
+                        }
+                    }
+
+                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, compressedSize, uncompressedSize, clearCompressionFlag);
+
                     BufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
                     fileCount++;
                 }
@@ -1570,6 +1618,42 @@ namespace EternalModLoader
                     NormalizedFileName = mod.Name
                 });
 
+                // If this is a texture, check if it's compressed, or compress it if necessary
+                long compressedSize = mod.FileData.Length;
+                long uncompressedSize = mod.FileData.Length;
+                byte compressionMode = 0;
+
+                if (mod.Name.Contains(".tga"))
+                {
+                    byte[] divinityMagic = new byte[8];
+                    mod.FileData.Position = 0;
+                    mod.FileData.Read(divinityMagic, 0, 8);
+
+                    if (Utils.ArraysEqual(divinityMagic, DivinityMagic))
+                    {
+                        // This is a compressed texture, read the uncompressed size
+                        byte[] uncompressedSizeBytes = new byte[8];
+                        mod.FileData.Read(uncompressedSizeBytes, 0, 8);
+                        uncompressedSize = BitConverter.ToInt64(uncompressedSizeBytes, 0);
+
+                        // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
+                        byte[] compressedTextureData = new byte[mod.FileData.Length - 16];
+                        mod.FileData.Read(compressedTextureData, 16, (int)mod.FileData.Length - 16);
+                        mod.FileData.Dispose();
+                        mod.FileData = new MemoryStream(compressedTextureData, false);
+                        compressionMode = 2;
+                    }
+                    else if (CompressTextures)
+                    {
+                        // Compress the texture
+                        var compressedData = Oodle.Compress(mod.FileData.ToArray(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                        mod.FileData.Dispose();
+                        mod.FileData = new MemoryStream(compressedData, false);
+                        compressedSize = compressedData.Length;
+                        compressionMode = 2;
+                    }
+                }
+
                 // Add the mod file data at the end of the data memory stream
                 long placement = (0x10 - (dataMemoryStream.Length % 0x10)) + 0x30;
                 long fileOffset = stream.Length + (dataMemoryStream.Length - data.Length) + placement;
@@ -1608,8 +1692,8 @@ namespace EternalModLoader
                 Buffer.BlockCopy(lastInfo, 0, newFileInfo, 0, lastInfo.Length);
                 Buffer.BlockCopy(BitConverter.GetBytes(nameIdOffset), 0, newFileInfo, newFileInfo.Length - 0x70, 8);
                 Buffer.BlockCopy(BitConverter.GetBytes(fileOffset), 0, newFileInfo, newFileInfo.Length - 0x58, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileData.Length), 0, newFileInfo, newFileInfo.Length - 0x50, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes((long)mod.FileData.Length), 0, newFileInfo, newFileInfo.Length - 0x48, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(compressedSize), 0, newFileInfo, newFileInfo.Length - 0x50, 8);
+                Buffer.BlockCopy(BitConverter.GetBytes(uncompressedSize), 0, newFileInfo, newFileInfo.Length - 0x48, 8);
 
                 // Set the DataMurmurHash
                 Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x40, 8);
@@ -1626,7 +1710,7 @@ namespace EternalModLoader
                 Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, newFileInfo, newFileInfo.Length - 0x1D, 4);
 
                 // Clear the compression mode
-                newFileInfo[newFileInfo.Length - 0x20] = 0;
+                newFileInfo[newFileInfo.Length - 0x20] = compressionMode;
 
                 // Set meta entries to use to 0
                 Buffer.BlockCopy(BitConverter.GetBytes((short)0), 0, newFileInfo, newFileInfo.Length - 0x10, 2);
@@ -2089,7 +2173,8 @@ namespace EternalModLoader
                 Console.WriteLine("OPTIONS:");
                 Console.WriteLine("\t--list-res - List the .resources files that will be modified and exit.");
                 Console.WriteLine("\t--verbose - Print more information during the mod loading process.");
-                Console.WriteLine("\t--slow - Slow mod loading mode that produces lighter files and uses less disk.");
+                Console.WriteLine("\t--slow - Slow mod loading mode that produces slightly lighter files.");
+                Console.WriteLine("\t--compress-textures - Compress texture files during the mod loading process.");
                 return 1;
             }
 
@@ -2123,12 +2208,22 @@ namespace EternalModLoader
                     else if (args[i].Equals("--verbose"))
                     {
                         Verbose = true;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("INFO: Verbose logging is enabled.");
+                        Console.ResetColor();
                     }
                     else if (args[i].Equals("--slow"))
                     {
                         SlowMode = true;
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.WriteLine("INFO: Slow mod loading mode is enabled.");
+                        Console.ResetColor();
+                    }
+                    else if (args[i].Equals("--compress-textures"))
+                    {
+                        CompressTextures = true;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("INFO: Texture compression is enabled.");
                         Console.ResetColor();
                     }
                     else
