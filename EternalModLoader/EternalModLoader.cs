@@ -1255,10 +1255,16 @@ namespace EternalModLoader
 
                             // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
                             byte[] compressedTextureData = new byte[modFile.FileData.Length - 16];
-                            modFile.FileData.Read(compressedTextureData, 16, (int)modFile.FileData.Length - 16);
+                            compressedSize = compressedTextureData.Length;
+                            modFile.FileData.Read(compressedTextureData, 0, (int)modFile.FileData.Length - 16);
                             modFile.FileData.Dispose();
                             modFile.FileData = new MemoryStream(compressedTextureData, false);
                             clearCompressionFlag = false;
+
+                            if (Verbose)
+                            {
+                                BufferedConsole.WriteLine($"\tSuccessfully set compressed texture data for file \"{modFile.Name}\"");
+                            }
                         }
                         else if (CompressTextures)
                         {
@@ -1268,6 +1274,11 @@ namespace EternalModLoader
                             modFile.FileData = new MemoryStream(compressedData, false);
                             compressedSize = compressedData.Length;
                             clearCompressionFlag = false;
+
+                            if (Verbose)
+                            {
+                                BufferedConsole.WriteLine($"\tSuccessfully compressed texture file \"{modFile.Name}\"");
+                            }
                         }
                     }
 
@@ -1638,10 +1649,16 @@ namespace EternalModLoader
 
                         // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
                         byte[] compressedTextureData = new byte[mod.FileData.Length - 16];
-                        mod.FileData.Read(compressedTextureData, 16, (int)mod.FileData.Length - 16);
+                        compressedSize = compressedTextureData.Length;
+                        mod.FileData.Read(compressedTextureData, 0, (int)mod.FileData.Length - 16);
                         mod.FileData.Dispose();
                         mod.FileData = new MemoryStream(compressedTextureData, false);
                         compressionMode = 2;
+
+                        if (Verbose)
+                        {
+                            BufferedConsole.WriteLine($"\tSuccessfully set compressed texture data for file \"{mod.Name}\"");
+                        }
                     }
                     else if (CompressTextures)
                     {
@@ -1651,6 +1668,11 @@ namespace EternalModLoader
                         mod.FileData = new MemoryStream(compressedData, false);
                         compressedSize = compressedData.Length;
                         compressionMode = 2;
+
+                        if (Verbose)
+                        {
+                            BufferedConsole.WriteLine($"\tSuccessfully compressed texture file \"{mod.Name}\"");
+                        }
                     }
                 }
 
