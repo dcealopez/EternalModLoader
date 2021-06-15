@@ -14,7 +14,6 @@ using EternalModLoader.Mods.Sounds;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System.Diagnostics;
-using System.Net.Configuration;
 
 namespace EternalModLoader
 {
