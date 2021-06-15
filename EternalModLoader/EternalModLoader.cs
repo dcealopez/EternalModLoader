@@ -14,6 +14,7 @@ using EternalModLoader.Mods.Sounds;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System.Diagnostics;
+using System.Net.Configuration;
 
 namespace EternalModLoader
 {
@@ -295,6 +296,118 @@ namespace EternalModLoader
                         memoryStream.CopyTo(fileStream);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sets the mod file data in the given chunk of the specified container
+        /// </summary>
+        /// <param name="stream">memory/file stream of the container</param>
+        /// <param name="binaryReader">binary reader for the container</param>
+        /// <param name="resourceContainer">resource container</param>
+        /// <param name="chunk">chunk</param>
+        /// <param name="modFile">mod file</param>
+        /// <param name="compressedSize">compressed size to set in the file entry</param>
+        /// <param name="uncompressedSize">uncompressed size to set in the file entry</param>
+        /// <param name="clearCompressionFlag">clear compression flag?</param>
+        public static void SetModFileDataForContainerChunk(
+            Stream stream,
+            BinaryReader binaryReader,
+            ResourceContainer resourceContainer,
+            ResourceChunk chunk,
+            ResourceModFile modFile,
+            long compressedSize,
+            long uncompressedSize,
+            bool clearCompressionFlag)
+        {
+            // Update the .blang file chunk now
+            chunk.Size = uncompressedSize;
+            chunk.SizeZ = compressedSize;
+
+            if (!SlowMode)
+            {
+                // Add the data at the end of the container
+                long dataSectionLength = stream.Length - resourceContainer.DataOffset;
+                long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
+                long newContainerSize = stream.Length + modFile.FileData.Length + placement;
+
+                long dataOffset = newContainerSize - modFile.FileData.Length;
+                stream.SetLength(newContainerSize);
+                stream.Seek(dataOffset, SeekOrigin.Begin);
+                modFile.CopyFileDataToStream(stream);
+
+                // Set the new data offset
+                stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+                stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+            }
+            else
+            {
+                stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+
+                long fileOffset = binaryReader.ReadInt64();
+                long size = binaryReader.ReadInt64();
+                long sizeDiff = modFile.FileData.Length - size;
+
+                // We will need to expand the file if the new size is greater than the old one
+                // If its shorter, we will replace all the bytes and zero out the remaining bytes
+                if (sizeDiff > 0)
+                {
+                    var length = stream.Length;
+
+                    // Expand the memory stream so the new file fits
+                    stream.SetLength(length + sizeDiff);
+                    int toRead;
+
+                    while (length > (fileOffset + size))
+                    {
+                        toRead = length - BufferSize >= (fileOffset + size) ? BufferSize : (int)(length - (fileOffset + size));
+                        length -= toRead;
+                        stream.Seek(length, SeekOrigin.Begin);
+                        stream.Read(FileBuffer, 0, toRead);
+                        stream.Seek(length + sizeDiff, SeekOrigin.Begin);
+                        stream.Write(FileBuffer, 0, toRead);
+                    }
+
+                    // Write the new file bytes now that the file has been expanded
+                    // and there's enough space
+                    stream.Seek(fileOffset, SeekOrigin.Begin);
+                    modFile.CopyFileDataToStream(stream);
+                }
+                else
+                {
+                    stream.Seek(fileOffset, SeekOrigin.Begin);
+                    modFile.CopyFileDataToStream(stream);
+
+                    // Zero out the remaining bytes if the file is shorter
+                    if (sizeDiff < 0)
+                    {
+                        stream.Write(new byte[-sizeDiff], 0, (int)-sizeDiff);
+                    }
+                }
+
+                // If the file was expanded, update file offsets for every file after the one we replaced
+                if (sizeDiff > 0)
+                {
+                    for (int i = resourceContainer.ChunkList.IndexOf(chunk) + 1; i < resourceContainer.ChunkList.Count; i++)
+                    {
+                        stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                        fileOffset = binaryReader.ReadInt64();
+                        stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                        stream.Write(BitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
+                    }
+                }
+            }
+
+            // Replace the file size data
+            stream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
+            stream.Write(BitConverter.GetBytes(compressedSize), 0, 8);
+            stream.Write(BitConverter.GetBytes(uncompressedSize), 0, 8);
+
+            // Clear the compression flag
+            if (clearCompressionFlag)
+            {
+                stream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
+                stream.WriteByte(0);
             }
         }
 
@@ -993,12 +1106,6 @@ namespace EternalModLoader
                         }
                     }
 
-                    stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
-
-                    long fileOffset = binaryReader.ReadInt64();
-                    long size = binaryReader.ReadInt64();
-                    long sizeDiff = modFile.FileData.Length - size;
-
                     // Parse blang JSON files
                     if (modFile.IsBlangJson)
                     {
@@ -1009,6 +1116,11 @@ namespace EternalModLoader
 
                         if (!exists)
                         {
+                            stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
+
+                            long fileOffset = binaryReader.ReadInt64();
+                            long size = binaryReader.ReadInt64();
+
                             stream.Seek(fileOffset, SeekOrigin.Begin);
 
                             byte[] blangFileBytes = new byte[size];
@@ -1113,84 +1225,7 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    // Add the mod file data
-                    if (!SlowMode)
-                    {
-                        // Add the data at the end of the container
-                        long dataSectionLength = stream.Length - resourceContainer.DataOffset;
-                        long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                        long dataOffset = 0;
-
-                        stream.SetLength(stream.Length + placement);
-                        stream.Seek(0, SeekOrigin.End);
-                        dataOffset = stream.Position;
-                        modFile.CopyFileDataToStream(stream);
-
-                        // Set the new data offset
-                        stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
-                        stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
-                    }
-                    else
-                    {
-                        // We will need to expand the file if the new size is greater than the old one
-                        // If its shorter, we will replace all the bytes and zero out the remaining bytes
-                        if (sizeDiff > 0)
-                        {
-                            var length = stream.Length;
-
-                            // Expand the memory stream so the new file fits
-                            stream.SetLength(length + sizeDiff);
-                            int toRead;
-
-                            while (length > (fileOffset + size))
-                            {
-                                toRead = length - BufferSize >= (fileOffset + size) ? BufferSize : (int)(length - (fileOffset + size));
-                                length -= toRead;
-                                stream.Seek(length, SeekOrigin.Begin);
-                                stream.Read(FileBuffer, 0, toRead);
-                                stream.Seek(length + sizeDiff, SeekOrigin.Begin);
-                                stream.Write(FileBuffer, 0, toRead);
-                            }
-
-                            // Write the new file bytes now that the file has been expanded
-                            // and there's enough space
-                            stream.Seek(fileOffset, SeekOrigin.Begin);
-                            modFile.CopyFileDataToStream(stream);
-                        }
-                        else
-                        {
-                            stream.Seek(fileOffset, SeekOrigin.Begin);
-                            modFile.CopyFileDataToStream(stream);
-
-                            // Zero out the remaining bytes if the file is shorter
-                            if (sizeDiff < 0)
-                            {
-                                stream.Write(new byte[-sizeDiff], 0, (int)-sizeDiff);
-                            }
-                        }
-                    }
-
-                    // Replace the file size data
-                    stream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
-                    stream.Write(BitConverter.GetBytes((long)modFile.FileData.Length), 0, 8);
-                    stream.Write(BitConverter.GetBytes((long)modFile.FileData.Length), 0, 8);
-
-                    // Clear the compression flag
-                    stream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
-                    stream.WriteByte(0);
-
-                    // (Slow mode) If the file was expanded, update file offsets for every file after the one we replaced
-                    if (SlowMode && sizeDiff > 0)
-                    {
-                        for (int i = resourceContainer.ChunkList.IndexOf(chunk) + 1; i < resourceContainer.ChunkList.Count; i++)
-                        {
-                            stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
-                            fileOffset = binaryReader.ReadInt64();
-                            stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
-                            stream.Write(BitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
-                        }
-                    }
-
+                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, modFile.FileData.Length, modFile.FileData.Length, true);
                     BufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
                     fileCount++;
                 }
@@ -1245,29 +1280,10 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    // Update the .blang file chunk now
-                    blangFileEntry.Value.Chunk.Size = cryptDataBuffer.Length;
-                    blangFileEntry.Value.Chunk.SizeZ = cryptDataBuffer.Length;
+                    var blangModFile = new ResourceModFile(null, blangFileEntry.Key);
+                    blangModFile.FileData = new MemoryStream(cryptDataBuffer, false);
 
-                    // Add the data at the end of the container
-                    long dataSectionLength = stream.Length - resourceContainer.DataOffset;
-                    long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                    long newContainerSize = stream.Length + cryptDataBuffer.Length + placement;
-
-                    long dataOffset = newContainerSize - cryptDataBuffer.Length;
-                    stream.SetLength(newContainerSize);
-                    stream.Seek(dataOffset, SeekOrigin.Begin);
-                    stream.Write(cryptDataBuffer, 0, cryptDataBuffer.Length);
-
-                    // Set the new data offset
-                    stream.Seek(blangFileEntry.Value.Chunk.FileOffset, SeekOrigin.Begin);
-                    stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
-
-                    // Replace the file size data
-                    stream.Seek(blangFileEntry.Value.Chunk.SizeOffset, SeekOrigin.Begin);
-                    stream.Write(BitConverter.GetBytes((long)cryptDataBuffer.Length), 0, 8);
-                    stream.Write(BitConverter.GetBytes((long)cryptDataBuffer.Length), 0, 8);
-
+                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, true);
                     BufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
                 }
 
@@ -1293,29 +1309,10 @@ namespace EternalModLoader
                         }
                         else
                         {
-                            // Set the necessary info for the map resources
-                            mapResourcesChunk.Size = decompressedMapResourcesData.Length;
-                            mapResourcesChunk.SizeZ = compressedMapResourcesData.Length;
+                            var mapResourcesModFile = new ResourceModFile(null, mapResourcesChunk.ResourceName.NormalizedFileName);
+                            mapResourcesModFile.FileData = new MemoryStream(compressedMapResourcesData, false);
 
-                            // Add the data at the end of the container
-                            long dataSectionLength = stream.Length - resourceContainer.DataOffset;
-                            long placement = (0x10 - (dataSectionLength % 0x10)) + 0x30;
-                            long newContainerSize = stream.Length + compressedMapResourcesData.Length + placement;
-
-                            long dataOffset = newContainerSize - compressedMapResourcesData.Length;
-                            stream.SetLength(newContainerSize);
-                            stream.Seek(dataOffset, SeekOrigin.Begin);
-                            stream.Write(compressedMapResourcesData, 0, compressedMapResourcesData.Length);
-
-                            // Set the new data offset
-                            stream.Seek(mapResourcesChunk.FileOffset, SeekOrigin.Begin);
-                            stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
-
-                            // Replace the file size data
-                            stream.Seek(mapResourcesChunk.SizeOffset, SeekOrigin.Begin);
-                            stream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
-                            stream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
-
+                            SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, mapResourcesChunk, mapResourcesModFile, compressedMapResourcesData.Length, decompressedMapResourcesData.Length, false);
                             BufferedConsole.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
                         }
                     }
@@ -2131,6 +2128,9 @@ namespace EternalModLoader
                     else if (args[i].Equals("--slow"))
                     {
                         SlowMode = true;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("INFO: Slow mod loading mode is enabled.");
+                        Console.ResetColor();
                     }
                     else
                     {
