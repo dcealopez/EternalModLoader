@@ -343,9 +343,9 @@ namespace EternalModLoader
                                 if (!File.Exists(packageMapSpecPath))
                                 {
                                     Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.Write("ERROR: ");
+                                    Console.Error.Write("ERROR: ");
                                     Console.ResetColor();
-                                    Console.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
+                                    Console.Error.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
                                     invalidPackageMapSpec = true;
                                 }
                                 else
@@ -362,9 +362,9 @@ namespace EternalModLoader
                                     catch
                                     {
                                         Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("ERROR: ");
+                                        Console.Error.Write("ERROR: ");
                                         Console.ResetColor();
-                                        Console.WriteLine($"Failed to parse {packageMapSpecPath} - malformed JSON?");
+                                        Console.Error.WriteLine($"Failed to parse {packageMapSpecPath} - malformed JSON?");
                                         invalidPackageMapSpec = true;
                                     }
                                 }
@@ -426,19 +426,21 @@ namespace EternalModLoader
 
                                     if (fileIndex == -1)
                                     {
+                                        BufferedConsole.Flush();
                                         Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("ERROR: ");
+                                        Console.Error.Write("ERROR: ");
                                         Console.ResetColor();
-                                        Console.WriteLine($"Invalid extra resource {extraResource.Name}, skipping");
+                                        Console.Error.WriteLine($"Invalid extra resource {extraResource.Name}, skipping");
                                         continue;
                                     }
 
                                     if (mapIndex == -1)
                                     {
+                                        BufferedConsole.Flush();
                                         Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.Write("ERROR: ");
+                                        Console.Error.Write("ERROR: ");
                                         Console.ResetColor();
-                                        Console.WriteLine($"Map reference not found for {modFile.Name}, skipping");
+                                        Console.Error.WriteLine($"Map reference not found for {modFile.Name}, skipping");
                                         continue;
                                     }
 
@@ -460,7 +462,7 @@ namespace EternalModLoader
 
                                         if (mapFileRefRemoved)
                                         {
-                                            Console.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
+                                            BufferedConsole.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
                                         }
                                         else
                                         {
@@ -522,6 +524,7 @@ namespace EternalModLoader
 
                                         if (placeBeforeResourcePath == string.Empty)
                                         {
+                                            BufferedConsole.Flush();
                                             Console.ForegroundColor = ConsoleColor.Red;
                                             Console.Write("WARNING: ");
                                             Console.ResetColor();
@@ -571,19 +574,19 @@ namespace EternalModLoader
                                         packageMapSpec.MapFileRefs.Insert(insertIndex, mapFileRef);
                                     }
 
-                                    Console.Write($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
+                                    BufferedConsole.Write($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
 
                                     if (extraResource.PlaceFirst)
                                     {
-                                        Console.WriteLine(" with the highest priority.");
+                                        BufferedConsole.WriteLine(" with the highest priority.");
                                     }
                                     else if (!string.IsNullOrEmpty(extraResource.PlaceByName) && insertIndex != -1)
                                     {
-                                        Console.WriteLine($" {(extraResource.PlaceBefore ? "before" : "after")} \"{extraResource.PlaceByName}\"");
+                                        BufferedConsole.WriteLine($" {(extraResource.PlaceBefore ? "before" : "after")} \"{extraResource.PlaceByName}\"");
                                     }
                                     else
                                     {
-                                        Console.WriteLine(" with the lowest priority");
+                                        BufferedConsole.WriteLine(" with the lowest priority");
                                     }
 
                                     wasPackageMapSpecModified = true;
@@ -625,9 +628,9 @@ namespace EternalModLoader
                                         {
                                             invalidMapResources = true;
                                             Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.Write("ERROR: ");
+                                            Console.Error.Write("ERROR: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Failed to decompress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" - are you trying to add assets in the wrong .resources archive?");
+                                            Console.Error.WriteLine($"Failed to decompress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" - are you trying to add assets in the wrong .resources archive?");
                                             break;
                                         }
 
@@ -666,7 +669,7 @@ namespace EternalModLoader
                                     }
 
                                     mapResourcesFile.Layers.Add(newLayers.Name);
-                                    Console.WriteLine($"\tAdded layer \"{newLayers.Name}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                    BufferedConsole.WriteLine($"\tAdded layer \"{newLayers.Name}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
 
@@ -691,7 +694,7 @@ namespace EternalModLoader
                                     }
 
                                     mapResourcesFile.Maps.Add(newMaps.Name);
-                                    Console.WriteLine($"\tAdded map \"{newMaps.Name}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                    BufferedConsole.WriteLine($"\tAdded map \"{newMaps.Name}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
 
@@ -733,7 +736,7 @@ namespace EternalModLoader
                                         else
                                         {
                                             mapResourcesFile.Assets.Remove(assetToRemove);
-                                            Console.WriteLine($"\tRemoved asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" from \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                            BufferedConsole.WriteLine($"\tRemoved asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" from \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                         }
 
                                         continue;
@@ -774,7 +777,7 @@ namespace EternalModLoader
                                         mapResourcesFile.AssetTypes.Add(newAsset.MapResourceType);
                                         assetTypeIndex = mapResourcesFile.AssetTypes.Count - 1;
 
-                                        Console.WriteLine($"\tAdded asset type \"{newAsset.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                        BufferedConsole.WriteLine($"\tAdded asset type \"{newAsset.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                     }
 
                                     // Determine where to place this new asset in map resources
@@ -810,7 +813,7 @@ namespace EternalModLoader
 
                                     if (Verbose && placeByExistingAsset != null)
                                     {
-                                        Console.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                        BufferedConsole.WriteLine($"\tAsset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" will be added before asset \"{placeByExistingAsset.Name}\" with type \"{mapResourcesFile.AssetTypes[placeByExistingAsset.AssetTypeIndex]}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                     }
 
                                     var newMapAsset = new MapAsset()
@@ -829,7 +832,7 @@ namespace EternalModLoader
                                         mapResourcesFile.Assets.Insert(assetPosition, newMapAsset);
                                     }
 
-                                    Console.WriteLine($"\tAdded asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                    BufferedConsole.WriteLine($"\tAdded asset \"{newAsset.Name}\" with type \"{newAsset.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                                 }
                             }
                         }
@@ -920,9 +923,9 @@ namespace EternalModLoader
                                         {
                                             invalidMapResources = true;
                                             Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.Write("ERROR: ");
+                                            Console.Error.Write("ERROR: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Failed to decompress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" - are you trying to add assets in the wrong .resources archive?");
+                                            Console.Error.WriteLine($"Failed to decompress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" - are you trying to add assets in the wrong .resources archive?");
                                             break;
                                         }
 
@@ -975,7 +978,7 @@ namespace EternalModLoader
                                 mapResourcesFile.AssetTypes.Add(resourceData.MapResourceType);
                                 assetTypeIndex = mapResourcesFile.AssetTypes.Count - 1;
 
-                                Console.WriteLine($"\tAdded asset type \"{resourceData.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                                BufferedConsole.WriteLine($"\tAdded asset type \"{resourceData.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                             }
 
                             mapResourcesFile.Assets.Add(new MapAsset()
@@ -985,7 +988,7 @@ namespace EternalModLoader
                                 UnknownData4 = 128
                             });
 
-                            Console.WriteLine($"\tAdded asset \"{resourceData.MapResourceName}\" with type \"{resourceData.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
+                            BufferedConsole.WriteLine($"\tAdded asset \"{resourceData.MapResourceName}\" with type \"{resourceData.MapResourceType}\" to \"{mapResourcesChunk.ResourceName.NormalizedFileName}\" in \"{resourceContainer.Name}\"");
                             continue;
                         }
                     }
@@ -1016,9 +1019,9 @@ namespace EternalModLoader
                             if (res != 0)
                             {
                                 Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("ERROR: ");
+                                Console.Error.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name}");
+                                Console.Error.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name}");
                                 continue;
                             }
 
@@ -1033,9 +1036,9 @@ namespace EternalModLoader
                                 {
                                     blangFileEntries.Add(blangFilePath, null);
                                     Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.Write("ERROR: ");
+                                    Console.Error.Write("ERROR: ");
                                     Console.ResetColor();
-                                    Console.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name} - are you trying to change strings in the wrong .resources archive?");
+                                    Console.Error.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name} - are you trying to change strings in the wrong .resources archive?");
                                     continue;
                                 }
                             }
@@ -1071,9 +1074,9 @@ namespace EternalModLoader
                         catch
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write("ERROR: ");
+                            Console.Error.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(modFile.Name)}.json");
+                            Console.Error.WriteLine($"Failed to parse EternalMod/strings/{Path.GetFileNameWithoutExtension(modFile.Name)}.json");
                             continue;
                         }
 
@@ -1087,7 +1090,7 @@ namespace EternalModLoader
                                 {
                                     stringFound = true;
                                     blangString.Text = blangJsonString.Text;
-                                    Console.WriteLine($"\tReplaced string \"{blangString.Identifier}\" to \"{modFile.Name}\"");
+                                    BufferedConsole.WriteLine($"\tReplaced string \"{blangString.Identifier}\" to \"{modFile.Name}\"");
                                     break;
                                 }
                             }
@@ -1103,7 +1106,7 @@ namespace EternalModLoader
                                 Text = blangJsonString.Text,
                             });
 
-                            Console.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
+                            BufferedConsole.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
                             blangFileEntry.WasModified = true;
                         }
 
@@ -1188,7 +1191,7 @@ namespace EternalModLoader
                         }
                     }
 
-                    Console.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
+                    BufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
                     fileCount++;
                 }
 
@@ -1205,15 +1208,16 @@ namespace EternalModLoader
                     {
                         File.Delete(packageMapSpecPath);
                         File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
-                        Console.WriteLine(string.Format("\tModified {0}", packageMapSpecPath));
+                        BufferedConsole.WriteLine(string.Format("\tModified {0}", packageMapSpecPath));
                     }
                     catch (Exception ex)
                     {
+                        BufferedConsole.Flush();
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("ERROR: ");
+                        Console.Error.Write("ERROR: ");
                         Console.ResetColor();
-                        Console.WriteLine($"Couldn't write \"{packageMapSpecPath}\"");
-                        Console.WriteLine(ex);
+                        Console.Error.WriteLine($"Couldn't write \"{packageMapSpecPath}\"");
+                        Console.Error.WriteLine(ex);
                     }
                 }
 
@@ -1233,10 +1237,11 @@ namespace EternalModLoader
 
                     if (res != 0)
                     {
+                        BufferedConsole.Flush();
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("ERROR: ");
+                        Console.Error.Write("ERROR: ");
                         Console.ResetColor();
-                        Console.WriteLine($"Failed to encrypt \"{blangFileEntry.Key}\"");
+                        Console.Error.WriteLine($"Failed to encrypt \"{blangFileEntry.Key}\"");
                         continue;
                     }
 
@@ -1263,7 +1268,7 @@ namespace EternalModLoader
                     stream.Write(BitConverter.GetBytes((long)cryptDataBuffer.Length), 0, 8);
                     stream.Write(BitConverter.GetBytes((long)cryptDataBuffer.Length), 0, 8);
 
-                    Console.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
+                    BufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
                 }
 
                 // Modify the map resources file if needed
@@ -1280,10 +1285,11 @@ namespace EternalModLoader
 
                         if (compressedMapResourcesData == null)
                         {
+                            BufferedConsole.Flush();
                             Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write("ERROR: ");
+                            Console.Error.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to compress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\"");
+                            Console.Error.WriteLine($"Failed to compress \"{mapResourcesChunk.ResourceName.NormalizedFileName}\"");
                         }
                         else
                         {
@@ -1310,11 +1316,13 @@ namespace EternalModLoader
                             stream.Write(BitConverter.GetBytes((long)compressedMapResourcesData.Length), 0, 8);
                             stream.Write(BitConverter.GetBytes((long)decompressedMapResourcesData.Length), 0, 8);
 
-                            Console.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
+                            BufferedConsole.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
                         }
                     }
                 }
             }
+
+            BufferedConsole.Flush();
 
             if (fileCount > 0)
             {
@@ -1422,7 +1430,7 @@ namespace EternalModLoader
 
                                 if (Verbose)
                                 {
-                                    Console.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
+                                    BufferedConsole.WriteLine(string.Format("\tSet resource type \"{0}\" (version: {1}, streamdb hash: {2}) for new file: {3}",
                                         newMod.ResourceType,
                                         newMod.Version,
                                         newMod.StreamDbHash,
@@ -1532,7 +1540,7 @@ namespace EternalModLoader
                             NormalizedFileName = mod.ResourceType
                         });
 
-                        Console.WriteLine(string.Format("\tAdded resource type name \"{0}\" to \"{1}\"", mod.ResourceType, resourceContainer.Name));
+                        BufferedConsole.WriteLine(string.Format("\tAdded resource type name \"{0}\" to \"{1}\"", mod.ResourceType, resourceContainer.Name));
                     }
                 }
 
@@ -1640,7 +1648,7 @@ namespace EternalModLoader
                     Buffer.BlockCopy(newFileInfo, 0, info, info.Length - 0x90, 0x90);
                 }
 
-                Console.WriteLine(string.Format("\tAdded {0}", mod.Name));
+                BufferedConsole.WriteLine(string.Format("\tAdded {0}", mod.Name));
                 mod.DisposeFileData();
                 newChunksCount++;
             }
@@ -1689,6 +1697,8 @@ namespace EternalModLoader
             dataMemoryStream.CopyTo(stream);
             dataMemoryStream.Close();
             dataMemoryStream.Dispose();
+
+            BufferedConsole.Flush();
 
             if (newChunksCount != 0)
             {
@@ -1966,10 +1976,12 @@ namespace EternalModLoader
                         }
                     }
 
-                    Console.WriteLine(string.Format("\tReplaced sound with id {0} [{1}]", soundModId, soundMod.Name));
+                    BufferedConsole.WriteLine(string.Format("\tReplaced sound with id {0} [{1}]", soundModId, soundMod.Name));
                     fileCount++;
                 }
             }
+
+            BufferedConsole.Flush();
 
             if (fileCount > 0)
             {
@@ -2123,7 +2135,7 @@ namespace EternalModLoader
                     else
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("ERROR: ");
+                        Console.Error.Write("ERROR: ");
                         Console.ResetColor();
                         Console.Error.WriteLine(string.Format("Unknown option '{0}'", args[i]));
                         return 1;
@@ -2146,7 +2158,7 @@ namespace EternalModLoader
                     BufferSize = 4096;
 
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("ERROR: ");
+                    Console.Error.Write("ERROR: ");
                     Console.ResetColor();
                     Console.Error.WriteLine($"Error while determining the optimal buffer size, using 4096 as the default: {ex}");
                 }
@@ -2166,10 +2178,10 @@ namespace EternalModLoader
                     catch (Exception e)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("ERROR: ");
+                        Console.Error.Write("ERROR: ");
                         Console.ResetColor();
-                        Console.WriteLine($"There was an error while loading \"{ResourceDataFileName}\"");
-                        Console.WriteLine(e);
+                        Console.Error.WriteLine($"There was an error while loading \"{ResourceDataFileName}\"");
+                        Console.Error.WriteLine(e);
                     }
                 }
                 else
@@ -2247,9 +2259,9 @@ namespace EternalModLoader
                         catch
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write("ERROR: ");
+                            Console.Error.Write("ERROR: ");
                             Console.ResetColor();
-                            Console.WriteLine($"Failed to parse {eternalModJsonFile} - malformed JSON? - using defaults.");
+                            Console.Error.WriteLine($"Failed to parse {eternalModJsonFile} - malformed JSON? - using defaults.");
                         }
                     }
 
@@ -2365,9 +2377,9 @@ namespace EternalModLoader
                                         catch
                                         {
                                             Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.Write("ERROR: ");
+                                            Console.Error.Write("ERROR: ");
                                             Console.ResetColor();
-                                            Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
+                                            Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
                                             continue;
                                         }
                                     }
@@ -2534,9 +2546,9 @@ namespace EternalModLoader
                                 catch
                                 {
                                     Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.Write("ERROR: ");
+                                    Console.Error.Write("ERROR: ");
                                     Console.ResetColor();
-                                    Console.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                    Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
                                     continue;
                                 }
                             }
@@ -2661,6 +2673,7 @@ namespace EternalModLoader
 
             stopwatch.Stop();
 
+            BufferedConsole.Flush();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Finished in {stopwatch.Elapsed}");
             Console.ResetColor();
