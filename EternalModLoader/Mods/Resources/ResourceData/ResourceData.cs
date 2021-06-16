@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 
 namespace EternalModLoader.Mods.Resources.ResourceData
@@ -22,9 +21,12 @@ namespace EternalModLoader.Mods.Resources.ResourceData
 
             // The data should be compressed, read the whole file into memory first and decompress it
             // Compressed with Oodle Kraken, level 4
-            var compressedData = File.ReadAllBytes(filename);
-            long decompressedSize = BitConverter.ToInt64(compressedData.Take(8).ToArray(), 0);
-            var decompressedData = Oodle.Decompress(compressedData.Skip(8).ToArray(), decompressedSize);
+            var resourceDataFileBytes = File.ReadAllBytes(filename);
+            var compressedData = new byte[resourceDataFileBytes.Length - 8];
+            Buffer.BlockCopy(resourceDataFileBytes, 8, compressedData, 0, compressedData.Length);
+
+            long decompressedSize = FastBitConverter.ToInt64(resourceDataFileBytes, 0);
+            var decompressedData = Oodle.Decompress(compressedData, decompressedSize);
 
             // Parse the binary data now
             using (var memoryStream = new MemoryStream(decompressedData))

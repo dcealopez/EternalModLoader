@@ -17,8 +17,8 @@ namespace EternalModLoader.Mods.Resources.Blang
         /// <param name="fileData">byte array contaning a blang file bytes</param>
         /// <param name="internalPath">blang file's internal path</param>
         /// <param name="decrypt">bool indicating if we wanna encrypt or decrypt</param>
-        /// <returns>int indicating success or failure</returns>
-        public static int IdCrypt(ref byte[] fileData, string internalPath, bool decrypt)
+        /// <returns>Memory stream of the encrypted or decrypted blang file</returns>
+        public static MemoryStream IdCrypt(byte[] fileData, string internalPath, bool decrypt)
         {
             string keyDeriveStatic = "swapTeam\n";
             byte[] fileSalt = new byte[0xC];
@@ -26,7 +26,7 @@ namespace EternalModLoader.Mods.Resources.Blang
             // Get fileSalt from file, or create a new one
             if (decrypt)
             {
-                Array.Copy(fileData, fileSalt, 0xC);
+                Buffer.BlockCopy(fileData, 0, fileSalt, 0, 0xC);
             }
             else
             {
@@ -37,11 +37,11 @@ namespace EternalModLoader.Mods.Resources.Blang
             }
 
             byte[] keyDeriveStaticBytes = new byte[0xA];
-            Array.Copy(Encoding.ASCII.GetBytes(keyDeriveStatic), keyDeriveStaticBytes, 0xA - 1);
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(keyDeriveStatic), 0, keyDeriveStaticBytes, 0, 0xA - 1);
             keyDeriveStaticBytes[0xA - 1] = (byte)'\0';
 
             // Generate the encryption key for AES using SHA256
-            byte[] encKey = null;
+            byte[] encKey;
 
             try
             {
@@ -49,7 +49,7 @@ namespace EternalModLoader.Mods.Resources.Blang
             }
             catch
             {
-                return 1;
+                return null;
             }
 
             // Get IV for AES from the file, or create a new one
@@ -57,7 +57,7 @@ namespace EternalModLoader.Mods.Resources.Blang
 
             if (decrypt)
             {
-                Array.Copy(fileData, 0xC, fileIV, 0, 0x10);
+                Buffer.BlockCopy(fileData, 0xC, fileIV, 0, 0x10);
             }
             else
             {
@@ -74,10 +74,10 @@ namespace EternalModLoader.Mods.Resources.Blang
             if (decrypt)
             {
                 fileText = new byte[fileData.Length - 0x1C - 0x20];
-                Array.Copy(fileData, 0x1C, fileText, 0, fileText.Length);
+                Buffer.BlockCopy(fileData, 0x1C, fileText, 0, fileText.Length);
 
                 byte[] fileHmac = new byte[0x20];
-                Array.Copy(fileData, fileData.Length - 0x20, fileHmac, 0, 0x20);
+                Buffer.BlockCopy(fileData, fileData.Length - 0x20, fileHmac, 0, 0x20);
 
                 // Get HMAC from file data
                 try
@@ -86,13 +86,13 @@ namespace EternalModLoader.Mods.Resources.Blang
                 }
                 catch
                 {
-                    return 1;
+                    return null;
                 }
 
                 // Make sure the file HMAC and the new HMAC are the same
-                if (!hmac.SequenceEqual(fileHmac))
+                if (!Utils.ArraysEqual(hmac, fileHmac))
                 {
-                    return 1;
+                    return null;
                 }
             }
             else
@@ -101,44 +101,46 @@ namespace EternalModLoader.Mods.Resources.Blang
             }
 
             // Encrypt or decrypt the data using AES
-            byte[] cryptedText = null;
+            byte[] cryptedText;
 
             try
             {
-                cryptedText = CryptData(decrypt, fileText, encKey.Take(0x10).ToArray(), fileIV);
+                byte[] pbEncKey = new byte[0x10];
+                Buffer.BlockCopy(encKey, 0, pbEncKey, 0, 0x10);
+
+                cryptedText = CryptData(decrypt, fileText, pbEncKey, fileIV);
             }
             catch
             {
-                return 1;
+                return null;
             }
 
             // Write the new file into a memory stream
-            var cryptMemoryStream = new MemoryStream();
+            MemoryStream cryptMemoryStream;
 
             if (decrypt)
             {
-                cryptMemoryStream.Write(cryptedText, 0, cryptedText.Length);
+                cryptMemoryStream = new MemoryStream(cryptedText, false);
             }
             else
             {
-                cryptMemoryStream.Write(fileSalt, 0, fileSalt.Length);
-                cryptMemoryStream.Write(fileIV, 0, fileIV.Length);
-                cryptMemoryStream.Write(cryptedText, 0, cryptedText.Length);
-
                 try
                 {
                     hmac = HashData(fileSalt, fileIV, cryptedText, encKey);
                 }
                 catch
                 {
-                    return 1;
+                    return null;
                 }
 
+                cryptMemoryStream = new MemoryStream(fileSalt.Length + fileIV.Length + cryptedText.Length + hmac.Length);
+                cryptMemoryStream.Write(fileSalt, 0, fileSalt.Length);
+                cryptMemoryStream.Write(fileIV, 0, fileIV.Length);
+                cryptMemoryStream.Write(cryptedText, 0, cryptedText.Length);
                 cryptMemoryStream.Write(hmac, 0, hmac.Length);
             }
 
-            fileData = cryptMemoryStream.ToArray();
-            return 0;
+            return cryptMemoryStream;
         }
 
         /// <summary>
@@ -158,7 +160,6 @@ namespace EternalModLoader.Mods.Resources.Blang
                     sha256.TransformBlock(pbBuf1, 0, pbBuf1.Length, null, 0);
                     sha256.TransformBlock(pbBuf2, 0, pbBuf2.Length, null, 0);
                     sha256.TransformBlock(pbBuf3, 0, pbBuf3.Length, null, 0);
-
                     sha256.TransformFinalBlock(new byte[0], 0, 0);
 
                     return sha256.Hash;
@@ -171,7 +172,6 @@ namespace EternalModLoader.Mods.Resources.Blang
                     hmac.TransformBlock(pbBuf1, 0, pbBuf1.Length, null, 0);
                     hmac.TransformBlock(pbBuf2, 0, pbBuf2.Length, null, 0);
                     hmac.TransformBlock(pbBuf3, 0, pbBuf3.Length, null, 0);
-
                     hmac.TransformFinalBlock(new byte[0], 0, 0);
 
                     return hmac.Hash;
@@ -202,9 +202,13 @@ namespace EternalModLoader.Mods.Resources.Blang
                     {
                         using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
                         {
-                            byte [] decryptedData = new byte[pbInput.Length];
+                            byte[] decryptedData = new byte[pbInput.Length];
                             int bytesRead = csDecrypt.Read(decryptedData, 0, pbInput.Length);
-                            return decryptedData.Take(bytesRead).ToArray();
+
+                            byte[] finalDecryptedData = new byte[bytesRead];
+                            Buffer.BlockCopy(decryptedData, 0, finalDecryptedData, 0, bytesRead);
+
+                            return finalDecryptedData;
                         }
                     }
                 }

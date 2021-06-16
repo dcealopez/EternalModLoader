@@ -289,7 +289,7 @@ namespace EternalModLoader
                 }
                 else
                 {
-                    using (var memoryStream = new MemoryStream())
+                    using (var memoryStream = new MemoryStream((int)fileStream.Length))
                     {
                         // Copy the stream into memory for faster manipulation of the data
                         fileStream.CopyTo(memoryStream);
@@ -318,7 +318,7 @@ namespace EternalModLoader
         /// <param name="modFile">mod file</param>
         /// <param name="compressedSize">compressed size to set in the file entry</param>
         /// <param name="uncompressedSize">uncompressed size to set in the file entry</param>
-        /// <param name="clearCompressionFlag">clear compression flag?</param>
+        /// <param name="compressionMode">compression mode to use, pass null to not modify it</param>
         public static void SetModFileDataForContainerChunk(
             Stream stream,
             BinaryReader binaryReader,
@@ -327,7 +327,7 @@ namespace EternalModLoader
             ResourceModFile modFile,
             long compressedSize,
             long uncompressedSize,
-            bool clearCompressionFlag)
+            byte? compressionMode)
         {
             // Update the .blang file chunk now
             chunk.Size = uncompressedSize;
@@ -347,7 +347,7 @@ namespace EternalModLoader
 
                 // Set the new data offset
                 stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
-                stream.Write(BitConverter.GetBytes(dataOffset), 0, 8);
+                stream.Write(FastBitConverter.GetBytes(dataOffset), 0, 8);
             }
             else
             {
@@ -402,21 +402,21 @@ namespace EternalModLoader
                         stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
                         fileOffset = binaryReader.ReadInt64();
                         stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
-                        stream.Write(BitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
+                        stream.Write(FastBitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
                     }
                 }
             }
 
             // Replace the file size data
             stream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
-            stream.Write(BitConverter.GetBytes(compressedSize), 0, 8);
-            stream.Write(BitConverter.GetBytes(uncompressedSize), 0, 8);
+            stream.Write(FastBitConverter.GetBytes(compressedSize), 0, 8);
+            stream.Write(FastBitConverter.GetBytes(uncompressedSize), 0, 8);
 
             // Clear the compression flag
-            if (clearCompressionFlag)
+            if (compressionMode.HasValue)
             {
                 stream.Seek(chunk.SizeOffset + 0x30, SeekOrigin.Begin);
-                stream.WriteByte(0);
+                stream.WriteByte(compressionMode.Value);
             }
         }
 
@@ -1135,9 +1135,9 @@ namespace EternalModLoader
                             byte[] blangFileBytes = new byte[size];
                             stream.Read(blangFileBytes, 0, (int)size);
 
-                            int res = BlangCrypt.IdCrypt(ref blangFileBytes, blangFilePath, true);
+                            var blangMemoryStream = BlangCrypt.IdCrypt(blangFileBytes, blangFilePath, true);
 
-                            if (res != 0)
+                            if (blangMemoryStream == null)
                             {
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Error.Write("ERROR: ");
@@ -1146,22 +1146,19 @@ namespace EternalModLoader
                                 continue;
                             }
 
-                            using (var blangMemoryStream = new MemoryStream(blangFileBytes))
+                            try
                             {
-                                try
-                                {
-                                    blangFileEntry = new BlangFileEntry(BlangFile.ParseFromMemory(blangMemoryStream), chunk);
-                                    blangFileEntries.Add(blangFilePath, blangFileEntry);
-                                }
-                                catch
-                                {
-                                    blangFileEntries.Add(blangFilePath, null);
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.Error.Write("ERROR: ");
-                                    Console.ResetColor();
-                                    Console.Error.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name} - are you trying to change strings in the wrong .resources archive?");
-                                    continue;
-                                }
+                                blangFileEntry = new BlangFileEntry(BlangFile.ParseFromMemory(blangMemoryStream), chunk);
+                                blangFileEntries.Add(blangFilePath, blangFileEntry);
+                            }
+                            catch
+                            {
+                                blangFileEntries.Add(blangFilePath, null);
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Error.Write("ERROR: ");
+                                Console.ResetColor();
+                                Console.Error.WriteLine($"Failed to parse {resourceContainer.Name}/{modFile.Name} - are you trying to change strings in the wrong .resources archive?");
+                                continue;
                             }
                         }
 
@@ -1177,7 +1174,7 @@ namespace EternalModLoader
                         {
                             var serializerSettings = new JsonSerializerSettings();
                             serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileData.ToArray()), serializerSettings);
+                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileData.GetBuffer()), serializerSettings);
 
                             if (blangJson == null || blangJson.Strings.Count == 0)
                             {
@@ -1237,29 +1234,24 @@ namespace EternalModLoader
                     // Replace the mod file data now
                     long compressedSize = modFile.FileData.Length;
                     long uncompressedSize = compressedSize;
-                    bool clearCompressionFlag = true;
+                    byte? compressionMode = 0;
 
                     // If this is a texture, check if it's compressed, or compress it if necessary
                     if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga"))
                     {
-                        byte[] divinityMagic = new byte[8];
-                        modFile.FileData.Position = 0;
-                        modFile.FileData.Read(divinityMagic, 0, 8);
+                        // Get the texture data buffer
+                        var textureDataBuffer = modFile.FileData.GetBuffer();
+                        bool isCompressed = Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic);
 
-                        if (Utils.ArraysEqual(divinityMagic, DivinityMagic))
+                        if (isCompressed)
                         {
                             // This is a compressed texture, read the uncompressed size
-                            byte[] uncompressedSizeBytes = new byte[8];
-                            modFile.FileData.Read(uncompressedSizeBytes, 0, 8);
-                            uncompressedSize = BitConverter.ToInt64(uncompressedSizeBytes, 0);
+                            uncompressedSize = FastBitConverter.ToInt64(textureDataBuffer, 8);
 
-                            // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
-                            byte[] compressedTextureData = new byte[modFile.FileData.Length - 16];
-                            compressedSize = compressedTextureData.Length;
-                            modFile.FileData.Read(compressedTextureData, 0, (int)modFile.FileData.Length - 16);
-                            modFile.FileData.Dispose();
-                            modFile.FileData = new MemoryStream(compressedTextureData, false);
-                            clearCompressionFlag = false;
+                            // Get the compressed texture data by removing the header from the memory stream buffer
+                            Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
+                            modFile.FileData.SetLength(modFile.FileData.Length - 16);
+                            compressionMode = 2;
 
                             if (Verbose)
                             {
@@ -1269,11 +1261,11 @@ namespace EternalModLoader
                         else if (CompressTextures)
                         {
                             // Compress the texture
-                            var compressedData = Oodle.Compress(modFile.FileData.ToArray(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                            var compressedData = Oodle.Compress(modFile.FileData.GetBuffer(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
                             modFile.FileData.Dispose();
-                            modFile.FileData = new MemoryStream(compressedData, false);
+                            modFile.FileData = new MemoryStream(compressedData, 0, compressedData.Length, false);
                             compressedSize = compressedData.Length;
-                            clearCompressionFlag = false;
+                            compressionMode = 2;
 
                             if (Verbose)
                             {
@@ -1282,7 +1274,7 @@ namespace EternalModLoader
                         }
                     }
 
-                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, compressedSize, uncompressedSize, clearCompressionFlag);
+                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, compressedSize, uncompressedSize, compressionMode);
 
                     BufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
                     fileCount++;
@@ -1326,9 +1318,9 @@ namespace EternalModLoader
                     }
 
                     byte[] cryptDataBuffer = blangFileEntry.Value.BlangFile.WriteToStream().ToArray();
-                    int res = BlangCrypt.IdCrypt(ref cryptDataBuffer, blangFileEntry.Key, false);
+                    var encryptedDataMemoryStream = BlangCrypt.IdCrypt(cryptDataBuffer, blangFileEntry.Key, false);
 
-                    if (res != 0)
+                    if (encryptedDataMemoryStream == null)
                     {
                         BufferedConsole.Flush();
                         Console.ForegroundColor = ConsoleColor.Red;
@@ -1339,9 +1331,9 @@ namespace EternalModLoader
                     }
 
                     var blangModFile = new ResourceModFile(null, blangFileEntry.Key);
-                    blangModFile.FileData = new MemoryStream(cryptDataBuffer, false);
+                    blangModFile.FileData = encryptedDataMemoryStream;
 
-                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, true);
+                    SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, 0);
                     BufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
                 }
 
@@ -1368,9 +1360,9 @@ namespace EternalModLoader
                         else
                         {
                             var mapResourcesModFile = new ResourceModFile(null, mapResourcesChunk.ResourceName.NormalizedFileName);
-                            mapResourcesModFile.FileData = new MemoryStream(compressedMapResourcesData, false);
+                            mapResourcesModFile.FileData = new MemoryStream(compressedMapResourcesData, 0, compressedMapResourcesData.Length, false);
 
-                            SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, mapResourcesChunk, mapResourcesModFile, compressedMapResourcesData.Length, decompressedMapResourcesData.Length, false);
+                            SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, mapResourcesChunk, mapResourcesModFile, compressedMapResourcesData.Length, decompressedMapResourcesData.Length, null);
                             BufferedConsole.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
                         }
                     }
@@ -1447,7 +1439,7 @@ namespace EternalModLoader
             stream.Read(data, 0, data.Length);
 
             // Load the data section into a memory stream
-            var dataMemoryStream = new MemoryStream();
+            var dataMemoryStream = new MemoryStream(data.Length);
             dataMemoryStream.Write(data, 0, data.Length);
 
             int infoOldLength = info.Length;
@@ -1566,7 +1558,7 @@ namespace EternalModLoader
                     if (resourceContainer.NamesList.FirstOrDefault(name => name.NormalizedFileName == mod.ResourceType) == default(ResourceName))
                     {
                         // Add type name
-                        long typeLastOffset = BitConverter.ToInt64(nameOffsets.Skip(nameOffsets.Length - 8).Take(8).ToArray(), 0);
+                        long typeLastOffset = FastBitConverter.ToInt64(nameOffsets, nameOffsets.Length - 8);
                         long typeLastNameOffset = 0;
 
                         for (int i = (int)typeLastOffset; i < names.Length; i++)
@@ -1583,10 +1575,10 @@ namespace EternalModLoader
                         Buffer.BlockCopy(typeNameBytes, 0, names, (int)typeLastNameOffset, typeNameBytes.Length);
 
                         // Add type name offset
-                        byte[] typeNewCount = BitConverter.GetBytes(BitConverter.ToInt64(nameOffsets.Take(8).ToArray(), 0) + 1);
+                        byte[] typeNewCount = FastBitConverter.GetBytes(FastBitConverter.ToInt64(nameOffsets, 0) + 1);
                         Buffer.BlockCopy(typeNewCount, 0, nameOffsets, 0, 8);
                         Array.Resize(ref nameOffsets, nameOffsets.Length + 8);
-                        Buffer.BlockCopy(BitConverter.GetBytes(typeLastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
+                        Buffer.BlockCopy(FastBitConverter.GetBytes(typeLastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
 
                         // Add the type name to the list to keep the indexes in the proper order
                         resourceContainer.NamesList.Add(new ResourceName()
@@ -1600,7 +1592,7 @@ namespace EternalModLoader
                 }
 
                 // Add file name
-                long lastOffset = BitConverter.ToInt64(nameOffsets.Skip(nameOffsets.Length - 8).Take(8).ToArray(), 0);
+                long lastOffset = FastBitConverter.ToInt64(nameOffsets, nameOffsets.Length - 8);
                 long lastNameOffset = 0;
 
                 for (int i = (int)lastOffset; i < names.Length; i++)
@@ -1617,10 +1609,10 @@ namespace EternalModLoader
                 Buffer.BlockCopy(nameBytes, 0, names, (int)lastNameOffset, nameBytes.Length);
 
                 // Add name offset
-                byte[] newCount = BitConverter.GetBytes(BitConverter.ToInt64(nameOffsets.Take(8).ToArray(), 0) + 1);
+                byte[] newCount = FastBitConverter.GetBytes(FastBitConverter.ToInt64(nameOffsets, 0) + 1);
                 Buffer.BlockCopy(newCount, 0, nameOffsets, 0, 8);
                 Array.Resize(ref nameOffsets, nameOffsets.Length + 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(lastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(lastNameOffset), 0, nameOffsets, nameOffsets.Length - 8, 8);
 
                 // Add the name to the list to keep the indexes in the proper order
                 resourceContainer.NamesList.Add(new ResourceName()
@@ -1636,23 +1628,18 @@ namespace EternalModLoader
 
                 if (mod.Name.Contains(".tga"))
                 {
-                    byte[] divinityMagic = new byte[8];
-                    mod.FileData.Position = 0;
-                    mod.FileData.Read(divinityMagic, 0, 8);
+                    // Get the texture data buffer
+                    var textureDataBuffer = mod.FileData.GetBuffer();
+                    bool isCompressed = Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic);
 
-                    if (Utils.ArraysEqual(divinityMagic, DivinityMagic))
+                    if (isCompressed)
                     {
                         // This is a compressed texture, read the uncompressed size
-                        byte[] uncompressedSizeBytes = new byte[8];
-                        mod.FileData.Read(uncompressedSizeBytes, 0, 8);
-                        uncompressedSize = BitConverter.ToInt64(uncompressedSizeBytes, 0);
+                        uncompressedSize = FastBitConverter.ToInt64(textureDataBuffer, 8);
 
-                        // Get the compressed texture data by skipping the header, and set it as the mod file data memory stream
-                        byte[] compressedTextureData = new byte[mod.FileData.Length - 16];
-                        compressedSize = compressedTextureData.Length;
-                        mod.FileData.Read(compressedTextureData, 0, (int)mod.FileData.Length - 16);
-                        mod.FileData.Dispose();
-                        mod.FileData = new MemoryStream(compressedTextureData, false);
+                        // Get the compressed texture data by removing the header from the memory stream buffer
+                        Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
+                        mod.FileData.SetLength(mod.FileData.Length - 16);
                         compressionMode = 2;
 
                         if (Verbose)
@@ -1663,9 +1650,9 @@ namespace EternalModLoader
                     else if (CompressTextures)
                     {
                         // Compress the texture
-                        var compressedData = Oodle.Compress(mod.FileData.ToArray(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                        var compressedData = Oodle.Compress(mod.FileData.GetBuffer(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
                         mod.FileData.Dispose();
-                        mod.FileData = new MemoryStream(compressedData, false);
+                        mod.FileData = new MemoryStream(compressedData, 0, compressedData.Length, false);
                         compressedSize = compressedData.Length;
                         compressionMode = 2;
 
@@ -1700,42 +1687,41 @@ namespace EternalModLoader
                 }
 
                 // Add the asset type nameId
-                Buffer.BlockCopy(BitConverter.GetBytes(assetTypeNameId), 0, nameIds, nameIds.Length - 16, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(assetTypeNameId), 0, nameIds, nameIds.Length - 16, 8);
 
                 // Add the asset filename nameId
-                Buffer.BlockCopy(BitConverter.GetBytes(nameId), 0, nameIds, nameIds.Length - 8, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(nameId), 0, nameIds, nameIds.Length - 8, 8);
 
                 // Place the info section in the correct location if specified
                 long newInfoSectionOffset = -1;
 
                 // Create the file info section
-                byte[] lastInfo = info.Skip(info.Length - 0x90).ToArray();
                 byte[] newFileInfo = new byte[0x90];
-                Buffer.BlockCopy(lastInfo, 0, newFileInfo, 0, lastInfo.Length);
-                Buffer.BlockCopy(BitConverter.GetBytes(nameIdOffset), 0, newFileInfo, newFileInfo.Length - 0x70, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(fileOffset), 0, newFileInfo, newFileInfo.Length - 0x58, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(compressedSize), 0, newFileInfo, newFileInfo.Length - 0x50, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(uncompressedSize), 0, newFileInfo, newFileInfo.Length - 0x48, 8);
+                Buffer.BlockCopy(info, info.Length - 0x90, newFileInfo, 0, 0x90);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(nameIdOffset), 0, newFileInfo, newFileInfo.Length - 0x70, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(fileOffset), 0, newFileInfo, newFileInfo.Length - 0x58, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(compressedSize), 0, newFileInfo, newFileInfo.Length - 0x50, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(uncompressedSize), 0, newFileInfo, newFileInfo.Length - 0x48, 8);
 
                 // Set the DataMurmurHash
-                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x40, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x40, 8);
 
                 // Set the StreamDB resource hash
-                Buffer.BlockCopy(BitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x30, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(mod.StreamDbHash.Value), 0, newFileInfo, newFileInfo.Length - 0x30, 8);
 
                 // Set the correct asset version
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.Version.Value), 0, newFileInfo, newFileInfo.Length - 0x28, 4);
+                Buffer.BlockCopy(FastBitConverter.GetBytes((int)mod.Version.Value), 0, newFileInfo, newFileInfo.Length - 0x28, 4);
 
                 // Set the special byte values
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte1.Value), 0, newFileInfo, newFileInfo.Length - 0x24, 4);
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte2.Value), 0, newFileInfo, newFileInfo.Length - 0x1E, 4);
-                Buffer.BlockCopy(BitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, newFileInfo, newFileInfo.Length - 0x1D, 4);
+                Buffer.BlockCopy(FastBitConverter.GetBytes((int)mod.SpecialByte1.Value), 0, newFileInfo, newFileInfo.Length - 0x24, 4);
+                Buffer.BlockCopy(FastBitConverter.GetBytes((int)mod.SpecialByte2.Value), 0, newFileInfo, newFileInfo.Length - 0x1E, 4);
+                Buffer.BlockCopy(FastBitConverter.GetBytes((int)mod.SpecialByte3.Value), 0, newFileInfo, newFileInfo.Length - 0x1D, 4);
 
                 // Clear the compression mode
                 newFileInfo[newFileInfo.Length - 0x20] = compressionMode;
 
                 // Set meta entries to use to 0
-                Buffer.BlockCopy(BitConverter.GetBytes((short)0), 0, newFileInfo, newFileInfo.Length - 0x10, 2);
+                Buffer.BlockCopy(FastBitConverter.GetBytes((short)0), 0, newFileInfo, newFileInfo.Length - 0x10, 2);
 
                 // Add the new file info section in the correct position
                 Array.Resize(ref info, info.Length + 0x90);
@@ -1764,15 +1750,15 @@ namespace EternalModLoader
             long idclAdd = nameIdsAdd + (nameIds.Length - nameIdsOldLength);
             long dataAdd = idclAdd;
 
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.FileCount + newChunksCount), 0, header, 0x20, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.FileCount2 + (newChunksCount * 2)), 0, header, 0x2C, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes((int)newSize), 0, header, 0x38, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.NamesOffset + namesOffsetAdd), 0, header, 0x40, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.UnknownOffset + unknownAdd), 0, header, 0x48, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.UnknownOffset2 + unknownAdd), 0, header, 0x58, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.Dummy7Offset + typeIdsAdd), 0, header, 0x60, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.DataOffset + dataAdd), 0, header, 0x68, 8);
-            Buffer.BlockCopy(BitConverter.GetBytes(resourceContainer.IdclOffset + idclAdd), 0, header, 0x74, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.FileCount + newChunksCount), 0, header, 0x20, 4);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.FileCount2 + (newChunksCount * 2)), 0, header, 0x2C, 4);
+            Buffer.BlockCopy(FastBitConverter.GetBytes((int)newSize), 0, header, 0x38, 4);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.NamesOffset + namesOffsetAdd), 0, header, 0x40, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.UnknownOffset + unknownAdd), 0, header, 0x48, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.UnknownOffset2 + unknownAdd), 0, header, 0x58, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.Dummy7Offset + typeIdsAdd), 0, header, 0x60, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.DataOffset + dataAdd), 0, header, 0x68, 8);
+            Buffer.BlockCopy(FastBitConverter.GetBytes(resourceContainer.IdclOffset + idclAdd), 0, header, 0x74, 8);
 
             byte[] newOffsetBuffer = new byte[8];
 
@@ -1780,7 +1766,7 @@ namespace EternalModLoader
             {
                 int fileOffset = 0x38 + (i * 0x90);
                 Buffer.BlockCopy(info, fileOffset, newOffsetBuffer, 0, 8);
-                Buffer.BlockCopy(BitConverter.GetBytes(BitConverter.ToInt64(newOffsetBuffer, 0) + dataAdd), 0, info, fileOffset, 8);
+                Buffer.BlockCopy(FastBitConverter.GetBytes(FastBitConverter.ToInt64(newOffsetBuffer, 0) + dataAdd), 0, info, fileOffset, 8);
             }
 
             // Rebuild the container now
@@ -1959,7 +1945,7 @@ namespace EternalModLoader
 
                             if (opusFileData != null)
                             {
-                                soundMod.FileData = new MemoryStream(opusFileData, false);
+                                soundMod.FileData = new MemoryStream(opusFileData, 0, opusFileData.Length, false);
                                 encodedSize = (int)soundMod.FileData.Length;
                                 format = 2;
                             }
@@ -2060,9 +2046,9 @@ namespace EternalModLoader
                         stream.Seek(soundEntry.InfoOffset, SeekOrigin.Begin);
 
                         // Replace the sound data offset and sizes
-                        stream.Write(BitConverter.GetBytes(encodedSize), 0, 4);
-                        stream.Write(BitConverter.GetBytes(soundModOffset), 0, 4);
-                        stream.Write(BitConverter.GetBytes(decodedSize), 0, 4);
+                        stream.Write(FastBitConverter.GetBytes(encodedSize), 0, 4);
+                        stream.Write(FastBitConverter.GetBytes(soundModOffset), 0, 4);
+                        stream.Write(FastBitConverter.GetBytes(decodedSize), 0, 4);
                         ushort currentFormat = binaryReader.ReadUInt16();
 
                         if (currentFormat != format)
@@ -2346,14 +2332,10 @@ namespace EternalModLoader
                     {
                         try
                         {
-                            var stream = zipArchive.GetEntry(eternalModJsonFile).Open();
-                            byte[] eternalModJsonFileBytes = null;
-
-                            using (var memoryStream = new MemoryStream())
-                            {
-                                stream.CopyTo(memoryStream);
-                                eternalModJsonFileBytes = memoryStream.ToArray();
-                            }
+                            var zipEntry = zipArchive.GetEntry(eternalModJsonFile);
+                            var stream = zipEntry.Open();
+                            byte[] eternalModJsonFileBytes = new byte[zipEntry.Length];
+                            stream.Read(eternalModJsonFileBytes, 0, eternalModJsonFileBytes.Length);
 
                             // Try to parse the JSON
                             var serializerSettings = new JsonSerializerSettings();
@@ -2448,8 +2430,9 @@ namespace EternalModLoader
 
                                 // Load the sound mod
                                 SoundModFile soundModFile = new SoundModFile(mod, Path.GetFileName(modFile));
-                                var stream = zipArchive.GetEntry(modFileName).Open();
-                                soundModFile.FileData = new MemoryStream();
+                                var zipEntry = zipArchive.GetEntry(modFileName);
+                                var stream = zipEntry.Open();
+                                soundModFile.FileData = new MemoryStream((int)zipEntry.Length);
                                 stream.CopyTo(soundModFile.FileData);
 
                                 soundContainer.ModFiles.Add(soundModFile);
@@ -2471,8 +2454,9 @@ namespace EternalModLoader
                             if (!listResources)
                             {
                                 ResourceModFile resourceModFile = new ResourceModFile(mod, modFile);
-                                var stream = zipArchive.GetEntry(modFileName).Open();
-                                resourceModFile.FileData = new MemoryStream();
+                                var zipEntry = zipArchive.GetEntry(modFileName);
+                                var stream = zipEntry.Open();
+                                resourceModFile.FileData = new MemoryStream((int)zipEntry.Length);
                                 stream.CopyTo(resourceModFile.FileData);
 
                                 // Read the JSON files in 'assetsinfo' under 'EternalMod'
@@ -2486,7 +2470,7 @@ namespace EternalModLoader
                                         {
                                             var serializerSettings = new JsonSerializerSettings();
                                             serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                            resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.ToArray()), serializerSettings);
+                                            resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), serializerSettings);
                                             resourceModFile.IsAssetsInfoJson = true;
                                             resourceModFile.FileData = null;
                                         }
@@ -2614,7 +2598,7 @@ namespace EternalModLoader
 
                         using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                         {
-                            soundModFile.FileData = new MemoryStream();
+                            soundModFile.FileData = new MemoryStream((int)fileStream.Length);
                             fileStream.CopyTo(soundModFile.FileData);
                         }
 
@@ -2640,7 +2624,7 @@ namespace EternalModLoader
 
                         using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                         {
-                            mod.FileData = new MemoryStream();
+                            mod.FileData = new MemoryStream((int)fileStream.Length);
                             fileStream.CopyTo(mod.FileData);
                         }
 
@@ -2655,7 +2639,7 @@ namespace EternalModLoader
                                 {
                                     var serializerSettings = new JsonSerializerSettings();
                                     serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                    mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.ToArray()), serializerSettings);
+                                    mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), serializerSettings);
                                     mod.IsAssetsInfoJson = true;
                                     mod.FileData = null;
                                 }

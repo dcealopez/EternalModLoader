@@ -1,5 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace EternalModLoader
 {
@@ -40,6 +39,40 @@ namespace EternalModLoader
             }
 
             return filename;
+        }
+
+        /// <summary>
+        /// Checks if the given texture is a Divinity compressed texture
+        /// </summary>
+        /// <param name="textureDataBuffer">texture data buffer</param>
+        /// <param name="divinityMagic">divinity magic to check against</param>
+        /// <returns>true if it's a Divinity compressed texture, false otherwise</returns>
+        public static bool IsDivinityCompressedTexture(byte[] textureDataBuffer, byte[] divinityMagic)
+        {
+            if (textureDataBuffer.Length < divinityMagic.Length + 8)
+            {
+                return false;
+            }
+
+            unsafe
+            {
+                fixed (byte* p1 = textureDataBuffer, p2 = divinityMagic)
+                {
+                    int remainingBytes = divinityMagic.Length;
+                    byte* ptr1 = p1;
+                    byte* ptr2 = p2;
+
+                    while (remainingBytes-- > 0)
+                    {
+                        if (*ptr1++ != *ptr2++)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

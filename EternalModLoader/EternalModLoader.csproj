@@ -98,6 +98,7 @@
   <ItemGroup>
     <Compile Include="BufferedConsole.cs" />
     <Compile Include="EternalModLoader.cs" />
+    <Compile Include="FastBitConverter.cs" />
     <Compile Include="Mods\Resources\Blang\BlangDecrypt.cs" />
     <Compile Include="Mods\Resources\Blang\BlangFileEntry.cs" />
     <Compile Include="Mods\Resources\MapResources\MapAsset.cs" />
