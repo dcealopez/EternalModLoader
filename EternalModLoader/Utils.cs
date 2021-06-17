@@ -1,4 +1,7 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace EternalModLoader
 {
@@ -19,23 +22,14 @@ namespace EternalModLoader
 
             if (indexOfDollar != -1)
             {
-                filename = filename.Substring(0, indexOfDollar);
-            }
-
-            // Trim trailing '#'
-            int indexOfHashTrail = filename.LastIndexOf('#');
-
-            if (indexOfHashTrail != -1)
-            {
-                filename = filename.Substring(0, indexOfHashTrail);
-            }
-
-            // Trim leading '#'
-            int indexOfHash = filename.IndexOf('#');
-
-            if (indexOfHash != -1)
-            {
-                filename = filename.Substring(indexOfHash + 1);
+                unsafe
+                {
+                    fixed (char* chars = filename)
+                    {
+                        *(chars + indexOfDollar) = '\x00';
+                        filename = new string(chars);
+                    }
+                }
             }
 
             return filename;

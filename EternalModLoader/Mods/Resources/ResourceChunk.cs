@@ -31,9 +31,12 @@
         public long Size;
 
         /// <summary>
-        /// Compression mode
+        /// Default constructor
         /// </summary>
-        public byte CompressionMode;
+        public ResourceChunk()
+        {
+
+        }
 
         /// <summary>
         /// Chunk constructor

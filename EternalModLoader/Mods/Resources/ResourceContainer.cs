@@ -93,6 +93,11 @@ namespace EternalModLoader.Mods.Resources
         public List<ResourceName> NamesList;
 
         /// <summary>
+        /// Maps the relative offsets of the path name entries to the resource name objects
+        /// </summary>
+        public Dictionary<int, ResourceName> ResourceNamePathRelativeOffsets = new Dictionary<int, ResourceName>();
+
+        /// <summary>
         /// Mods files for this resource
         /// </summary>
         public List<ResourceModFile> ModFileList;
@@ -116,24 +121,6 @@ namespace EternalModLoader.Mods.Resources
             NewModFileList = new List<ResourceModFile>();
             NamesList = new List<ResourceName>();
             ChunkList = new List<ResourceChunk>();
-        }
-
-        /// <summary>
-        /// Returns true if the container contains a resource with the given name, false otherwise
-        /// </summary>
-        /// <param name="name">resource name</param>
-        /// <returns>true if the container contains a resource with the given name, false otherwise</returns>
-        public bool ContainsResourceWithName(string name)
-        {
-            foreach (var resourceName in NamesList)
-            {
-                if (resourceName.FullFileName == name || resourceName.NormalizedFileName == name)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>

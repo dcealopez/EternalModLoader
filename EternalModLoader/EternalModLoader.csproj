@@ -106,6 +106,7 @@
     <Compile Include="Mods\Resources\ResourceModFile.cs" />
     <Compile Include="Mods\Resources\AssetsInfo.cs" />
     <Compile Include="Mods\Mod.cs" />
+    <Compile Include="Mods\Resources\ResourceName.cs" />
     <Compile Include="Mods\Sounds\SoundEntry.cs" />
     <Compile Include="Oodle.cs" />
     <Compile Include="Mods\Resources\PackageMapSpec.cs" />
@@ -115,7 +116,6 @@
     <Compile Include="Mods\Resources\ResourceData\ResourceDataEntry.cs" />
     <Compile Include="Mods\Resources\ResourceContainer.cs" />
     <Compile Include="Mods\Resources\Blang\BlangJson.cs" />
-    <Compile Include="Mods\Resources\ResourceName.cs" />
     <Compile Include="Mods\Sounds\SoundContainer.cs" />
     <Compile Include="Mods\Sounds\SoundEncoding.cs" />
     <Compile Include="Mods\Sounds\SoundModFile.cs" />
