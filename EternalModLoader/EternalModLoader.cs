@@ -320,10 +320,6 @@ namespace EternalModLoader
             long uncompressedSize,
             byte? compressionMode)
         {
-            // Update the .blang file chunk now
-            chunk.Size = uncompressedSize;
-            chunk.SizeZ = compressedSize;
-
             if (!SlowMode)
             {
                 // Add the data at the end of the container
@@ -344,7 +340,8 @@ namespace EternalModLoader
                 stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
 
                 long fileOffset = binaryReader.ReadInt64();
-                long sizeDiff = modFile.FileData.Length - chunk.Size;
+                binaryReader.ReadInt64();
+                long sizeDiff = modFile.FileData.Length - chunk.SizeZ;
 
                 // We will need to expand the file if the new size is greater than the old one
                 // If its shorter, we will replace all the bytes and zero out the remaining bytes
@@ -356,9 +353,9 @@ namespace EternalModLoader
                     stream.SetLength(length + sizeDiff);
                     int toRead;
 
-                    while (length > (fileOffset + chunk.Size))
+                    while (length > (fileOffset + chunk.SizeZ))
                     {
-                        toRead = length - BufferSize >= (fileOffset + chunk.Size) ? BufferSize : (int)(length - (fileOffset + chunk.Size));
+                        toRead = length - BufferSize >= (fileOffset + chunk.SizeZ) ? BufferSize : (int)(length - (fileOffset + chunk.SizeZ));
                         length -= toRead;
                         stream.Seek(length, SeekOrigin.Begin);
                         stream.Read(FileBuffer, 0, toRead);
@@ -396,14 +393,18 @@ namespace EternalModLoader
                 }
             }
 
+            // Update chunk sizes
+            chunk.Size = uncompressedSize;
+            chunk.SizeZ = compressedSize;
+
             // Replace the file size data
             if (SlowMode)
             {
                 stream.Seek(chunk.SizeOffset, SeekOrigin.Begin);
             }
 
-            stream.Write(FastBitConverter.GetBytes(compressedSize), 0, 8);
-            stream.Write(FastBitConverter.GetBytes(uncompressedSize), 0, 8);
+            stream.Write(FastBitConverter.GetBytes(chunk.SizeZ), 0, 8);
+            stream.Write(FastBitConverter.GetBytes(chunk.Size), 0, 8);
 
             // Clear the compression flag
             if (compressionMode.HasValue)
