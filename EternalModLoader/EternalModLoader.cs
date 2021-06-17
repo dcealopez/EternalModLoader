@@ -2181,9 +2181,9 @@ namespace EternalModLoader
                 Console.WriteLine("USAGE: EternalModLoader <game path | --version> [OPTIONS]");
                 Console.WriteLine("\t--version - Prints the version number of the mod loader and exits with exit code same as the version number.");
                 Console.WriteLine("OPTIONS:");
-                Console.WriteLine("\t--list-res - List the .resources files that will be modified and exit.");
+                Console.WriteLine("\t--list-res - List the game files that will be modified and exit.");
                 Console.WriteLine("\t--verbose - Print more information during the mod loading process.");
-                Console.WriteLine("\t--slow - Slow mod loading mode that produces slightly lighter files.");
+                Console.WriteLine("\t--slow - Slow mod loading mode that produces slightly smaller .resources files.");
                 Console.WriteLine("\t--compress-textures - Compress texture files during the mod loading process.");
                 return 1;
             }
@@ -2451,53 +2451,62 @@ namespace EternalModLoader
                             }
 
                             // Create the mod object and read the unzipped files
+                            ResourceModFile resourceModFile = new ResourceModFile(mod, modFileName);
+
                             if (!listResources)
                             {
-                                ResourceModFile resourceModFile = new ResourceModFile(mod, modFileName);
                                 var stream = modFileEntry.Open();
                                 resourceModFile.FileData = new MemoryStream((int)modFileEntry.Length);
                                 stream.CopyTo(resourceModFile.FileData);
+                            }
 
-                                // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                                if (modFilePathParts[1] == "EternalMod")
+                            // Read the JSON files in 'assetsinfo' under 'EternalMod'
+                            if (modFilePathParts[1] == "EternalMod")
+                            {
+                                if (modFilePathParts.Length == 4
+                                    && modFilePathParts[2] == "assetsinfo"
+                                    && Path.GetExtension(modFilePathParts[3]) == ".json")
                                 {
-                                    if (modFilePathParts.Length == 4
-                                        && modFilePathParts[2] == "assetsinfo"
-                                        && Path.GetExtension(modFilePathParts[3]) == ".json")
+                                    try
                                     {
-                                        try
+                                        // If we are just listing resources, read this JSON file only
+                                        if (listResources)
                                         {
-                                            var serializerSettings = new JsonSerializerSettings();
-                                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                            resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), serializerSettings);
-                                            resourceModFile.IsAssetsInfoJson = true;
-                                            resourceModFile.FileData = null;
+                                            var stream = modFileEntry.Open();
+                                            resourceModFile.FileData = new MemoryStream((int)modFileEntry.Length);
+                                            stream.CopyTo(resourceModFile.FileData);
                                         }
-                                        catch
-                                        {
-                                            Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.Error.Write("ERROR: ");
-                                            Console.ResetColor();
-                                            Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
-                                            continue;
-                                        }
+
+                                        var serializerSettings = new JsonSerializerSettings();
+                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                        resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), serializerSettings);
+                                        resourceModFile.IsAssetsInfoJson = true;
+                                        resourceModFile.FileData = null;
                                     }
-                                    else if (modFilePathParts.Length == 4
-                                        && modFilePathParts[2] == "strings"
-                                        && Path.GetExtension(modFilePathParts[3]) == ".json")
+                                    catch
                                     {
-                                        // Detect custom language files
-                                        resourceModFile.IsBlangJson = true;
-                                    }
-                                    else
-                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.Error.Write("ERROR: ");
+                                        Console.ResetColor();
+                                        Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
                                         continue;
                                     }
                                 }
-
-                                resource.ModFileList.Add(resourceModFile);
-                                zippedModCount++;
+                                else if (modFilePathParts.Length == 4
+                                    && modFilePathParts[2] == "strings"
+                                    && Path.GetExtension(modFilePathParts[3]) == ".json")
+                                {
+                                    // Detect custom language files
+                                    resourceModFile.IsBlangJson = true;
+                                }
+                                else
+                                {
+                                    continue;
+                                }
                             }
+
+                            resource.ModFileList.Add(resourceModFile);
+                            zippedModCount++;
                         }
                     }
                 }
@@ -2618,56 +2627,66 @@ namespace EternalModLoader
                     }
 
                     // Create the mod object and read the files
+                    ResourceModFile mod = new ResourceModFile(globalLooseMod, fileName);
+
                     if (!listResources)
                     {
-                        ResourceModFile mod = new ResourceModFile(globalLooseMod, fileName);
-
                         using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                         {
                             mod.FileData = new MemoryStream((int)fileStream.Length);
                             fileStream.CopyTo(mod.FileData);
                         }
+                    }
 
-                        // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                        if (modFilePathParts[2] == "EternalMod")
+                    // Read the JSON files in 'assetsinfo' under 'EternalMod'
+                    if (modFilePathParts[2] == "EternalMod")
+                    {
+                        if (modFilePathParts.Length == 5
+                            && modFilePathParts[3] == "assetsinfo"
+                            && Path.GetExtension(modFilePathParts[4]) == ".json")
                         {
-                            if (modFilePathParts.Length == 5
-                                && modFilePathParts[3] == "assetsinfo"
-                                && Path.GetExtension(modFilePathParts[4]) == ".json")
+                            try
                             {
-                                try
+                                // Read this JSON only if we are listing resources
+                                if (listResources)
                                 {
-                                    var serializerSettings = new JsonSerializerSettings();
-                                    serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                    mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), serializerSettings);
-                                    mod.IsAssetsInfoJson = true;
-                                    mod.FileData = null;
+                                    using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+                                    {
+                                        mod.FileData = new MemoryStream((int)fileStream.Length);
+                                        fileStream.CopyTo(mod.FileData);
+                                    }
                                 }
-                                catch
-                                {
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.Error.Write("ERROR: ");
-                                    Console.ResetColor();
-                                    Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
-                                    continue;
-                                }
+
+                                var serializerSettings = new JsonSerializerSettings();
+                                serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                                mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), serializerSettings);
+                                mod.IsAssetsInfoJson = true;
+                                mod.FileData = null;
                             }
-                            else if (modFilePathParts.Length == 5
-                                && modFilePathParts[3] == "strings"
-                                && Path.GetExtension(modFilePathParts[4]) == ".json")
+                            catch
                             {
-                                // Detect custom language files
-                                mod.IsBlangJson = true;
-                            }
-                            else
-                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Error.Write("ERROR: ");
+                                Console.ResetColor();
+                                Console.Error.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
                                 continue;
                             }
                         }
-
-                        resource.ModFileList.Add(mod);
-                        unzippedModCount++;
+                        else if (modFilePathParts.Length == 5
+                            && modFilePathParts[3] == "strings"
+                            && Path.GetExtension(modFilePathParts[4]) == ".json")
+                        {
+                            // Detect custom language files
+                            mod.IsBlangJson = true;
+                        }
+                        else
+                        {
+                            continue;
+                        }
                     }
+
+                    resource.ModFileList.Add(mod);
+                    unzippedModCount++;
                 }
             }
 
@@ -2690,7 +2709,40 @@ namespace EternalModLoader
                 // Resource file mods
                 foreach (var resource in ResourceList)
                 {
+                    bool shouldListResource = false;
+
                     if (resource.Path == string.Empty)
+                    {
+                        continue;
+                    }
+
+                    var assetsInfoJsonModFiles = resource.ModFileList.Where(mod => mod.IsAssetsInfoJson);
+
+                    // If this resource only has assetsinfo JSON files, only print this resource if necessary
+                    if (assetsInfoJsonModFiles.Count() == resource.ModFileList.Count)
+                    {
+                        foreach (var assetsInfoJsonFile in assetsInfoJsonModFiles)
+                        {
+                            if (assetsInfoJsonFile.AssetsInfo == null)
+                            {
+                                continue;
+                            }
+
+                            if (assetsInfoJsonFile.AssetsInfo.Assets != null
+                                || assetsInfoJsonFile.AssetsInfo.Layers != null
+                                || assetsInfoJsonFile.AssetsInfo.Maps != null)
+                            {
+                                shouldListResource = true;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        shouldListResource = true;
+                    }
+
+                    if (!shouldListResource)
                     {
                         continue;
                     }
