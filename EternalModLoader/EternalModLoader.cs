@@ -2528,7 +2528,7 @@ namespace EternalModLoader
                     continue;
                 }
 
-                string[] modFilePathParts = file.Replace(args[0], "").Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+                string[] modFilePathParts = file.Remove(0, args[0].Length).Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
                 if (modFilePathParts.Length <= 2)
                 {
