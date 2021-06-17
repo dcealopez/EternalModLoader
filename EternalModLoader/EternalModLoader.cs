@@ -2313,7 +2313,7 @@ namespace EternalModLoader
                     foreach (var zipEntry in zipArchive.Entries)
                     {
                         // Skip directories
-                        if (zipEntry.CompressedLength == 0)
+                        if (zipEntry.FullName[zipEntry.FullName.Length - 1] == '/' && zipEntry.Name == string.Empty)
                         {
                             continue;
                         }
