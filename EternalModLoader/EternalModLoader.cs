@@ -2152,11 +2152,6 @@ namespace EternalModLoader
             foreach (var resourceFile in searchDirectory.EnumerateFiles("*.snd", SearchOption.TopDirectoryOnly))
             {
                 SoundContainerPathList.Add(resourceFile.FullName);
-
-                if (Path.DirectorySeparatorChar == '\\')
-                {
-                    SoundContainerPathList.Add(resourceFile.FullName.Replace('\\', '/'));
-                }
             }
         }
 
