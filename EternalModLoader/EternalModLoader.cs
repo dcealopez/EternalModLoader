@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 using BlangParser;
 using EternalModLoader.Mods;
 using EternalModLoader.Mods.Resources;
@@ -13,7 +14,6 @@ using EternalModLoader.Mods.Resources.MapResources;
 using EternalModLoader.Mods.Sounds;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using System.Diagnostics;
 
 namespace EternalModLoader
 {
@@ -38,6 +38,11 @@ namespace EternalModLoader
         /// Package Map Spec JSON file name
         /// </summary>
         private const string PackageMapSpecJsonFileName = "packagemapspec.json";
+
+        /// <summary>
+        /// Mods folder name
+        /// </summary>
+        private const string ModsFolderName = "Mods";
 
         /// <summary>
         /// Game base path
@@ -76,6 +81,16 @@ namespace EternalModLoader
         public static List<SoundContainer> SoundContainerList = new List<SoundContainer>();
 
         /// <summary>
+        /// List of all the game's .resources and .streamdb file paths
+        /// </summary>
+        public static List<string> ResourceContainerPathList = new List<string>();
+
+        /// <summary>
+        /// List of all the game's .snd archive file paths
+        /// </summary>
+        public static List<string> SoundContainerPathList = new List<string>();
+
+        /// <summary>
         /// Resource data dictionary, indexed by file name
         /// </summary>
         public static Dictionary<ulong, ResourceDataEntry> ResourceDataDictionary = new Dictionary<ulong, ResourceDataEntry>();
@@ -92,6 +107,21 @@ namespace EternalModLoader
         /// This will be initialized alongside the buffer size
         /// </summary>
         public static byte[] FileBuffer = null;
+
+        /// <summary>
+        /// Global settings used for JSON file serialization/deserialization
+        /// </summary>
+        public static JsonSerializerSettings GlobalJsonSerializerSettings;
+
+        /// <summary>
+        /// Static constructor
+        /// </summary>
+        static EternalModLoader()
+        {
+            GlobalJsonSerializerSettings = new JsonSerializerSettings();
+            GlobalJsonSerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+            GlobalJsonSerializerSettings.Formatting = Formatting.Indented;
+        }
 
         /// <summary>
         /// Reads the resource container from the specified resource container object
@@ -471,9 +501,7 @@ namespace EternalModLoader
                                     try
                                     {
                                         // Try to parse the JSON
-                                        var serializerSettings = new JsonSerializerSettings();
-                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                        packageMapSpec = JsonConvert.DeserializeObject<PackageMapSpec>(Encoding.UTF8.GetString(packageMapSpecFileBytes), serializerSettings);
+                                        packageMapSpec = JsonConvert.DeserializeObject<PackageMapSpec>(Encoding.UTF8.GetString(packageMapSpecFileBytes), GlobalJsonSerializerSettings);
                                     }
                                     catch
                                     {
@@ -494,7 +522,7 @@ namespace EternalModLoader
                                     // First check that the resource trying to be added actually exists
                                     var extraResourcePath = PathToResource(extraResource.Name);
 
-                                    if (extraResourcePath == string.Empty)
+                                    if (extraResourcePath == null)
                                     {
                                         Console.ForegroundColor = ConsoleColor.Red;
                                         Console.Write("WARNING: ");
@@ -522,18 +550,18 @@ namespace EternalModLoader
                                     // Special cases for the hubs
                                     string modFileMapName = Path.GetFileNameWithoutExtension(modFile.Name);
 
-                                    if (resourceContainer.Name.StartsWith("dlc_hub"))
+                                    if (resourceContainer.Name.StartsWith("dlc_hub", StringComparison.Ordinal))
                                     {
                                         modFileMapName = "game/dlc/hub/hub";
                                     }
-                                    else if (resourceContainer.Name.StartsWith("hub"))
+                                    else if (resourceContainer.Name.StartsWith("hub", StringComparison.Ordinal))
                                     {
                                         modFileMapName = "game/hub/hub";
                                     }
 
                                     for (int i = 0; i < packageMapSpec.Maps.Count; i++)
                                     {
-                                        if (packageMapSpec.Maps[i].Name.EndsWith(modFileMapName))
+                                        if (packageMapSpec.Maps[i].Name.EndsWith(modFileMapName, StringComparison.Ordinal))
                                         {
                                             mapIndex = i;
                                             break;
@@ -638,7 +666,7 @@ namespace EternalModLoader
                                         // First check that the placeByName resource actually exists
                                         var placeBeforeResourcePath = PathToResource(extraResource.PlaceByName);
 
-                                        if (placeBeforeResourcePath == string.Empty)
+                                        if (placeBeforeResourcePath == null)
                                         {
                                             BufferedConsole.Flush();
                                             Console.ForegroundColor = ConsoleColor.Red;
@@ -719,9 +747,10 @@ namespace EternalModLoader
                             {
                                 foreach (var file in resourceContainer.ChunkList)
                                 {
-                                    if (file.ResourceName.NormalizedFileName.EndsWith(".mapresources"))
+                                    if (file.ResourceName.NormalizedFileName.EndsWith(".mapresources", StringComparison.Ordinal))
                                     {
-                                        if (resourceContainer.Name.StartsWith("gameresources") && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources"))
+                                        if (resourceContainer.Name.StartsWith("gameresources", StringComparison.Ordinal)
+                                            && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources", StringComparison.Ordinal))
                                         {
                                             continue;
                                         }
@@ -961,7 +990,7 @@ namespace EternalModLoader
                         // Handle custom .blang JSON files
                         var modName = modFile.Name;
                         var modFilePathParts = modName.Split('/');
-                        var name = modName.Remove(0, modFilePathParts[0].Length + 1);
+                        var name = modName.Substring(modFilePathParts[0].Length + 1, modName.Length - (modFilePathParts[0].Length + 1));
                         modFile.Name = name.Substring(0, name.Length - 4) + "blang";
                         chunk = GetChunk(modFile.Name, resourceContainer);
 
@@ -1014,9 +1043,10 @@ namespace EternalModLoader
                             {
                                 foreach (var file in resourceContainer.ChunkList)
                                 {
-                                    if (file.ResourceName.NormalizedFileName.EndsWith(".mapresources"))
+                                    if (file.ResourceName.NormalizedFileName.EndsWith(".mapresources", StringComparison.Ordinal))
                                     {
-                                        if (resourceContainer.Name.StartsWith("gameresources") && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources"))
+                                        if (resourceContainer.Name.StartsWith("gameresources", StringComparison.Ordinal)
+                                            && file.ResourceName.NormalizedFileName.EndsWith("init.mapresources", StringComparison.Ordinal))
                                         {
                                             continue;
                                         }
@@ -1164,9 +1194,7 @@ namespace EternalModLoader
 
                         try
                         {
-                            var serializerSettings = new JsonSerializerSettings();
-                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileData.GetBuffer()), serializerSettings);
+                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
 
                             if (blangJson == null || blangJson.Strings.Count == 0)
                             {
@@ -1229,7 +1257,7 @@ namespace EternalModLoader
                     byte? compressionMode = 0;
 
                     // If this is a texture, check if it's compressed, or compress it if necessary
-                    if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga"))
+                    if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga", StringComparison.Ordinal))
                     {
                         // Get the texture data buffer
                         var textureDataBuffer = modFile.FileData.GetBuffer();
@@ -1276,10 +1304,7 @@ namespace EternalModLoader
                 if (packageMapSpec != null && wasPackageMapSpecModified)
                 {
                     // Serialize the JSON and replace it
-                    var serializerSettings = new JsonSerializerSettings();
-                    serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                    serializerSettings.Formatting = Formatting.Indented;
-                    var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, serializerSettings);
+                    var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, GlobalJsonSerializerSettings);
 
                     try
                     {
@@ -2086,6 +2111,55 @@ namespace EternalModLoader
             }
         }
 
+        public static void FillContainerPathList()
+        {
+            DirectoryInfo searchDirectory = new DirectoryInfo(BasePath);
+
+            foreach (var resourceFile in searchDirectory.EnumerateFiles("*.resources", SearchOption.TopDirectoryOnly))
+            {
+                ResourceContainerPathList.Add(resourceFile.FullName);
+
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    ResourceContainerPathList.Add(resourceFile.FullName.Replace('\\', '/'));
+                }
+            }
+
+            foreach (var resourceFile in searchDirectory.EnumerateFiles("*.streamdb", SearchOption.TopDirectoryOnly))
+            {
+                ResourceContainerPathList.Add(resourceFile.FullName);
+
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    ResourceContainerPathList.Add(resourceFile.FullName.Replace('\\', '/'));
+                }
+            }
+
+            searchDirectory = new DirectoryInfo(Path.Combine(BasePath, "game"));
+
+            foreach (var resourceFile in searchDirectory.EnumerateFiles("*.resources", SearchOption.AllDirectories))
+            {
+                ResourceContainerPathList.Add(resourceFile.FullName);
+
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    ResourceContainerPathList.Add(resourceFile.FullName.Replace('\\', '/'));
+                }
+            }
+
+            searchDirectory = new DirectoryInfo(Path.Combine(BasePath, "sound", "soundbanks", "pc"));
+
+            foreach (var resourceFile in searchDirectory.EnumerateFiles("*.snd", SearchOption.TopDirectoryOnly))
+            {
+                SoundContainerPathList.Add(resourceFile.FullName);
+
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    SoundContainerPathList.Add(resourceFile.FullName.Replace('\\', '/'));
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the path to the .resources file for the specified resource name
         /// </summary>
@@ -2093,51 +2167,17 @@ namespace EternalModLoader
         /// <returns>the path to the .resources file for the specified resource name, empty string if it wasn't found</returns>
         public static string PathToResource(string name)
         {
-            SearchOption searchOption = SearchOption.AllDirectories;
-            string searchPath = BasePath;
-            string searchPattern;
-
-            // Support for DLC1 hub resources files
-            // It has the same name as the base game hub resources file, so we will need
-            // to adjust the search pattern to find the one we want depending on the folder name of the mod
-            if (name.ToLower().StartsWith("dlc_hub"))
+            if (name.StartsWith("dlc_hub", StringComparison.Ordinal))
             {
-                string dlcHubFileName = name.Substring(4, name.Length - 4);
-                searchPattern = Path.Combine("game", "dlc", "hub", $"{dlcHubFileName}");
+                var dlcHubFileName = name.Substring(4, name.Length - 4);
+                name = $"game{Path.DirectorySeparatorChar}dlc{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{dlcHubFileName}";
             }
-            else if (name.ToLower().StartsWith("hub"))
+            else if (name.StartsWith("hub", StringComparison.Ordinal))
             {
-                searchPattern = Path.Combine("game", "hub", $"{name}");
-            }
-            else
-            {
-                searchPattern = name;
-
-                if (name.Contains("gameresources") || name.Contains("warehouse") || name.Contains("meta") || name.Contains(".streamdb"))
-                {
-                    searchOption = SearchOption.TopDirectoryOnly;
-                }
-                else
-                {
-                    searchPath = Path.Combine(BasePath, "game");
-                }
+                name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}${name}";
             }
 
-            try
-            {
-                DirectoryInfo searchDirectory = new DirectoryInfo(searchPath);
-
-                foreach (var resourceFile in searchDirectory.EnumerateFiles(searchPattern, searchOption))
-                {
-                    return resourceFile.FullName;
-                }
-
-                return string.Empty;
-            }
-            catch (Exception)
-            {
-                return string.Empty;
-            }
+            return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
         }
 
         /// <summary>
@@ -2147,24 +2187,7 @@ namespace EternalModLoader
         /// <returns>the path to the .snd file for the specified sound container name, empty string if it wasn't found</returns>
         public static string PathToSoundContainer(string name)
         {
-            string searchPath = Path.Combine(BasePath, "sound", "soundbanks", "pc");
-            string searchPattern = $"{name}.snd";
-
-            try
-            {
-                DirectoryInfo baseFolder = new DirectoryInfo(searchPath);
-
-                foreach (var soundContainerFile in baseFolder.EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly))
-                {
-                    return soundContainerFile.FullName;
-                }
-
-                return string.Empty;
-            }
-            catch (Exception)
-            {
-                return string.Empty;
-            }
+            return SoundContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
         }
 
         /// <summary>
@@ -2302,15 +2325,17 @@ namespace EternalModLoader
                 }
             }
 
-            // Find zipped mods
-            foreach (string zippedMod in Directory.EnumerateFiles(Path.Combine(args[0], "Mods"), "*.zip", SearchOption.TopDirectoryOnly))
+            // Read all the necessary game file paths
+            FillContainerPathList();
+
+            // Find and read zipped mods
+            foreach (string zippedMod in Directory.EnumerateFiles(Path.Combine(args[0], ModsFolderName), "*.zip", SearchOption.TopDirectoryOnly))
             {
                 int zippedModCount = 0;
-                List<ZipArchiveEntry> modEntryList = new List<ZipArchiveEntry>();
 
-                using (var zipArchive = ZipFile.OpenRead(zippedMod))
+                using (var zipReader = ZipFile.OpenRead(zippedMod))
                 {
-                    foreach (var zipEntry in zipArchive.Entries)
+                    foreach (var zipEntry in zipReader.Entries)
                     {
                         // Skip directories
                         if (zipEntry.FullName[zipEntry.FullName.Length - 1] == '/' && zipEntry.Name == string.Empty)
@@ -2318,64 +2343,55 @@ namespace EternalModLoader
                             continue;
                         }
 
-                        modEntryList.Add(zipEntry);
-                    }
+                        // Mod object for this mod
+                        Mod mod = new Mod();
 
-                    // Mod object for this mod
-                    Mod mod = new Mod()
-                    {
-                        Name = Path.GetFileName(zippedMod),
-                    };
-
-                    // Read the mod info from the EternalMod JSON if it exists
-                    var eternalModJsonFileEntry = modEntryList.FirstOrDefault(entry => entry.FullName == "EternalMod.json");
-
-                    if (eternalModJsonFileEntry != null)
-                    {
-                        try
+                        // Read the mod info from the EternalMod JSON if it exists
+                        if (zipEntry.FullName == "EternalMod.json")
                         {
-                            var stream = eternalModJsonFileEntry.Open();
-                            byte[] eternalModJsonFileBytes = new byte[eternalModJsonFileEntry.Length];
-                            stream.Read(eternalModJsonFileBytes, 0, eternalModJsonFileBytes.Length);
+                            try
+                            {
+                                var fileMemoryStream = new MemoryStream((int)zipEntry.Length);
+                                var stream = zipEntry.Open();
+                                stream.CopyTo(fileMemoryStream);
 
-                            // Try to parse the JSON
-                            var serializerSettings = new JsonSerializerSettings();
-                            serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                            mod = JsonConvert.DeserializeObject<Mod>(Encoding.UTF8.GetString(eternalModJsonFileBytes), serializerSettings);
+                                // Try to parse the JSON
+                                mod = JsonConvert.DeserializeObject<Mod>(Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()), GlobalJsonSerializerSettings);
 
-                            // If the mod requires a higher mod loader version, print a warning and don't load the mod
-                            if (mod.RequiredVersion > Version)
+                                // If the mod requires a higher mod loader version, print a warning and don't load the mod
+                                if (mod.RequiredVersion > Version)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.Write("WARNING: ");
+                                    Console.ResetColor();
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine($"Mod \"{zippedMod}\" requires mod loader version {mod.RequiredVersion} but the current mod loader version is {Version}, skipping.");
+                                    Console.ResetColor();
+                                    continue;
+                                }
+                            }
+                            catch
                             {
                                 Console.ForegroundColor = ConsoleColor.Red;
-                                Console.Write("WARNING: ");
+                                Console.Error.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Mod \"{zippedMod}\" requires mod loader version {mod.RequiredVersion} but the current mod loader version is {Version}, skipping.");
-                                Console.ResetColor();
-                                continue;
+                                Console.Error.WriteLine($"Failed to parse {zipEntry.FullName} - malformed JSON? - using defaults.");
                             }
-                        }
-                        catch
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Error.Write("ERROR: ");
-                            Console.ResetColor();
-                            Console.Error.WriteLine($"Failed to parse {eternalModJsonFileEntry.FullName} - malformed JSON? - using defaults.");
-                        }
-                    }
 
-                    foreach (var modFileEntry in modEntryList)
-                    {
+                            continue;
+                        }
+
+                        // Determine the game container for each mod file
                         bool isSoundMod = false;
-                        string modFileName = modFileEntry.FullName;
-                        var modFilePathParts = modFileName.Split('/');
+                        string modFileName = zipEntry.FullName;
+                        var firstForwardSlash = modFileName.IndexOf('/');
 
-                        if (modFilePathParts.Length < 2)
+                        if (firstForwardSlash == -1)
                         {
                             continue;
                         }
 
-                        string resourceName = modFilePathParts[0];
+                        string resourceName = modFileName.Substring(0, firstForwardSlash);
 
                         // Old mods compatibility
                         if (resourceName == "generated")
@@ -2384,18 +2400,18 @@ namespace EternalModLoader
                         }
                         else
                         {
-                            // Remove the resource name from the path
-                            modFileName = modFileEntry.FullName.Remove(0, resourceName.Length + 1);
+                            // Remove the resource name from the name
+                            modFileName = modFileName.Substring(firstForwardSlash + 1);
                         }
 
                         // Check if this is a sound mod or not
-                        var resourcePath = PathToResource(resourceName + ".resources");
+                        var resourcePath = PathToResource($"{resourceName}.resources");
 
-                        if (resourcePath == string.Empty)
+                        if (resourcePath == null)
                         {
-                            resourcePath = PathToSoundContainer(resourceName);
+                            resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
-                            if (resourcePath != string.Empty)
+                            if (resourcePath != null)
                             {
                                 isSoundMod = true;
                             }
@@ -2431,8 +2447,8 @@ namespace EternalModLoader
 
                                 // Load the sound mod
                                 SoundModFile soundModFile = new SoundModFile(mod, Path.GetFileName(modFileName));
-                                var stream = modFileEntry.Open();
-                                soundModFile.FileData = new MemoryStream((int)modFileEntry.Length);
+                                var stream = zipEntry.Open();
+                                soundModFile.FileData = new MemoryStream((int)zipEntry.Length);
                                 stream.CopyTo(soundModFile.FileData);
 
                                 soundContainer.ModFiles.Add(soundModFile);
@@ -2455,31 +2471,27 @@ namespace EternalModLoader
 
                             if (!listResources)
                             {
-                                var stream = modFileEntry.Open();
-                                resourceModFile.FileData = new MemoryStream((int)modFileEntry.Length);
+                                var stream = zipEntry.Open();
+                                resourceModFile.FileData = new MemoryStream((int)zipEntry.Length);
                                 stream.CopyTo(resourceModFile.FileData);
                             }
 
                             // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                            if (modFilePathParts[1] == "EternalMod")
+                            if (modFileName.EndsWith(".json", StringComparison.Ordinal))
                             {
-                                if (modFilePathParts.Length == 4
-                                    && modFilePathParts[2] == "assetsinfo"
-                                    && Path.GetExtension(modFilePathParts[3]) == ".json")
+                                if (modFileName.StartsWith($"EternalMod/assetsinfo/", StringComparison.Ordinal))
                                 {
                                     try
                                     {
                                         // If we are just listing resources, read this JSON file only
                                         if (listResources)
                                         {
-                                            var stream = modFileEntry.Open();
-                                            resourceModFile.FileData = new MemoryStream((int)modFileEntry.Length);
+                                            var stream = zipEntry.Open();
+                                            resourceModFile.FileData = new MemoryStream((int)zipEntry.Length);
                                             stream.CopyTo(resourceModFile.FileData);
                                         }
 
-                                        var serializerSettings = new JsonSerializerSettings();
-                                        serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                        resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), serializerSettings);
+                                        resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
                                         resourceModFile.IsAssetsInfoJson = true;
                                         resourceModFile.FileData = null;
                                     }
@@ -2492,11 +2504,9 @@ namespace EternalModLoader
                                         continue;
                                     }
                                 }
-                                else if (modFilePathParts.Length == 4
-                                    && modFilePathParts[2] == "strings"
-                                    && Path.GetExtension(modFilePathParts[3]) == ".json")
+                                else if (modFileName.StartsWith($"EternalMod/strings/", StringComparison.Ordinal))
                                 {
-                                    // Detect custom language files
+                                    // Detect custom localization files
                                     resourceModFile.IsBlangJson = true;
                                 }
                                 else
@@ -2525,50 +2535,58 @@ namespace EternalModLoader
                 }
             }
 
-            // Find unzipped mods
+            // Find and read unzipped mods
             int unzippedModCount = 0;
 
             Mod globalLooseMod = new Mod();
             globalLooseMod.LoadPriority = int.MinValue;
 
-            foreach (var file in Directory.EnumerateFiles(Path.Combine(args[0], "Mods"), "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(args[0], ModsFolderName), "*", SearchOption.AllDirectories))
             {
-                if (file.EndsWith(".zip"))
+                if (file.EndsWith(".zip", StringComparison.Ordinal))
                 {
                     continue;
                 }
 
-                string[] modFilePathParts = file.Remove(0, args[0].Length).Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+                string[] modFilePathParts = file.Substring(args[0].Length + 1 + ModsFolderName.Length, file.Length - (args[0].Length + 1 + ModsFolderName.Length)).Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
                 if (modFilePathParts.Length <= 2)
                 {
                     continue;
                 }
 
-                string relativePathToFile = string.Join(Path.DirectorySeparatorChar.ToString(), modFilePathParts);
+                string modFileName = string.Join(Path.DirectorySeparatorChar.ToString(), modFilePathParts).Replace('\\', '/');
+
+                // Determine the game container for each mod file
                 bool isSoundMod = false;
-                string resourceName = modFilePathParts[1];
-                string fileName = string.Empty;
+                var firstForwardSlash = modFileName.IndexOf('/');
+
+                if (firstForwardSlash == -1)
+                {
+                    continue;
+                }
+
+                string resourceName = modFileName.Substring(0, firstForwardSlash);
 
                 // Old mods compatibility
-                if (resourceName.ToLower() == "generated")
+                if (resourceName == "generated")
                 {
                     resourceName = "gameresources";
-                    fileName = relativePathToFile.Remove(0, modFilePathParts[0].Length + 1).Replace('\\', '/');
                 }
                 else
                 {
-                    fileName = relativePathToFile.Remove(0, modFilePathParts[0].Length + resourceName.Length + 2).Replace('\\', '/');
+                    // Remove the resource name from the path
+                    modFileName = modFileName.Substring(firstForwardSlash + 1);
                 }
 
                 // Check if this is a sound mod or not
-                var resourcePath = PathToResource(resourceName + ".resources");
+                var resourcePath = PathToResource($"{resourceName}.resources");
 
-                if (resourcePath == string.Empty)
+                if (resourcePath == null)
                 {
-                    resourcePath = PathToSoundContainer(resourceName);
+                    resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
-                    if (resourcePath != string.Empty)
+                    if (resourcePath != null)
                     {
                         isSoundMod = true;
                     }
@@ -2589,7 +2607,7 @@ namespace EternalModLoader
                     if (!listResources)
                     {
                         // Skip unsupported formats
-                        var soundExtension = Path.GetExtension(fileName);
+                        var soundExtension = Path.GetExtension(modFileName);
 
                         if (!SoundEncoding.SupportedFileFormats.Contains(soundExtension))
                         {
@@ -2597,13 +2615,13 @@ namespace EternalModLoader
                             Console.Write("WARNING: ");
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{fileName}\"");
+                            Console.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFileName}\"");
                             Console.ResetColor();
                             continue;
                         }
 
                         // Load the sound mod
-                        SoundModFile soundModFile = new SoundModFile(globalLooseMod, Path.GetFileName(fileName));
+                        SoundModFile soundModFile = new SoundModFile(globalLooseMod, Path.GetFileName(modFileName));
 
                         using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                         {
@@ -2627,7 +2645,7 @@ namespace EternalModLoader
                     }
 
                     // Create the mod object and read the files
-                    ResourceModFile mod = new ResourceModFile(globalLooseMod, fileName);
+                    ResourceModFile mod = new ResourceModFile(globalLooseMod, modFileName);
 
                     if (!listResources)
                     {
@@ -2639,11 +2657,9 @@ namespace EternalModLoader
                     }
 
                     // Read the JSON files in 'assetsinfo' under 'EternalMod'
-                    if (modFilePathParts[2] == "EternalMod")
+                    if (modFileName.EndsWith(".json", StringComparison.Ordinal))
                     {
-                        if (modFilePathParts.Length == 5
-                            && modFilePathParts[3] == "assetsinfo"
-                            && Path.GetExtension(modFilePathParts[4]) == ".json")
+                        if (modFileName.StartsWith($"EternalMod/assetsinfo/", StringComparison.Ordinal))
                         {
                             try
                             {
@@ -2657,9 +2673,7 @@ namespace EternalModLoader
                                     }
                                 }
 
-                                var serializerSettings = new JsonSerializerSettings();
-                                serializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                                mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), serializerSettings);
+                                mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), GlobalJsonSerializerSettings);
                                 mod.IsAssetsInfoJson = true;
                                 mod.FileData = null;
                             }
@@ -2672,9 +2686,7 @@ namespace EternalModLoader
                                 continue;
                             }
                         }
-                        else if (modFilePathParts.Length == 5
-                            && modFilePathParts[3] == "strings"
-                            && Path.GetExtension(modFilePathParts[4]) == ".json")
+                        else if (modFileName.StartsWith($"EternalMod/strings/", StringComparison.Ordinal))
                         {
                             // Detect custom language files
                             mod.IsBlangJson = true;
@@ -2749,11 +2761,11 @@ namespace EternalModLoader
 
                     if (Path.DirectorySeparatorChar == '\\')
                     {
-                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\"))}");
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
                     }
                     else
                     {
-                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/"))}");
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/", StringComparison.Ordinal))}");
                     }
                 }
 
@@ -2767,11 +2779,11 @@ namespace EternalModLoader
 
                     if (Path.DirectorySeparatorChar == '\\')
                     {
-                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("\\base\\"))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
                     }
                     else
                     {
-                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("/base/"))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("/base/", StringComparison.Ordinal))}");
                     }
                 }
 
