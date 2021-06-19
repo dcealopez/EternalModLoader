@@ -114,16 +114,6 @@ namespace EternalModLoader
         public static JsonSerializerSettings GlobalJsonSerializerSettings;
 
         /// <summary>
-        /// Static constructor
-        /// </summary>
-        static EternalModLoader()
-        {
-            GlobalJsonSerializerSettings = new JsonSerializerSettings();
-            GlobalJsonSerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-            GlobalJsonSerializerSettings.Formatting = Formatting.Indented;
-        }
-
-        /// <summary>
         /// Reads the resource container from the specified resource container object
         /// </summary>
         /// <param name="resourceContainer">resource container object</param>
@@ -1228,7 +1218,8 @@ namespace EternalModLoader
                                 {
                                     stringFound = true;
                                     blangString.Text = blangJsonString.Text;
-                                    BufferedConsole.WriteLine($"\tReplaced string \"{blangString.Identifier}\" to \"{modFile.Name}\"");
+                                    blangFileEntry.WasModified = true;
+                                    BufferedConsole.WriteLine($"\tReplaced string \"{blangString.Identifier}\" in \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
                                     break;
                                 }
                             }
@@ -1308,7 +1299,6 @@ namespace EternalModLoader
 
                     try
                     {
-                        File.Delete(packageMapSpecPath);
                         File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
                         BufferedConsole.WriteLine(string.Format("\tModified {0}", packageMapSpecPath));
                     }
@@ -1352,6 +1342,7 @@ namespace EternalModLoader
 
                     SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, 0);
                     BufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
+                    fileCount++;
                 }
 
                 // Modify the map resources file if needed
@@ -1381,6 +1372,7 @@ namespace EternalModLoader
 
                             SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, mapResourcesChunk, mapResourcesModFile, compressedMapResourcesData.Length, decompressedMapResourcesData.Length, null);
                             BufferedConsole.WriteLine(string.Format("\tModified {0}", mapResourcesChunk.ResourceName.NormalizedFileName));
+                            fileCount++;
                         }
                     }
                 }
@@ -2319,6 +2311,11 @@ namespace EternalModLoader
                     }
                 }
             }
+
+            // Create the global JSON serializer settings object
+            GlobalJsonSerializerSettings = new JsonSerializerSettings();
+            GlobalJsonSerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+            GlobalJsonSerializerSettings.Formatting = Formatting.Indented;
 
             // Read all the necessary game file paths
             FillContainerPathList();
