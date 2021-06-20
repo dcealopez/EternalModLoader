@@ -2488,7 +2488,6 @@ namespace EternalModLoader
                                             stream.CopyTo(resourceModFile.FileData);
                                         }
 
-                                        //resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
                                         resourceModFile.AssetsInfo = AssetsInfo.FromJson(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()));
                                         resourceModFile.IsAssetsInfoJson = true;
                                         resourceModFile.FileData = null;
@@ -2671,7 +2670,6 @@ namespace EternalModLoader
                                     }
                                 }
 
-                                //mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), GlobalJsonSerializerSettings);
                                 mod.AssetsInfo = AssetsInfo.FromJson(Encoding.UTF8.GetString(mod.FileData.GetBuffer()));
                                 mod.IsAssetsInfoJson = true;
                                 mod.FileData = null;
