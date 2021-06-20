@@ -91,6 +91,11 @@ namespace EternalModLoader
         public static List<string> SoundContainerPathList = new List<string>();
 
         /// <summary>
+        /// For packageMapSpec JSON modifications
+        /// </summary>
+        public static PackageMapSpecInfo PackageMapSpecInfo = new PackageMapSpecInfo();
+
+        /// <summary>
         /// Resource data dictionary, indexed by file name
         /// </summary>
         public static Dictionary<ulong, ResourceDataEntry> ResourceDataDictionary = new Dictionary<ulong, ResourceDataEntry>();
@@ -450,12 +455,6 @@ namespace EternalModLoader
             // For .blang file modifications
             Dictionary<string, BlangFileEntry> blangFileEntries = new Dictionary<string, BlangFileEntry>();
 
-            // For packagemapspec JSON modifications
-            string packageMapSpecPath = string.Empty;
-            PackageMapSpec packageMapSpec = null;
-            bool invalidPackageMapSpec = false;
-            bool wasPackageMapSpecModified = false;
-
             int fileCount = 0;
 
             using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
@@ -472,40 +471,40 @@ namespace EternalModLoader
                         if (modFile.AssetsInfo.Resources != null)
                         {
                             // Deserialize the packagemapspec JSON if it hasn't been deserialized yet
-                            if (packageMapSpec == null && !invalidPackageMapSpec)
+                            if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                             {
-                                packageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+                                PackageMapSpecInfo.PackageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
 
-                                if (!File.Exists(packageMapSpecPath))
+                                if (!File.Exists(PackageMapSpecInfo.PackageMapSpecPath))
                                 {
                                     Console.ForegroundColor = ConsoleColor.Red;
                                     Console.Error.Write("ERROR: ");
                                     Console.ResetColor();
-                                    Console.Error.WriteLine($"{packageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
-                                    invalidPackageMapSpec = true;
+                                    Console.Error.WriteLine($"{PackageMapSpecInfo.PackageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
+                                    PackageMapSpecInfo.InvalidPackageMapSpec = true;
                                 }
                                 else
                                 {
-                                    var packageMapSpecFileBytes = File.ReadAllBytes(packageMapSpecPath);
+                                    var packageMapSpecFileBytes = File.ReadAllBytes(PackageMapSpecInfo.PackageMapSpecPath);
 
                                     try
                                     {
                                         // Try to parse the JSON
-                                        packageMapSpec = JsonConvert.DeserializeObject<PackageMapSpec>(Encoding.UTF8.GetString(packageMapSpecFileBytes), GlobalJsonSerializerSettings);
+                                        PackageMapSpecInfo.PackageMapSpec = PackageMapSpec.FromJson(Encoding.UTF8.GetString(packageMapSpecFileBytes));
                                     }
                                     catch
                                     {
                                         Console.ForegroundColor = ConsoleColor.Red;
                                         Console.Error.Write("ERROR: ");
                                         Console.ResetColor();
-                                        Console.Error.WriteLine($"Failed to parse {packageMapSpecPath} - malformed JSON?");
-                                        invalidPackageMapSpec = true;
+                                        Console.Error.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
+                                        PackageMapSpecInfo.InvalidPackageMapSpec = true;
                                     }
                                 }
                             }
 
                             // Add the extra resources, then rewrite the JSON
-                            if (packageMapSpec != null && !invalidPackageMapSpec)
+                            if (PackageMapSpecInfo.PackageMapSpec != null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                             {
                                 foreach (var extraResource in modFile.AssetsInfo.Resources)
                                 {
@@ -528,9 +527,9 @@ namespace EternalModLoader
                                     int fileIndex = -1;
                                     int mapIndex = -1;
 
-                                    for (int i = 0; i < packageMapSpec.Files.Count; i++)
+                                    for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
                                     {
-                                        if (packageMapSpec.Files[i].Name.Contains(extraResource.Name))
+                                        if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.Contains(extraResource.Name))
                                         {
                                             fileIndex = i;
                                             break;
@@ -549,9 +548,9 @@ namespace EternalModLoader
                                         modFileMapName = "game/hub/hub";
                                     }
 
-                                    for (int i = 0; i < packageMapSpec.Maps.Count; i++)
+                                    for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Maps.Count; i++)
                                     {
-                                        if (packageMapSpec.Maps[i].Name.EndsWith(modFileMapName, StringComparison.Ordinal))
+                                        if (PackageMapSpecInfo.PackageMapSpec.Maps[i].Name.EndsWith(modFileMapName, StringComparison.Ordinal))
                                         {
                                             mapIndex = i;
                                             break;
@@ -584,11 +583,12 @@ namespace EternalModLoader
                                         bool mapFileRefRemoved = false;
 
                                         // Find the map file reference to remove
-                                        for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
+                                        for (int i = PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
                                         {
-                                            if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                            if (PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].File == fileIndex
+                                                && PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].Map == mapIndex)
                                             {
-                                                packageMapSpec.MapFileRefs.RemoveAt(i);
+                                                PackageMapSpecInfo.PackageMapSpec.MapFileRefs.RemoveAt(i);
                                                 mapFileRefRemoved = true;
                                                 break;
                                             }
@@ -596,7 +596,7 @@ namespace EternalModLoader
 
                                         if (mapFileRefRemoved)
                                         {
-                                            BufferedConsole.WriteLine($"\tRemoved resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
+                                            BufferedConsole.WriteLine($"\tRemoved resource \"{PackageMapSpecInfo.PackageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{PackageMapSpecInfo.PackageMapSpec.Maps[mapIndex].Name}\"");
                                         }
                                         else
                                         {
@@ -606,7 +606,7 @@ namespace EternalModLoader
                                                 Console.Write("WARNING: ");
                                                 Console.ResetColor();
                                                 Console.ForegroundColor = ConsoleColor.Yellow;
-                                                Console.WriteLine($"Resource \"{extraResource.Name}\" for map \"{packageMapSpec.Maps[mapIndex].Name}\" set to be removed was not found");
+                                                Console.WriteLine($"Resource \"{extraResource.Name}\" for map \"{PackageMapSpecInfo.PackageMapSpec.Maps[mapIndex].Name}\" set to be removed was not found");
                                                 Console.ResetColor();
                                             }
                                         }
@@ -616,15 +616,15 @@ namespace EternalModLoader
 
                                     // If the resource is already referenced to be loaded in the map, delete it first
                                     // to allow us to move it wherever we want
-                                    for (int i = packageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
+                                    for (int i = PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count - 1; i >= 0; i--)
                                     {
-                                        if (packageMapSpec.MapFileRefs[i].File == fileIndex && packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                        if (PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].File == fileIndex && PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].Map == mapIndex)
                                         {
-                                            packageMapSpec.MapFileRefs.RemoveAt(i);
+                                            PackageMapSpecInfo.PackageMapSpec.MapFileRefs.RemoveAt(i);
 
                                             if (Verbose)
                                             {
-                                                Console.WriteLine($"\tResource \"{packageMapSpec.Files[fileIndex].Name}\" being added to map \"{packageMapSpec.Maps[mapIndex].Name}\" already exists. The load order will be modified as specified.");
+                                                Console.WriteLine($"\tResource \"{PackageMapSpecInfo.PackageMapSpec.Files[fileIndex].Name}\" being added to map \"{PackageMapSpecInfo.PackageMapSpec.Maps[mapIndex].Name}\" already exists. The load order will be modified as specified.");
                                             }
 
                                             break;
@@ -635,9 +635,9 @@ namespace EternalModLoader
                                     // before the resource that normally appears last in the list for the map
                                     int insertIndex = -1;
 
-                                    for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                    for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count; i++)
                                     {
-                                        if (packageMapSpec.MapFileRefs[i].Map == mapIndex)
+                                        if (PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].Map == mapIndex)
                                         {
                                             // If specified, place the resource as the first resource for the map (highest priority)
                                             if (extraResource.PlaceFirst)
@@ -671,9 +671,9 @@ namespace EternalModLoader
                                             // Find placement resource index
                                             int placeBeforeFileIndex = -1;
 
-                                            for (int i = 0; i < packageMapSpec.Files.Count; i++)
+                                            for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
                                             {
-                                                if (packageMapSpec.Files[i].Name.Contains(extraResource.PlaceByName))
+                                                if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.Contains(extraResource.PlaceByName))
                                                 {
                                                     placeBeforeFileIndex = i;
                                                     break;
@@ -681,9 +681,9 @@ namespace EternalModLoader
                                             }
 
                                             // Find placement resource map-file reference
-                                            for (int i = 0; i < packageMapSpec.MapFileRefs.Count; i++)
+                                            for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count; i++)
                                             {
-                                                if (packageMapSpec.MapFileRefs[i].Map == mapIndex && packageMapSpec.MapFileRefs[i].File == placeBeforeFileIndex)
+                                                if (PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].Map == mapIndex && PackageMapSpecInfo.PackageMapSpec.MapFileRefs[i].File == placeBeforeFileIndex)
                                                 {
                                                     insertIndex = i + (!extraResource.PlaceBefore ? 1 : 0);
                                                     break;
@@ -699,16 +699,16 @@ namespace EternalModLoader
                                         Map = mapIndex
                                     };
 
-                                    if (insertIndex == -1 || insertIndex >= packageMapSpec.MapFileRefs.Count)
+                                    if (insertIndex == -1 || insertIndex >= PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count)
                                     {
-                                        packageMapSpec.MapFileRefs.Add(mapFileRef);
+                                        PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Add(mapFileRef);
                                     }
                                     else
                                     {
-                                        packageMapSpec.MapFileRefs.Insert(insertIndex, mapFileRef);
+                                        PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Insert(insertIndex, mapFileRef);
                                     }
 
-                                    BufferedConsole.Write($"\tAdded extra resource \"{packageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{packageMapSpec.Maps[mapIndex].Name}\"");
+                                    BufferedConsole.Write($"\tAdded extra resource \"{PackageMapSpecInfo.PackageMapSpec.Files[fileIndex].Name}\" to be loaded in map \"{PackageMapSpecInfo.PackageMapSpec.Maps[mapIndex].Name}\"");
 
                                     if (extraResource.PlaceFirst)
                                     {
@@ -723,7 +723,7 @@ namespace EternalModLoader
                                         BufferedConsole.WriteLine(" with the lowest priority");
                                     }
 
-                                    wasPackageMapSpecModified = true;
+                                    PackageMapSpecInfo.WasPackageMapSpecModified = true;
                                 }
                             }
                         }
@@ -1184,7 +1184,7 @@ namespace EternalModLoader
 
                         try
                         {
-                            blangJson = JsonConvert.DeserializeObject<BlangJson>(Encoding.UTF8.GetString(modFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
+                            blangJson = BlangJson.FromJson(Encoding.UTF8.GetString(modFile.FileData.GetBuffer()));
 
                             if (blangJson == null || blangJson.Strings.Count == 0)
                             {
@@ -1291,28 +1291,6 @@ namespace EternalModLoader
                     fileCount++;
                 }
 
-                // Modify packagemapspec if needed
-                if (packageMapSpec != null && wasPackageMapSpecModified)
-                {
-                    // Serialize the JSON and replace it
-                    var newPackageMapSpecJson = JsonConvert.SerializeObject(packageMapSpec, GlobalJsonSerializerSettings);
-
-                    try
-                    {
-                        File.WriteAllText(packageMapSpecPath, newPackageMapSpecJson);
-                        BufferedConsole.WriteLine(string.Format("\tModified {0}", packageMapSpecPath));
-                    }
-                    catch (Exception ex)
-                    {
-                        BufferedConsole.Flush();
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Error.Write("ERROR: ");
-                        Console.ResetColor();
-                        Console.Error.WriteLine($"Couldn't write \"{packageMapSpecPath}\"");
-                        Console.Error.WriteLine(ex);
-                    }
-                }
-
                 // Modify the necessary .blang files
                 foreach (var blangFileEntry in blangFileEntries)
                 {
@@ -1390,6 +1368,33 @@ namespace EternalModLoader
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine(resourceContainer.Path);
                 Console.ResetColor();
+            }
+        }
+
+        /// <summary>
+        /// Modifies the packageMapSpec JSON file if needed
+        /// </summary>
+        public static void ModifyPackageMapSpec()
+        {
+            if (PackageMapSpecInfo.PackageMapSpec != null && PackageMapSpecInfo.WasPackageMapSpecModified)
+            {
+                try
+                {
+                    // Write the new JSON
+                    PackageMapSpecInfo.PackageMapSpec.WriteToAsJson(PackageMapSpecInfo.PackageMapSpecPath);
+
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine(string.Format("Modified {0}", PackageMapSpecInfo.PackageMapSpecPath));
+                    Console.ResetColor();
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.Write("ERROR: ");
+                    Console.ResetColor();
+                    Console.Error.WriteLine($"Couldn't write \"{PackageMapSpecInfo.PackageMapSpecPath}\"");
+                    Console.Error.WriteLine(ex);
+                }
             }
         }
 
@@ -2161,7 +2166,7 @@ namespace EternalModLoader
             }
             else if (name.StartsWith("hub", StringComparison.Ordinal))
             {
-                name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}${name}";
+                name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{name}";
             }
 
             return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
@@ -2348,7 +2353,7 @@ namespace EternalModLoader
                                 stream.CopyTo(fileMemoryStream);
 
                                 // Try to parse the JSON
-                                mod = JsonConvert.DeserializeObject<Mod>(Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()), GlobalJsonSerializerSettings);
+                                mod = Mod.FromJson(Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()));
 
                                 // If the mod requires a higher mod loader version, print a warning and don't load the mod
                                 if (mod.RequiredVersion > Version)
@@ -2483,7 +2488,8 @@ namespace EternalModLoader
                                             stream.CopyTo(resourceModFile.FileData);
                                         }
 
-                                        resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
+                                        //resourceModFile.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()), GlobalJsonSerializerSettings);
+                                        resourceModFile.AssetsInfo = AssetsInfo.FromJson(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()));
                                         resourceModFile.IsAssetsInfoJson = true;
                                         resourceModFile.FileData = null;
                                     }
@@ -2665,7 +2671,8 @@ namespace EternalModLoader
                                     }
                                 }
 
-                                mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), GlobalJsonSerializerSettings);
+                                //mod.AssetsInfo = JsonConvert.DeserializeObject<AssetsInfo>(Encoding.UTF8.GetString(mod.FileData.GetBuffer()), GlobalJsonSerializerSettings);
+                                mod.AssetsInfo = AssetsInfo.FromJson(Encoding.UTF8.GetString(mod.FileData.GetBuffer()));
                                 mod.IsAssetsInfoJson = true;
                                 mod.FileData = null;
                             }
@@ -2806,6 +2813,9 @@ namespace EternalModLoader
                 LoadMods(resource);
             }
 
+            // Modify packageMapSpec JSON if needed
+            ModifyPackageMapSpec();
+
             // Load the sound mods
             foreach (var soundContainer in SoundContainerList)
             {
@@ -2828,8 +2838,8 @@ namespace EternalModLoader
             }
 
             stopwatch.Stop();
-
             BufferedConsole.Flush();
+
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Finished in {stopwatch.Elapsed}");
             Console.ResetColor();

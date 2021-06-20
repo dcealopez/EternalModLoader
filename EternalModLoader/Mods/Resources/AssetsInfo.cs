@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace EternalModLoader.Mods.Resources
 {
@@ -10,22 +13,286 @@ namespace EternalModLoader.Mods.Resources
         /// <summary>
         /// Layers list
         /// </summary>
-        public IList<AssetsInfoLayer> Layers { get; set; }
+        public IList<AssetsInfoLayer> Layers;
 
         /// <summary>
         /// Maps list
         /// </summary>
-        public IList<AssetsInfoMap> Maps { get; set; }
+        public IList<AssetsInfoMap> Maps;
 
         /// <summary>
         /// Resource files to load/remove in a map
         /// </summary>
-        public IList<AssetsInfoResource> Resources { get; set; }
+        public IList<AssetsInfoResource> Resources;
 
         /// <summary>
         /// Assets info list
         /// </summary>
-        public IList<AssetsInfoAsset> Assets { get; set; }
+        public IList<AssetsInfoAsset> Assets;
+
+        /// <summary>
+        /// Deserializes an AssetsInfo object from a JSON string
+        /// </summary>
+        /// <param name="json">JSON string</param>
+        /// <returns>the deserialized AssetsInfo object</returns>
+        public static AssetsInfo FromJson(string json)
+        {
+            AssetsInfo assetsInfo = new AssetsInfo();
+            assetsInfo.Layers = default(List<AssetsInfoLayer>);
+            assetsInfo.Maps = default(List<AssetsInfoMap>);
+            assetsInfo.Resources = default(List<AssetsInfoResource>);
+            assetsInfo.Assets = default(List<AssetsInfoAsset>);
+
+            using (var stringReader = new StringReader(json))
+            {
+                using (var jsonReader = new JsonTextReader(stringReader))
+                {
+                    while (jsonReader.Read())
+                    {
+                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                        {
+                            continue;
+                        }
+
+                        // Read layers array
+                        if ((string)jsonReader.Value == "layers")
+                        {
+                            jsonReader.Read();
+
+                            while (jsonReader.Read())
+                            {
+                                if (jsonReader.TokenType == JsonToken.EndObject)
+                                {
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndArray)
+                                {
+                                    break;
+                                }
+
+                                if (jsonReader.TokenType != JsonToken.PropertyName)
+                                {
+                                    continue;
+                                }
+
+                                if (assetsInfo.Layers == null)
+                                {
+                                    assetsInfo.Layers = new List<AssetsInfoLayer>();
+                                }
+
+                                if ((string)jsonReader.Value == "name")
+                                {
+                                    jsonReader.Read();
+
+                                    var assetsInfoLayer = new AssetsInfoLayer();
+                                    assetsInfoLayer.Name = (string)jsonReader.Value;
+                                    assetsInfo.Layers.Add(assetsInfoLayer);
+                                }
+                            }
+                        }
+                        else if ((string)jsonReader.Value == "maps")
+                        {
+                            // Read maps array
+                            jsonReader.Read();
+
+                            while (jsonReader.Read())
+                            {
+                                if (jsonReader.TokenType == JsonToken.EndObject)
+                                {
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndArray)
+                                {
+                                    break;
+                                }
+
+                                if (jsonReader.TokenType != JsonToken.PropertyName)
+                                {
+                                    continue;
+                                }
+
+                                if (assetsInfo.Maps == null)
+                                {
+                                    assetsInfo.Maps = new List<AssetsInfoMap>();
+                                }
+
+                                if ((string)jsonReader.Value == "name")
+                                {
+                                    jsonReader.Read();
+
+                                    var assetsInfoMap = new AssetsInfoMap();
+                                    assetsInfoMap.Name = (string)jsonReader.Value;
+                                    assetsInfo.Maps.Add(assetsInfoMap);
+                                }
+                            }
+                        }
+                        else if ((string)jsonReader.Value == "resources")
+                        {
+                            // Read resources array
+                            jsonReader.Read();
+                            AssetsInfoResource assetsInfoResource = null;
+
+                            while (jsonReader.Read())
+                            {
+                                if (jsonReader.TokenType == JsonToken.StartObject)
+                                {
+                                    assetsInfoResource = new AssetsInfoResource();
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndObject)
+                                {
+                                    assetsInfo.Resources.Add(assetsInfoResource);
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndArray)
+                                {
+                                    break;
+                                }
+
+                                if (jsonReader.TokenType != JsonToken.PropertyName)
+                                {
+                                    continue;
+                                }
+
+                                if (assetsInfo.Resources == null)
+                                {
+                                    assetsInfo.Resources = new List<AssetsInfoResource>();
+                                }
+
+                                if ((string)jsonReader.Value == "name")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoResource.Name = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "remove")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoResource.Remove = (bool)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeFirst")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoResource.PlaceFirst = (bool)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeBefore")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoResource.PlaceBefore = (bool)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeByName")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoResource.PlaceByName = (string)jsonReader.Value;
+                                }
+                            }
+                        }
+                        else if ((string)jsonReader.Value == "assets")
+                        {
+                            // Read assets array
+                            jsonReader.Read();
+                            AssetsInfoAsset assetsInfoAsset = null;
+
+                            while (jsonReader.Read())
+                            {
+                                if (jsonReader.TokenType == JsonToken.StartObject)
+                                {
+                                    assetsInfoAsset = new AssetsInfoAsset();
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndObject)
+                                {
+                                    assetsInfo.Assets.Add(assetsInfoAsset);
+                                    continue;
+                                }
+
+                                if (jsonReader.TokenType == JsonToken.EndArray)
+                                {
+                                    break;
+                                }
+
+                                if (jsonReader.TokenType != JsonToken.PropertyName)
+                                {
+                                    continue;
+                                }
+
+                                if (assetsInfo.Assets == null)
+                                {
+                                    assetsInfo.Assets = new List<AssetsInfoAsset>();
+                                }
+
+                                if ((string)jsonReader.Value == "name")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.Name = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "resourceType")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.ResourceType = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "mapResourceType")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.MapResourceType = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "version")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.Version = (byte)((Int64)jsonReader.Value);
+                                }
+                                else if ((string)jsonReader.Value == "streamDbHash")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.StreamDbHash = (ulong)((Int64)jsonReader.Value);
+                                }
+                                else if ((string)jsonReader.Value == "remove")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.Remove = (bool)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeBefore")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.PlaceBefore = (bool)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeByName")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.PlaceByName = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "placeByType")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.PlaceByType = (string)jsonReader.Value;
+                                }
+                                else if ((string)jsonReader.Value == "specialByte1")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.SpecialByte1 = (byte)((Int64)jsonReader.Value);
+                                }
+                                else if ((string)jsonReader.Value == "specialByte2")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.SpecialByte2 = (byte)((Int64)jsonReader.Value);
+                                }
+                                else if ((string)jsonReader.Value == "specialByte3")
+                                {
+                                    jsonReader.Read();
+                                    assetsInfoAsset.SpecialByte3 = (byte)((Int64)jsonReader.Value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return assetsInfo;
+        }
     }
 
     /// <summary>
