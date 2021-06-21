@@ -1,9 +1,4 @@
-﻿using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-
-namespace EternalModLoader
+﻿namespace EternalModLoader
 {
     /// <summary>
     /// Utility class
@@ -105,23 +100,6 @@ namespace EternalModLoader
         }
 
         /// <summary>
-        /// Gets the free disk space information in a disk
-        /// </summary>
-        /// <param name="lpRootPathName">root path of the disk</param>
-        /// <param name="lpSectorsPerCluster">sectors per cluster</param>
-        /// <param name="lpBytesPerSector">bytes per sector</param>
-        /// <param name="lpNumberOfFreeClusters">number of free clusters</param>
-        /// <param name="lpTotalNumberOfClusters">total number of free clusters</param>
-        /// <returns></returns>
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetDiskFreeSpace(string lpRootPathName,
-           out ulong lpSectorsPerCluster,
-           out ulong lpBytesPerSector,
-           out ulong lpNumberOfFreeClusters,
-           out ulong lpTotalNumberOfClusters);
-
-        /// <summary>
         /// Gets the cluster size of the given drive
         /// </summary>
         /// <param name="driveRootPath"></param>
@@ -132,7 +110,7 @@ namespace EternalModLoader
             ulong bytesPerSector;
             ulong numberOfFreeClusters;
             ulong totalNumberOfClusters;
-            bool result = GetDiskFreeSpace(driveRootPath, out sectorsPerCluster, out bytesPerSector, out numberOfFreeClusters, out totalNumberOfClusters);
+            bool result = KernelWrapper.GetDiskFreeSpace(driveRootPath, out sectorsPerCluster, out bytesPerSector, out numberOfFreeClusters, out totalNumberOfClusters);
 
             return result ? (int)(sectorsPerCluster * bytesPerSector) : -1;
         }

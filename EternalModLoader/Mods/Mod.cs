@@ -34,20 +34,28 @@ namespace EternalModLoader.Mods
                 {
                     while (jsonReader.Read())
                     {
+                        if (jsonReader.TokenType == JsonToken.EndObject)
+                        {
+                            break;
+                        }
+
                         if (jsonReader.TokenType != JsonToken.PropertyName)
                         {
                             continue;
                         }
 
-                        if ((string)jsonReader.Value == "loadPriority")
+                        switch (jsonReader.Value)
                         {
-                            jsonReader.Read();
-                            mod.LoadPriority = (int)((Int64)jsonReader.Value);
-                        }
-                        else if ((string)jsonReader.Value == "requiredVersion")
-                        {
-                            jsonReader.Read();
-                            mod.RequiredVersion = (int)((Int64)jsonReader.Value);
+                            case "loadPriority":
+                                jsonReader.Read();
+                                mod.LoadPriority = (int)((Int64)jsonReader.Value);
+                                break;
+                            case "requiredVersion":
+                                jsonReader.Read();
+                                mod.RequiredVersion = (int)((Int64)jsonReader.Value);
+                                break;
+                            default:
+                                break;
                         }
                     }
                 }

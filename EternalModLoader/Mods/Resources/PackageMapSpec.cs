@@ -13,22 +13,22 @@ namespace EternalModLoader.Mods.Resources
         /// <summary>
         /// Package map spec cobject
         /// </summary>
-        public PackageMapSpec PackageMapSpec = null;
+        public PackageMapSpec PackageMapSpec;
 
         /// <summary>
         /// Path to the package map spec JSON file
         /// </summary>
-        public string PackageMapSpecPath = string.Empty;
+        public string PackageMapSpecPath;
 
         /// <summary>
         /// Is the JSON file invalid?
         /// </summary>
-        public bool InvalidPackageMapSpec = false;
+        public bool InvalidPackageMapSpec;
 
         /// <summary>
         /// Was the package map spec modified?
         /// </summary>
-        public bool WasPackageMapSpecModified = false;
+        public bool WasPackageMapSpecModified;
     }
 
     /// <summary>
@@ -74,124 +74,136 @@ namespace EternalModLoader.Mods.Resources
                             continue;
                         }
 
-                        if ((string)jsonReader.Value == "files")
+                        switch (jsonReader.Value)
                         {
-                            jsonReader.Read();
-
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    continue;
-                                }
-
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
-
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
-
-                                if (packageMapSpec.Files == null)
-                                {
-                                    packageMapSpec.Files = new List<PackageMapSpecFile>();
-                                }
-
-                                if ((string)jsonReader.Value == "name")
+                            case "files":
                                 {
                                     jsonReader.Read();
 
-                                    var packageMapSpecFile = new PackageMapSpecFile();
-                                    packageMapSpecFile.Name = (string)jsonReader.Value;
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            continue;
+                                        }
 
-                                    packageMapSpec.Files.Add(packageMapSpecFile);
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
+
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (packageMapSpec.Files == null)
+                                        {
+                                            packageMapSpec.Files = new List<PackageMapSpecFile>();
+                                        }
+
+                                        if ((string)jsonReader.Value == "name")
+                                        {
+                                            jsonReader.Read();
+
+                                            var packageMapSpecFile = new PackageMapSpecFile();
+                                            packageMapSpecFile.Name = (string)jsonReader.Value;
+
+                                            packageMapSpec.Files.Add(packageMapSpecFile);
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                        else if ((string)jsonReader.Value == "mapFileRefs")
-                        {
-                            jsonReader.Read();
-                            PackageMapSpecMapFileRef packageMapSpecMapFileRef = null;
-
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.StartObject)
-                                {
-                                    packageMapSpecMapFileRef = new PackageMapSpecMapFileRef();
-                                    continue;
-                                }
-
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    packageMapSpec.MapFileRefs.Add(packageMapSpecMapFileRef);
-                                    continue;
-                                }
-
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
-
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
-
-                                if (packageMapSpec.MapFileRefs == null)
-                                {
-                                    packageMapSpec.MapFileRefs = new List<PackageMapSpecMapFileRef>();
-                                }
-
-                                if ((string)jsonReader.Value == "file")
+                                break;
+                            case "mapFileRefs":
                                 {
                                     jsonReader.Read();
-                                    packageMapSpecMapFileRef.File = (int)((Int64)jsonReader.Value);
+                                    PackageMapSpecMapFileRef packageMapSpecMapFileRef = null;
+
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.StartObject)
+                                        {
+                                            packageMapSpecMapFileRef = new PackageMapSpecMapFileRef();
+                                            continue;
+                                        }
+
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            packageMapSpec.MapFileRefs.Add(packageMapSpecMapFileRef);
+                                            continue;
+                                        }
+
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
+
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (packageMapSpec.MapFileRefs == null)
+                                        {
+                                            packageMapSpec.MapFileRefs = new List<PackageMapSpecMapFileRef>();
+                                        }
+
+                                        switch (jsonReader.Value)
+                                        {
+                                            case "file":
+                                                jsonReader.Read();
+                                                packageMapSpecMapFileRef.File = (int)((Int64)jsonReader.Value);
+                                                break;
+                                            case "map":
+                                                jsonReader.Read();
+                                                packageMapSpecMapFileRef.Map = (int)((Int64)jsonReader.Value);
+                                                break;
+                                            default:
+                                                break;
+
+                                        }
+                                    }
                                 }
-                                else if ((string)jsonReader.Value == "map")
+                                break;
+                            case "maps":
                                 {
                                     jsonReader.Read();
-                                    packageMapSpecMapFileRef.Map = (int)((Int64)jsonReader.Value);
-                                }
-                            }
-                        }
-                        else if ((string)jsonReader.Value == "maps")
-                        {
-                            jsonReader.Read();
 
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    continue;
-                                }
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            continue;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
 
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
 
-                                if (packageMapSpec.Maps == null)
-                                {
-                                    packageMapSpec.Maps = new List<PackageMapSpecMap>();
-                                }
+                                        if (packageMapSpec.Maps == null)
+                                        {
+                                            packageMapSpec.Maps = new List<PackageMapSpecMap>();
+                                        }
 
-                                if ((string)jsonReader.Value == "name")
-                                {
-                                    jsonReader.Read();
+                                        if ((string)jsonReader.Value == "name")
+                                        {
+                                            jsonReader.Read();
 
-                                    var packageMapSpecMap = new PackageMapSpecMap();
-                                    packageMapSpecMap.Name = (string)jsonReader.Value;
-                                    packageMapSpec.Maps.Add(packageMapSpecMap);
+                                            var packageMapSpecMap = new PackageMapSpecMap();
+                                            packageMapSpecMap.Name = (string)jsonReader.Value;
+                                            packageMapSpec.Maps.Add(packageMapSpecMap);
+                                        }
+                                    }
                                 }
-                            }
+                                break;
+                            default:
+                                break;
                         }
                     }
                 }

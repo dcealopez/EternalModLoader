@@ -61,7 +61,6 @@ namespace EternalModLoader.Mods.Sounds
             {
                 File.Delete(tempEncSoundFilePath);
                 return -1;
-
             }
 
             decodedSize = (int)new FileInfo(tempDecSoundFilePath).Length + 20;

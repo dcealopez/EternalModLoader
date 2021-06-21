@@ -26,7 +26,7 @@ namespace EternalModLoader.Mods.Resources.ResourceData
             Buffer.BlockCopy(resourceDataFileBytes, 8, compressedData, 0, compressedData.Length);
 
             long decompressedSize = FastBitConverter.ToInt64(resourceDataFileBytes, 0);
-            var decompressedData = Oodle.Decompress(compressedData, decompressedSize);
+            var decompressedData = OodleWrapper.Decompress(compressedData, decompressedSize);
 
             // Parse the binary data now
             using (var memoryStream = new MemoryStream(decompressedData))

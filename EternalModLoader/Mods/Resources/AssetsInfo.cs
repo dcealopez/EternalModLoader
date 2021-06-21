@@ -54,238 +54,239 @@ namespace EternalModLoader.Mods.Resources
                             continue;
                         }
 
-                        // Read layers array
-                        if ((string)jsonReader.Value == "layers")
+                        switch (jsonReader.Value)
                         {
-                            jsonReader.Read();
-
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    continue;
-                                }
-
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
-
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
-
-                                if (assetsInfo.Layers == null)
-                                {
-                                    assetsInfo.Layers = new List<AssetsInfoLayer>();
-                                }
-
-                                if ((string)jsonReader.Value == "name")
+                            case "layers":
                                 {
                                     jsonReader.Read();
 
-                                    var assetsInfoLayer = new AssetsInfoLayer();
-                                    assetsInfoLayer.Name = (string)jsonReader.Value;
-                                    assetsInfo.Layers.Add(assetsInfoLayer);
-                                }
-                            }
-                        }
-                        else if ((string)jsonReader.Value == "maps")
-                        {
-                            // Read maps array
-                            jsonReader.Read();
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            continue;
+                                        }
 
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
 
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
+                                        if (assetsInfo.Layers == null)
+                                        {
+                                            assetsInfo.Layers = new List<AssetsInfoLayer>();
+                                        }
 
-                                if (assetsInfo.Maps == null)
-                                {
-                                    assetsInfo.Maps = new List<AssetsInfoMap>();
-                                }
+                                        if ((string)jsonReader.Value == "name")
+                                        {
+                                            jsonReader.Read();
 
-                                if ((string)jsonReader.Value == "name")
+                                            var assetsInfoLayer = new AssetsInfoLayer();
+                                            assetsInfoLayer.Name = (string)jsonReader.Value;
+                                            assetsInfo.Layers.Add(assetsInfoLayer);
+                                        }
+                                    }
+                                }
+                                break;
+                            case "maps":
                                 {
+                                    // Read maps array
                                     jsonReader.Read();
 
-                                    var assetsInfoMap = new AssetsInfoMap();
-                                    assetsInfoMap.Name = (string)jsonReader.Value;
-                                    assetsInfo.Maps.Add(assetsInfoMap);
-                                }
-                            }
-                        }
-                        else if ((string)jsonReader.Value == "resources")
-                        {
-                            // Read resources array
-                            jsonReader.Read();
-                            AssetsInfoResource assetsInfoResource = null;
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            continue;
+                                        }
 
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.StartObject)
-                                {
-                                    assetsInfoResource = new AssetsInfoResource();
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    assetsInfo.Resources.Add(assetsInfoResource);
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
+                                        if (assetsInfo.Maps == null)
+                                        {
+                                            assetsInfo.Maps = new List<AssetsInfoMap>();
+                                        }
 
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
+                                        if ((string)jsonReader.Value == "name")
+                                        {
+                                            jsonReader.Read();
 
-                                if (assetsInfo.Resources == null)
-                                {
-                                    assetsInfo.Resources = new List<AssetsInfoResource>();
+                                            var assetsInfoMap = new AssetsInfoMap();
+                                            assetsInfoMap.Name = (string)jsonReader.Value;
+                                            assetsInfo.Maps.Add(assetsInfoMap);
+                                        }
+                                    }
                                 }
+                                break;
+                            case "resources":
+                                {
+                                    // Read resources array
+                                    jsonReader.Read();
+                                    AssetsInfoResource assetsInfoResource = null;
 
-                                if ((string)jsonReader.Value == "name")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoResource.Name = (string)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "remove")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoResource.Remove = (bool)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeFirst")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoResource.PlaceFirst = (bool)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeBefore")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoResource.PlaceBefore = (bool)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeByName")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoResource.PlaceByName = (string)jsonReader.Value;
-                                }
-                            }
-                        }
-                        else if ((string)jsonReader.Value == "assets")
-                        {
-                            // Read assets array
-                            jsonReader.Read();
-                            AssetsInfoAsset assetsInfoAsset = null;
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.StartObject)
+                                        {
+                                            assetsInfoResource = new AssetsInfoResource();
+                                            continue;
+                                        }
 
-                            while (jsonReader.Read())
-                            {
-                                if (jsonReader.TokenType == JsonToken.StartObject)
-                                {
-                                    assetsInfoAsset = new AssetsInfoAsset();
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            assetsInfo.Resources.Add(assetsInfoResource);
+                                            continue;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndObject)
-                                {
-                                    assetsInfo.Assets.Add(assetsInfoAsset);
-                                    continue;
-                                }
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
 
-                                if (jsonReader.TokenType == JsonToken.EndArray)
-                                {
-                                    break;
-                                }
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
 
-                                if (jsonReader.TokenType != JsonToken.PropertyName)
-                                {
-                                    continue;
-                                }
+                                        if (assetsInfo.Resources == null)
+                                        {
+                                            assetsInfo.Resources = new List<AssetsInfoResource>();
+                                        }
 
-                                if (assetsInfo.Assets == null)
-                                {
-                                    assetsInfo.Assets = new List<AssetsInfoAsset>();
+                                        switch (jsonReader.Value)
+                                        {
+                                            case "name":
+                                                jsonReader.Read();
+                                                assetsInfoResource.Name = (string)jsonReader.Value;
+                                                break;
+                                            case "remove":
+                                                jsonReader.Read();
+                                                assetsInfoResource.Remove = (bool)jsonReader.Value;
+                                                break;
+                                            case "placeFirst":
+                                                jsonReader.Read();
+                                                assetsInfoResource.PlaceFirst = (bool)jsonReader.Value;
+                                                break;
+                                            case "placeBefore":
+                                                jsonReader.Read();
+                                                assetsInfoResource.PlaceBefore = (bool)jsonReader.Value;
+                                                break;
+                                            case "placeByName":
+                                                jsonReader.Read();
+                                                assetsInfoResource.PlaceByName = (string)jsonReader.Value;
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                    }
                                 }
+                                break;
+                            case "assets":
+                                {
+                                    // Read assets array
+                                    jsonReader.Read();
+                                    AssetsInfoAsset assetsInfoAsset = null;
 
-                                if ((string)jsonReader.Value == "name")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.Name = (string)jsonReader.Value;
+                                    while (jsonReader.Read())
+                                    {
+                                        if (jsonReader.TokenType == JsonToken.StartObject)
+                                        {
+                                            assetsInfoAsset = new AssetsInfoAsset();
+                                            continue;
+                                        }
+
+                                        if (jsonReader.TokenType == JsonToken.EndObject)
+                                        {
+                                            assetsInfo.Assets.Add(assetsInfoAsset);
+                                            continue;
+                                        }
+
+                                        if (jsonReader.TokenType == JsonToken.EndArray)
+                                        {
+                                            break;
+                                        }
+
+                                        if (jsonReader.TokenType != JsonToken.PropertyName)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (assetsInfo.Assets == null)
+                                        {
+                                            assetsInfo.Assets = new List<AssetsInfoAsset>();
+                                        }
+
+                                        switch (jsonReader.Value)
+                                        {
+                                            case "name":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.Name = (string)jsonReader.Value;
+                                                break;
+                                            case "resourceType":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.ResourceType = (string)jsonReader.Value;
+                                                break;
+                                            case "mapResourceType":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.MapResourceType = (string)jsonReader.Value;
+                                                break;
+                                            case "version":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.Version = (byte)((Int64)jsonReader.Value);
+                                                break;
+                                            case "streamDbHash":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.StreamDbHash = (ulong)((Int64)jsonReader.Value);
+                                                break;
+                                            case "remove":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.Remove = (bool)jsonReader.Value;
+                                                break;
+                                            case "placeBefore":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.PlaceBefore = (bool)jsonReader.Value;
+                                                break;
+                                            case "placeByName":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.PlaceByName = (string)jsonReader.Value;
+                                                break;
+                                            case "placeByType":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.PlaceByType = (string)jsonReader.Value;
+                                                break;
+                                            case "specialByte1":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.SpecialByte1 = (byte)((Int64)jsonReader.Value);
+                                                break;
+                                            case "specialByte2":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.SpecialByte2 = (byte)((Int64)jsonReader.Value);
+                                                break;
+                                            case "specialByte3":
+                                                jsonReader.Read();
+                                                assetsInfoAsset.SpecialByte3 = (byte)((Int64)jsonReader.Value);
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                    }
                                 }
-                                else if ((string)jsonReader.Value == "resourceType")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.ResourceType = (string)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "mapResourceType")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.MapResourceType = (string)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "version")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.Version = (byte)((Int64)jsonReader.Value);
-                                }
-                                else if ((string)jsonReader.Value == "streamDbHash")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.StreamDbHash = (ulong)((Int64)jsonReader.Value);
-                                }
-                                else if ((string)jsonReader.Value == "remove")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.Remove = (bool)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeBefore")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.PlaceBefore = (bool)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeByName")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.PlaceByName = (string)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "placeByType")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.PlaceByType = (string)jsonReader.Value;
-                                }
-                                else if ((string)jsonReader.Value == "specialByte1")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.SpecialByte1 = (byte)((Int64)jsonReader.Value);
-                                }
-                                else if ((string)jsonReader.Value == "specialByte2")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.SpecialByte2 = (byte)((Int64)jsonReader.Value);
-                                }
-                                else if ((string)jsonReader.Value == "specialByte3")
-                                {
-                                    jsonReader.Read();
-                                    assetsInfoAsset.SpecialByte3 = (byte)((Int64)jsonReader.Value);
-                                }
-                            }
+                                break;
+                            default:
+                                break;
                         }
                     }
                 }

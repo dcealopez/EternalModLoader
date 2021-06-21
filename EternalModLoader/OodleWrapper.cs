@@ -6,7 +6,7 @@ namespace EternalModLoader
     /// <summary>
     /// Oodle (de)compression implementation
     /// </summary>
-    public static class Oodle
+    public static class OodleWrapper
     {
         /// <summary>
         /// Oodle Library Path

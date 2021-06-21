@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
@@ -12,8 +11,7 @@ using EternalModLoader.Mods.Resources.ResourceData;
 using EternalModLoader.Mods.Resources.Blang;
 using EternalModLoader.Mods.Resources.MapResources;
 using EternalModLoader.Mods.Sounds;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
+using EternalModLoader.Zlib;
 
 namespace EternalModLoader
 {
@@ -112,11 +110,6 @@ namespace EternalModLoader
         /// This will be initialized alongside the buffer size
         /// </summary>
         public static byte[] FileBuffer = null;
-
-        /// <summary>
-        /// Global settings used for JSON file serialization/deserialization
-        /// </summary>
-        public static JsonSerializerSettings GlobalJsonSerializerSettings;
 
         /// <summary>
         /// Reads the resource container from the specified resource container object
@@ -757,7 +750,7 @@ namespace EternalModLoader
                                         stream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
 
                                         // Decompress the data
-                                        originalDecompressedMapResourcesData = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
+                                        originalDecompressedMapResourcesData = OodleWrapper.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
 
                                         if (originalDecompressedMapResourcesData == null)
                                         {
@@ -779,7 +772,6 @@ namespace EternalModLoader
                             // Don't add anything if the file was not found or couldn't be decompressed
                             if (mapResourcesFile == null || invalidMapResources)
                             {
-                                modFile.DisposeFileData();
                                 continue;
                             }
 
@@ -972,7 +964,6 @@ namespace EternalModLoader
                             }
                         }
 
-                        modFile.DisposeFileData();
                         continue;
                     }
                     else if (modFile.IsBlangJson)
@@ -986,7 +977,6 @@ namespace EternalModLoader
 
                         if (chunk == null)
                         {
-                            modFile.DisposeFileData();
                             continue;
                         }
                     }
@@ -1053,7 +1043,7 @@ namespace EternalModLoader
                                         stream.Read(mapResourcesBytes, 0, (int)mapResourcesChunk.SizeZ);
 
                                         // Decompress the data
-                                        originalDecompressedMapResourcesData = Oodle.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
+                                        originalDecompressedMapResourcesData = OodleWrapper.Decompress(mapResourcesBytes, mapResourcesChunk.Size);
 
                                         if (originalDecompressedMapResourcesData == null)
                                         {
@@ -1261,7 +1251,7 @@ namespace EternalModLoader
 
                             // Get the compressed texture data by removing the header from the memory stream buffer
                             Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
-                            modFile.FileData.SetLength(modFile.FileData.Length - 16);
+                            modFile.FileData.SetLength(modFile.FileData.Capacity - 16);
                             compressionMode = 2;
 
                             if (Verbose)
@@ -1272,8 +1262,7 @@ namespace EternalModLoader
                         else if (CompressTextures)
                         {
                             // Compress the texture
-                            var compressedData = Oodle.Compress(modFile.FileData.GetBuffer(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
-                            modFile.FileData.Dispose();
+                            var compressedData = OodleWrapper.Compress(modFile.FileData.GetBuffer(), OodleWrapper.OodleFormat.Kraken, OodleWrapper.OodleCompressionLevel.Normal);
                             modFile.FileData = new MemoryStream(compressedData, 0, compressedData.Length, false);
                             compressedSize = compressedData.Length;
                             compressionMode = 2;
@@ -1333,7 +1322,7 @@ namespace EternalModLoader
                     if (!Utils.ArraysEqual(decompressedMapResourcesData, originalDecompressedMapResourcesData))
                     {
                         // Compress the data
-                        byte[] compressedMapResourcesData = Oodle.Compress(decompressedMapResourcesData, Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
+                        byte[] compressedMapResourcesData = OodleWrapper.Compress(decompressedMapResourcesData, OodleWrapper.OodleFormat.Kraken, OodleWrapper.OodleCompressionLevel.Normal);
 
                         if (compressedMapResourcesData == null)
                         {
@@ -1524,7 +1513,6 @@ namespace EternalModLoader
                         Console.ResetColor();
                     }
 
-                    mod.DisposeFileData();
                     continue;
                 }
 
@@ -1657,7 +1645,7 @@ namespace EternalModLoader
 
                         // Get the compressed texture data by removing the header from the memory stream buffer
                         Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
-                        mod.FileData.SetLength(mod.FileData.Length - 16);
+                        mod.FileData.SetLength(mod.FileData.Capacity - 16);
                         compressionMode = 2;
 
                         if (Verbose)
@@ -1668,8 +1656,7 @@ namespace EternalModLoader
                     else if (CompressTextures)
                     {
                         // Compress the texture
-                        var compressedData = Oodle.Compress(mod.FileData.GetBuffer(), Oodle.OodleFormat.Kraken, Oodle.OodleCompressionLevel.Normal);
-                        mod.FileData.Dispose();
+                        var compressedData = OodleWrapper.Compress(mod.FileData.GetBuffer(), OodleWrapper.OodleFormat.Kraken, OodleWrapper.OodleCompressionLevel.Normal);
                         mod.FileData = new MemoryStream(compressedData, 0, compressedData.Length, false);
                         compressedSize = compressedData.Length;
                         compressionMode = 2;
@@ -1741,7 +1728,6 @@ namespace EternalModLoader
                 infoMemoryStream.Write(newFileInfo, 0, 0x90);
 
                 BufferedConsole.WriteLine(string.Format("\tAdded {0}", mod.Name));
-                mod.DisposeFileData();
                 newChunksCount++;
             }
 
@@ -1781,34 +1767,24 @@ namespace EternalModLoader
 
             infoMemoryStream.Position = 0;
             infoMemoryStream.CopyTo(stream);
-            infoMemoryStream.Close();
-            infoMemoryStream.Dispose();
 
             nameOffsetsMemoryStream.Position = 0;
             nameOffsetsMemoryStream.CopyTo(stream);
-            nameOffsetsMemoryStream.Close();
-            nameOffsetsMemoryStream.Dispose();
 
             namesMemoryStream.Position = 0;
             namesMemoryStream.CopyTo(stream);
-            namesMemoryStream.Close();
-            namesMemoryStream.Dispose();
 
             stream.Write(unknown, 0, unknown.Length);
             stream.Write(typeIds, 0, typeIds.Length);
 
             nameIdsMemoryStream.Position = 0;
             nameIdsMemoryStream.CopyTo(stream);
-            nameIdsMemoryStream.Close();
-            nameIdsMemoryStream.Dispose();
 
             stream.Write(idcl, 0, idcl.Length);
 
             // Copy the data memory stream into the file stream
             dataMemoryStream.Position = 0;
             dataMemoryStream.CopyTo(stream);
-            dataMemoryStream.Close();
-            dataMemoryStream.Dispose();
 
             BufferedConsole.Flush();
 
@@ -2317,25 +2293,22 @@ namespace EternalModLoader
                 }
             }
 
-            // Create the global JSON serializer settings object
-            GlobalJsonSerializerSettings = new JsonSerializerSettings();
-            GlobalJsonSerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-            GlobalJsonSerializerSettings.Formatting = Formatting.Indented;
-
             // Read all the necessary game file paths
             FillContainerPathList();
 
             // Find and read zipped mods
+            var t = new Stopwatch();
+            t.Start();
             foreach (string zippedMod in Directory.EnumerateFiles(Path.Combine(args[0], ModsFolderName), "*.zip", SearchOption.TopDirectoryOnly))
             {
                 int zippedModCount = 0;
 
-                using (var zipReader = ZipFile.OpenRead(zippedMod))
+                using (var zipReader = new ZipReader(zippedMod))
                 {
-                    foreach (var zipEntry in zipReader.Entries)
+                    foreach (var zipEntry in zipReader)
                     {
                         // Skip directories
-                        if (zipEntry.FullName[zipEntry.FullName.Length - 1] == '/' && zipEntry.Name == string.Empty)
+                        if (zipEntry.IsDirectory)
                         {
                             continue;
                         }
@@ -2344,13 +2317,12 @@ namespace EternalModLoader
                         Mod mod = new Mod();
 
                         // Read the mod info from the EternalMod JSON if it exists
-                        if (zipEntry.FullName == "EternalMod.json")
+                        if (zipEntry.Name == "EternalMod.json")
                         {
                             try
                             {
-                                var fileMemoryStream = new MemoryStream((int)zipEntry.Length);
-                                var stream = zipEntry.Open();
-                                stream.CopyTo(fileMemoryStream);
+                                var fileMemoryStream = new MemoryStream((int)zipEntry.UncompressedLength);
+                                zipReader.ReadCurrentEntry(fileMemoryStream);
 
                                 // Try to parse the JSON
                                 mod = Mod.FromJson(Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()));
@@ -2372,7 +2344,7 @@ namespace EternalModLoader
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.Error.Write("ERROR: ");
                                 Console.ResetColor();
-                                Console.Error.WriteLine($"Failed to parse {zipEntry.FullName} - malformed JSON? - using defaults.");
+                                Console.Error.WriteLine($"Failed to parse {zipEntry.Name} - malformed JSON? - using defaults.");
                             }
 
                             continue;
@@ -2380,7 +2352,7 @@ namespace EternalModLoader
 
                         // Determine the game container for each mod file
                         bool isSoundMod = false;
-                        string modFileName = zipEntry.FullName;
+                        string modFileName = zipEntry.Name;
                         var firstForwardSlash = modFileName.IndexOf('/');
 
                         if (firstForwardSlash == -1)
@@ -2444,9 +2416,8 @@ namespace EternalModLoader
 
                                 // Load the sound mod
                                 SoundModFile soundModFile = new SoundModFile(mod, Path.GetFileName(modFileName));
-                                var stream = zipEntry.Open();
-                                soundModFile.FileData = new MemoryStream((int)zipEntry.Length);
-                                stream.CopyTo(soundModFile.FileData);
+                                soundModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
+                                zipReader.ReadCurrentEntry(soundModFile.FileData);
 
                                 soundContainer.ModFiles.Add(soundModFile);
                                 zippedModCount++;
@@ -2468,9 +2439,8 @@ namespace EternalModLoader
 
                             if (!listResources)
                             {
-                                var stream = zipEntry.Open();
-                                resourceModFile.FileData = new MemoryStream((int)zipEntry.Length);
-                                stream.CopyTo(resourceModFile.FileData);
+                                resourceModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
+                                zipReader.ReadCurrentEntry(resourceModFile.FileData);
                             }
 
                             // Read the JSON files in 'assetsinfo' under 'EternalMod'
@@ -2483,9 +2453,8 @@ namespace EternalModLoader
                                         // If we are just listing resources, read this JSON file only
                                         if (listResources)
                                         {
-                                            var stream = zipEntry.Open();
-                                            resourceModFile.FileData = new MemoryStream((int)zipEntry.Length);
-                                            stream.CopyTo(resourceModFile.FileData);
+                                            resourceModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
+                                            zipReader.ReadCurrentEntry(resourceModFile.FileData);
                                         }
 
                                         resourceModFile.AssetsInfo = AssetsInfo.FromJson(Encoding.UTF8.GetString(resourceModFile.FileData.GetBuffer()));
@@ -2531,6 +2500,10 @@ namespace EternalModLoader
                     Console.WriteLine();
                 }
             }
+            t.Stop();
+
+            // Unload Zlib now that we don't need it anymore
+            DllLoader.UnloadZlibDll();
 
             // Find and read unzipped mods
             int unzippedModCount = 0;
@@ -2839,6 +2812,7 @@ namespace EternalModLoader
             BufferedConsole.Flush();
 
             Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Unzipping took {t.Elapsed}");
             Console.WriteLine($"Finished in {stopwatch.Elapsed}");
             Console.ResetColor();
             return 0;
