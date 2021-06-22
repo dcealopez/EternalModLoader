@@ -189,6 +189,7 @@ namespace EternalModLoader.Zlib
 
 			byte[] memBuffer = memoryStream.GetBuffer();
 			int bytesRead = 0;
+			int offset = 0;
 
 			unsafe
 			{
@@ -196,7 +197,8 @@ namespace EternalModLoader.Zlib
 				{
 					for (; ; )
 					{
-						bytesRead = ZlibWrapper.ZlibUnzReadCurrentFile(ZipFileHandle, (IntPtr)p + bytesRead, 4096);
+						bytesRead = ZlibWrapper.ZlibUnzReadCurrentFile(ZipFileHandle, (IntPtr)p + offset, 4096);
+						offset += bytesRead;
 
 						if (bytesRead <= 0)
 						{
