@@ -42,7 +42,7 @@ namespace EternalModLoader
             /// <summary>
             /// Red color code
             /// </summary>
-            public const string Red = "\x1b[48;5;1m";
+            public const string Red = "\x1b[38;5;1m";
         }
 
         /// <summary>
