@@ -182,10 +182,8 @@ namespace EternalModLoader.Zlib
 		/// <param name="memoryStream">memory stream</param>
 		public void ReadCurrentEntry(MemoryStream memoryStream)
 		{
-			if (memoryStream.Capacity < CurrentZipEntry.UncompressedLength)
-			{
-				throw new ArgumentException("Memory stream doesn't have enough capacity to hold the uncompressed zip entry data");
-			}
+			// Make sure the memory stream has enough capacity to hold the data
+			memoryStream.SetLength(CurrentZipEntry.UncompressedLength);
 
 			byte[] memBuffer = memoryStream.GetBuffer();
 			int bytesRead = 0;

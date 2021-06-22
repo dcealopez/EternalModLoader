@@ -1230,18 +1230,17 @@ namespace EternalModLoader
                     // If this is a texture, check if it's compressed, or compress it if necessary
                     if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga", StringComparison.Ordinal))
                     {
-                        // Get the texture data buffer
+                        // Get the texture data buffer, check if it's a DIVINITY compressed texture
                         var textureDataBuffer = modFile.FileData.GetBuffer();
-                        bool isCompressed = Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic);
 
-                        if (isCompressed)
+                        if (Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic))
                         {
                             // This is a compressed texture, read the uncompressed size
                             uncompressedSize = FastBitConverter.ToInt64(textureDataBuffer, 8);
 
-                            // Get the compressed texture data by removing the header from the memory stream buffer
+                            // Set the compressed texture data, skipping the DIVINITY header (16 bytes)
                             Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
-                            modFile.FileData.SetLength(modFile.FileData.Capacity - 16);
+                            modFile.FileData.SetLength(textureDataBuffer.Length - 16);
                             compressionMode = 2;
 
                             if (Verbose)
@@ -1617,18 +1616,17 @@ namespace EternalModLoader
 
                 if (mod.Name.Contains(".tga"))
                 {
-                    // Get the texture data buffer
+                    // Get the texture data buffer, check if it's a DIVINITY compressed texture
                     var textureDataBuffer = mod.FileData.GetBuffer();
-                    bool isCompressed = Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic);
 
-                    if (isCompressed)
+                    if (Utils.IsDivinityCompressedTexture(textureDataBuffer, DivinityMagic))
                     {
                         // This is a compressed texture, read the uncompressed size
                         uncompressedSize = FastBitConverter.ToInt64(textureDataBuffer, 8);
 
-                        // Get the compressed texture data by removing the header from the memory stream buffer
+                        // Set the compressed texture data, skipping the DIVINITY header (16 bytes)
                         Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
-                        mod.FileData.SetLength(mod.FileData.Capacity - 16);
+                        mod.FileData.SetLength(textureDataBuffer.Length - 16);
                         compressionMode = 2;
 
                         if (Verbose)
@@ -2681,6 +2679,10 @@ namespace EternalModLoader
             // List the resources that will be modified
             if (listResources)
             {
+                // We need to set the console encoding to ASCII here to avoid problems with
+                // the mod injector parsing the resources list
+                Console.OutputEncoding = Encoding.ASCII;
+
                 // Resource file mods
                 foreach (var resource in ResourceList)
                 {
@@ -2724,11 +2726,11 @@ namespace EternalModLoader
 
                     if (Path.DirectorySeparatorChar == '\\')
                     {
-                        BufferedConsole.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
                     }
                     else
                     {
-                        BufferedConsole.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/", StringComparison.Ordinal))}");
+                        Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/", StringComparison.Ordinal))}");
                     }
                 }
 
@@ -2742,15 +2744,14 @@ namespace EternalModLoader
 
                     if (Path.DirectorySeparatorChar == '\\')
                     {
-                        BufferedConsole.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
                     }
                     else
                     {
-                        BufferedConsole.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("/base/", StringComparison.Ordinal))}");
+                        Console.WriteLine($".{soundContainer.Path.Substring(soundContainer.Path.IndexOf("/base/", StringComparison.Ordinal))}");
                     }
                 }
 
-                BufferedConsole.Flush();
                 return 0;
             }
 
