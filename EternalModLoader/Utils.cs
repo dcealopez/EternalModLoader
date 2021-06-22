@@ -23,6 +23,7 @@
                     {
                         *(chars + indexOfDollar) = '\x00';
                         filename = new string(chars);
+                        *(chars + indexOfDollar) = '$';
                     }
                 }
             }

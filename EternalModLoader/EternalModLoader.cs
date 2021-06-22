@@ -2807,17 +2807,21 @@ namespace EternalModLoader
             BufferedConsole.WriteLine();
             BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.DarkGreen;
 
-            if (totalZippedModCount > 0)
+            if (totalZippedModCount > 0 && Verbose)
             {
                 BufferedConsole.WriteLine($"> Packed mods loaded in {zippedStopwatch.Elapsed}");
             }
 
-            if (unzippedModCount > 0)
+            if (unzippedModCount > 0 && Verbose)
             {
                 BufferedConsole.WriteLine($"> Loose mods loaded in {looseStopwatch.Elapsed}");
             }
 
-            BufferedConsole.WriteLine($"> Injection finished in {processStopwatch.Elapsed}");
+            if (Verbose)
+            {
+                BufferedConsole.WriteLine($"> Injection finished in {processStopwatch.Elapsed}");
+            }
+
             BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
             BufferedConsole.WriteLine($"> Total time taken: {processStopwatch.Elapsed + zippedStopwatch.Elapsed + looseStopwatch.Elapsed}");
             BufferedConsole.ResetColor();
