@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EternalModLoader
 {
@@ -27,7 +23,7 @@ namespace EternalModLoader
         /// <param name="lpNumberOfFreeClusters">number of free clusters</param>
         /// <param name="lpTotalNumberOfClusters">total number of free clusters</param>
         /// <returns></returns>
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        [DllImport(KernelLibraryName, CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetDiskFreeSpace(string lpRootPathName,
            out ulong lpSectorsPerCluster,
@@ -40,7 +36,7 @@ namespace EternalModLoader
 		/// </summary>
 		/// <param name="dllToLoad">path to the module to load</param>
 		/// <returns>handle to the loaded module</returns>
-		[DllImport("kernel32.dll")]
+		[DllImport(KernelLibraryName)]
 		public static extern IntPtr LoadLibrary(string dllToLoad);
 
 		/// <summary>
@@ -48,7 +44,33 @@ namespace EternalModLoader
 		/// </summary>
 		/// <param name="hModule">handle to the module to unload</param>
 		/// <returns>true if the unload was sucessful, false otherwise</returns>
-		[DllImport("kernel32.dll")]
+		[DllImport(KernelLibraryName)]
 		public static extern bool FreeLibrary(IntPtr hModule);
-	}
+
+        /// <summary>
+        /// Sets the console mode
+        /// </summary>
+        /// <param name="hConsoleHandle">handle to the console</param>
+        /// <param name="mode">mode to set</param>
+        /// <returns>true when successful, false otherwise</returns>
+        [DllImport(KernelLibraryName)]
+        public static extern bool SetConsoleMode(IntPtr hConsoleHandle, int mode);
+
+        /// <summary>
+        /// Gets the console mode
+        /// </summary>
+        /// <param name="hConsoleHandle">handle to the console</param>
+        /// <param name="mode">output integer where the mode will be saved to</param>
+        /// <returns>true when successful, false otherwise</returns>
+        [DllImport(KernelLibraryName)]
+        public static extern bool GetConsoleMode(IntPtr hConsoleHandle, out int mode);
+
+        /// <summary>
+        /// Gets the specified standard output handle
+        /// </summary>
+        /// <param name="handle">id of the handle to get</param>
+        /// <returns>a handle for the specified standard output</returns>
+        [DllImport(KernelLibraryName)]
+        public static extern IntPtr GetStdHandle(int handle);
+    }
 }
