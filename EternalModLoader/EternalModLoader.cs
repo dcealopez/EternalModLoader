@@ -12,6 +12,7 @@ using EternalModLoader.Mods.Resources.Blang;
 using EternalModLoader.Mods.Resources.MapResources;
 using EternalModLoader.Mods.Sounds;
 using EternalModLoader.Zlib;
+using System.Threading.Tasks;
 
 namespace EternalModLoader
 {
@@ -2758,50 +2759,62 @@ namespace EternalModLoader
             var processStopwatch = new Stopwatch();
             processStopwatch.Start();
 
+            // Task list for each container
+            var taskList = new List<Task>();
+
             // Load the resource file mods
             foreach (var resource in ResourceList)
             {
-                if (string.IsNullOrEmpty(resource.Path))
+                taskList.Add(Task.Run(() =>
                 {
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write("WARNING: ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    BufferedConsole.Write(resource.Name + ".resources");
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.Write(" was not found! Skipping ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write(string.Format("{0} file(s)", resource.ModFileList.Count));
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.WriteLine("...");
-                    continue;
-                }
+                    if (string.IsNullOrEmpty(resource.Path))
+                    {
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("WARNING: ");
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        BufferedConsole.Write(resource.Name + ".resources");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.Write(" was not found! Skipping ");
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write(string.Format("{0} file(s)", resource.ModFileList.Count));
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine("...");
+                        return;
+                    }
 
-                LoadMods(resource);
+                    LoadMods(resource);
+                }));
             }
-
-            // Modify packageMapSpec JSON if needed
-            ModifyPackageMapSpec();
 
             // Load the sound mods
             foreach (var soundContainer in SoundContainerList)
             {
-                if (string.IsNullOrEmpty(soundContainer.Path))
+                taskList.Add(Task.Run(() =>
                 {
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write("WARNING: ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    BufferedConsole.Write(soundContainer.Name + ".snd");
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.Write(" was not found! Skipping ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write(string.Format("{0} file(s)", soundContainer.ModFiles.Count));
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.WriteLine("...");
-                    continue;
-                }
+                    if (string.IsNullOrEmpty(soundContainer.Path))
+                    {
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("WARNING: ");
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        BufferedConsole.Write(soundContainer.Name + ".snd");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.Write(" was not found! Skipping ");
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write(string.Format("{0} file(s)", soundContainer.ModFiles.Count));
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine("...");
+                        return;
+                    }
 
-                LoadSoundMods(soundContainer);
+                    LoadSoundMods(soundContainer);
+                }));
             }
+
+            // Wait for all the tasks to complete
+            Task.WaitAll(taskList.ToArray());
+
+            // Modify packageMapSpec JSON if needed
+            ModifyPackageMapSpec();
 
             processStopwatch.Stop();
 
