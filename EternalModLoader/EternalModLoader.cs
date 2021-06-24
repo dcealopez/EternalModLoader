@@ -2805,28 +2805,33 @@ namespace EternalModLoader
 
             processStopwatch.Stop();
 
-            BufferedConsole.WriteLine();
-            BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.DarkGreen;
-
-            if (totalZippedModCount > 0 && Verbose)
+            // Print metrics
+            if (totalZippedModCount > 0 || unzippedModCount > 0)
             {
-                BufferedConsole.WriteLine($"> Packed mods loaded in {zippedStopwatch.Elapsed}");
+                BufferedConsole.WriteLine();
+                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.DarkGreen;
+
+                if (totalZippedModCount > 0 && Verbose)
+                {
+                    BufferedConsole.WriteLine($"> Packed mods loaded in {zippedStopwatch.Elapsed}");
+                }
+
+                if (unzippedModCount > 0 && Verbose)
+                {
+                    BufferedConsole.WriteLine($"> Loose mods loaded in {looseStopwatch.Elapsed}");
+                }
+
+                if (Verbose)
+                {
+                    BufferedConsole.WriteLine($"> Injection finished in {processStopwatch.Elapsed}");
+                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
+                }
+
+                BufferedConsole.WriteLine($"> Total time taken: {processStopwatch.Elapsed + zippedStopwatch.Elapsed + looseStopwatch.Elapsed}");
+                BufferedConsole.ResetColor();
+                BufferedConsole.Flush();
             }
 
-            if (unzippedModCount > 0 && Verbose)
-            {
-                BufferedConsole.WriteLine($"> Loose mods loaded in {looseStopwatch.Elapsed}");
-            }
-
-            if (Verbose)
-            {
-                BufferedConsole.WriteLine($"> Injection finished in {processStopwatch.Elapsed}");
-            }
-
-            BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
-            BufferedConsole.WriteLine($"> Total time taken: {processStopwatch.Elapsed + zippedStopwatch.Elapsed + looseStopwatch.Elapsed}");
-            BufferedConsole.ResetColor();
-            BufferedConsole.Flush();
             return 0;
         }
     }
