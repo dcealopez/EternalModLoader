@@ -2317,6 +2317,9 @@ namespace EternalModLoader
 
                 zippedModsTaskList.Add(Task.Run(() =>
                 {
+                    // Mod object for this mod
+                    Mod mod = new Mod();
+
                     using (var zipReader = new ZipReader(zippedMod))
                     {
                         foreach (var zipEntry in zipReader)
@@ -2327,9 +2330,6 @@ namespace EternalModLoader
                                 continue;
                             }
 
-                            // Mod object for this mod
-                            Mod mod = new Mod();
-
                             // Read the mod info from the EternalMod JSON if it exists
                             if (zipEntry.Name == "EternalMod.json")
                             {
@@ -2339,7 +2339,7 @@ namespace EternalModLoader
                                     zipReader.ReadCurrentEntry(fileMemoryStream);
 
                                     // Try to parse the JSON
-                                    mod = Mod.FromJson(Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()));
+                                    Mod.ReadValuesFromJson(mod, Encoding.UTF8.GetString(fileMemoryStream.GetBuffer()));
 
                                     // If the mod requires a higher mod loader version, print a warning and don't load the mod
                                     if (mod.RequiredVersion > Version)
