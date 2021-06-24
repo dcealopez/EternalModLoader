@@ -2259,7 +2259,6 @@ namespace EternalModLoader
                 catch (Exception ex)
                 {
                     BufferSize = 4096;
-
                     BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                     BufferedConsole.Write("ERROR: ");
                     BufferedConsole.ResetColor();
@@ -2305,6 +2304,7 @@ namespace EternalModLoader
             FillContainerPathList();
 
             // Find and read zipped mods
+            var notFoundContainerList = new List<string>();
             var zippedModsTaskList = new List<Task>();
             int totalZippedModCount = 0;
 
@@ -2396,6 +2396,18 @@ namespace EternalModLoader
                                 if (resourcePath != null)
                                 {
                                     isSoundMod = true;
+                                }
+                                else
+                                {
+                                    lock (notFoundContainerList)
+                                    {
+                                        if (!notFoundContainerList.Contains(resourceName))
+                                        {
+                                            notFoundContainerList.Add(resourceName);
+                                        }
+                                    }
+
+                                    return;
                                 }
                             }
 
@@ -2528,8 +2540,11 @@ namespace EternalModLoader
             zippedStopwatch.Stop();
             BufferedConsole.Flush();
 
-            // Unload Zlib now that we don't need it anymore
-            DllLoader.UnloadZlibDll();
+            // Unload Zlib now that we don't need it anymore, if it was loaded
+            if (zippedModsTaskList.Count > 0)
+            {
+                DllLoader.UnloadZlibDll();
+            }
 
             // Find and read unzipped mods
             int unzippedModCount = 0;
@@ -2590,6 +2605,18 @@ namespace EternalModLoader
                         if (resourcePath != null)
                         {
                             isSoundMod = true;
+                        }
+                        else
+                        {
+                            lock (notFoundContainerList)
+                            {
+                                if (!notFoundContainerList.Contains(resourceName))
+                                {
+                                    notFoundContainerList.Add(resourceName);
+                                }
+                            }
+
+                            return;
                         }
                     }
 
@@ -2726,6 +2753,16 @@ namespace EternalModLoader
                 BufferedConsole.WriteLine("folder...");
             }
 
+            foreach (var notFoundContainer in notFoundContainerList)
+            {
+                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                BufferedConsole.Write("WARNING: ");
+                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                BufferedConsole.Write($"{notFoundContainer}.resources");
+                BufferedConsole.ResetColor();
+                BufferedConsole.WriteLine(" was not found! Skipping...");
+            }
+
             BufferedConsole.Flush();
 
             // List the resources that will be modified
@@ -2817,21 +2854,6 @@ namespace EternalModLoader
             // Load the resource file mods
             foreach (var resource in ResourceList)
             {
-                if (string.IsNullOrEmpty(resource.Path))
-                {
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write("WARNING: ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    BufferedConsole.Write(resource.Name + ".resources");
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.Write(" was not found! Skipping ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write(string.Format("{0} file(s)", resource.ModFileList.Count));
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.WriteLine("...");
-                    continue;
-                }
-
                 modLoadingTaskList.Add(Task.Run(() =>
                 {
                     LoadMods(resource);
@@ -2841,21 +2863,6 @@ namespace EternalModLoader
             // Load the sound mods
             foreach (var soundContainer in SoundContainerList)
             {
-                if (string.IsNullOrEmpty(soundContainer.Path))
-                {
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write("WARNING: ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    BufferedConsole.Write(soundContainer.Name + ".snd");
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.Write(" was not found! Skipping ");
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write(string.Format("{0} file(s)", soundContainer.ModFiles.Count));
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.WriteLine("...");
-                    continue;
-                }
-
                 modLoadingTaskList.Add(Task.Run(() =>
                 {
                     LoadSoundMods(soundContainer);
