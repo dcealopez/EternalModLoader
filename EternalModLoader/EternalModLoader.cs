@@ -1541,7 +1541,7 @@ namespace EternalModLoader
                     mod.SpecialByte2 = 0;
                     mod.SpecialByte3 = 0;
 
-                    if (Verbose)
+                    if (Verbose && !mod.Name.EndsWith(".decl"))
                     {
                         bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                         bufferedConsole.Write("WARNING: ");
