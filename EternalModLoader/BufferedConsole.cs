@@ -7,7 +7,7 @@ namespace EternalModLoader
     /// <summary>
     /// Buffered console class
     /// </summary>
-    public static class BufferedConsole
+    public class BufferedConsole
     {
         /// <summary>
         /// Foreground console color codes
@@ -48,24 +48,18 @@ namespace EternalModLoader
         /// <summary>
         /// The current console foreground color
         /// </summary>
-        public static string ForegroundColor = ForegroundColorCode.Default;
+        public string ForegroundColor = ForegroundColorCode.Default;
 
         /// <summary>
         /// Buffered stream for the console (standard)
         /// </summary>
-        private static BufferedStream BufferedStream;
+        private BufferedStream BufferedStream;
 
         /// <summary>
         /// Buffered console initialization method
         /// </summary>
-        public static void Init()
+        public BufferedConsole()
         {
-            // Enable ENABLE_VIRTUAL_TERMINAL_PROCESSING in the console, to use ANSI/VT100 color codes
-            int consoleMode;
-            var consoleHandle = KernelWrapper.GetStdHandle(-11);
-            KernelWrapper.GetConsoleMode(consoleHandle, out consoleMode);
-            KernelWrapper.SetConsoleMode(consoleHandle, consoleMode | 0x4);
-
             // Unicode encoding
             Console.OutputEncoding = Encoding.Unicode;
 
@@ -76,7 +70,7 @@ namespace EternalModLoader
         /// <summary>
         /// Writes a line break to the buffer stream
         /// </summary>
-        public static void WriteLine()
+        public void WriteLine()
         {
             Write($"\r\n");
         }
@@ -85,7 +79,7 @@ namespace EternalModLoader
         /// Writes a line to the buffer stream
         /// </summary>
         /// <param name="text">text to write</param>
-        public static void WriteLine(string text)
+        public void WriteLine(string text)
         {
             Write($"{ForegroundColor}{text}\r\n");
         }
@@ -94,7 +88,7 @@ namespace EternalModLoader
         /// Writes text to the buffer stream
         /// </summary>
         /// <param name="text">text to write</param>
-        public static void Write(string text)
+        public void Write(string text)
         {
             text = $"{ForegroundColor}{text}";
 
@@ -109,7 +103,7 @@ namespace EternalModLoader
         /// Writes the current foreground color to the buffer stream
         /// </summary>
         /// <param name="text">text to write</param>
-        private static void WriteCurrentForegroundColor()
+        private void WriteCurrentForegroundColor()
         {
             // Avoid endless 'GetByteCount' dithering in 'Encoding.Unicode.GetBytes(s)'
             var rgb = new byte[ForegroundColor.Length << 1];
@@ -121,7 +115,7 @@ namespace EternalModLoader
         /// <summary>
         /// Resets the console foreground color
         /// </summary>
-        public static void ResetColor()
+        public void ResetColor()
         {
             ForegroundColor = ForegroundColorCode.Default;
             WriteCurrentForegroundColor();
@@ -130,7 +124,7 @@ namespace EternalModLoader
         /// <summary>
         /// Flushes the buffered stream
         /// </summary>
-        public static void Flush()
+        public void Flush()
         {
             BufferedStream.Flush();
         }
