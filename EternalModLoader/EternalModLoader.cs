@@ -2336,7 +2336,7 @@ namespace EternalModLoader
                             }
 
                             // Read the mod info from the EternalMod JSON if it exists
-                            if (zipEntry.Name == "EternalMod.json")
+                            if (!!listResources && zipEntry.Name == "EternalMod.json")
                             {
                                 try
                                 {
