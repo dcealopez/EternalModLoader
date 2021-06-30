@@ -367,13 +367,13 @@ namespace EternalModLoader
                 stream.Seek(chunk.FileOffset, SeekOrigin.Begin);
 
                 long fileOffset = binaryReader.ReadInt64();
-                binaryReader.ReadInt64();
                 long sizeDiff = modFile.FileData.Length - chunk.SizeZ;
 
                 // We will need to expand the file if the new size is greater than the old one
                 // If its shorter, we will replace all the bytes and zero out the remaining bytes
                 if (sizeDiff > 0)
                 {
+                    var buffer = new byte[BufferSize];
                     var length = stream.Length;
 
                     // Expand the memory stream so the new file fits
@@ -385,9 +385,9 @@ namespace EternalModLoader
                         toRead = length - BufferSize >= (fileOffset + chunk.SizeZ) ? BufferSize : (int)(length - (fileOffset + chunk.SizeZ));
                         length -= toRead;
                         stream.Seek(length, SeekOrigin.Begin);
-                        stream.Read(FileBuffer, 0, toRead);
+                        stream.Read(buffer, 0, toRead);
                         stream.Seek(length + sizeDiff, SeekOrigin.Begin);
-                        stream.Write(FileBuffer, 0, toRead);
+                        stream.Write(buffer, 0, toRead);
                     }
 
                     // Write the new file bytes now that the file has been expanded
@@ -414,7 +414,7 @@ namespace EternalModLoader
                     {
                         stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
                         fileOffset = binaryReader.ReadInt64();
-                        stream.Seek(resourceContainer.ChunkList[i].FileOffset, SeekOrigin.Begin);
+                        stream.Seek(-8, SeekOrigin.Current);
                         stream.Write(FastBitConverter.GetBytes(fileOffset + sizeDiff), 0, 8);
                     }
                 }
@@ -1254,6 +1254,7 @@ namespace EternalModLoader
                             // Set the compressed texture data, skipping the DIVINITY header (16 bytes)
                             Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
                             modFile.FileData.SetLength(textureDataBuffer.Length - 16);
+                            compressedSize -= 16;
                             compressionMode = 2;
 
                             if (Verbose)
@@ -1646,6 +1647,7 @@ namespace EternalModLoader
                         // Set the compressed texture data, skipping the DIVINITY header (16 bytes)
                         Buffer.BlockCopy(textureDataBuffer, 16, textureDataBuffer, 0, textureDataBuffer.Length - 16);
                         mod.FileData.SetLength(textureDataBuffer.Length - 16);
+                        compressedSize -= 16;
                         compressionMode = 2;
 
                         if (Verbose)
@@ -1946,7 +1948,7 @@ namespace EternalModLoader
 
                             if (opusFileData != null)
                             {
-                                soundMod.FileData = new MemoryStream(opusFileData, 0, opusFileData.Length, false);
+                                soundMod.FileData = new MemoryStream(opusFileData, 0, opusFileData.Length, false, true);
                                 encodedSize = (int)soundMod.FileData.Length;
                                 format = 2;
                             }
@@ -2300,10 +2302,13 @@ namespace EternalModLoader
                 }
             }
 
+            BufferedConsole.Flush();
+
             // Read all the necessary game file paths
             FillContainerPathList();
 
             // Find and read zipped mods
+            var fileLoadBufferedConsole = new BufferedConsole();
             var notFoundContainerList = new List<string>();
             var zippedModsTaskList = new List<Task>();
             int totalZippedModCount = 0;
@@ -2344,20 +2349,27 @@ namespace EternalModLoader
                                     // If the mod requires a higher mod loader version, print a warning and don't load the mod
                                     if (mod.RequiredVersion > Version)
                                     {
-                                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                        BufferedConsole.Write("WARNING: ");
-                                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                        BufferedConsole.WriteLine($"Mod \"{zippedMod}\" requires mod loader version {mod.RequiredVersion} but the current mod loader version is {Version}, skipping.");
-                                        BufferedConsole.ResetColor();
+                                        lock (fileLoadBufferedConsole)
+                                        {
+                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                            fileLoadBufferedConsole.Write("WARNING: ");
+                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                            fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" requires mod loader version {mod.RequiredVersion} but the current mod loader version is {Version}, skipping.");
+                                            fileLoadBufferedConsole.ResetColor();
+                                        }
+
                                         continue;
                                     }
                                 }
                                 catch
                                 {
-                                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                    BufferedConsole.Write("ERROR: ");
-                                    BufferedConsole.ResetColor();
-                                    BufferedConsole.WriteLine($"Failed to parse {zipEntry.Name} - malformed JSON? - using defaults.");
+                                    lock (fileLoadBufferedConsole)
+                                    {
+                                        fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                        fileLoadBufferedConsole.Write("ERROR: ");
+                                        fileLoadBufferedConsole.ResetColor();
+                                        fileLoadBufferedConsole.WriteLine($"Failed to parse {zipEntry.Name} - malformed JSON? - using defaults.");
+                                    }
                                 }
 
                                 continue;
@@ -2432,11 +2444,11 @@ namespace EternalModLoader
 
                                         if (!SoundEncoding.SupportedFileFormats.Contains(soundExtension))
                                         {
-                                            BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                            BufferedConsole.Write("WARNING: ");
-                                            BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                            BufferedConsole.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFileName}\"");
-                                            BufferedConsole.ResetColor();
+                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                            fileLoadBufferedConsole.Write("WARNING: ");
+                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                            fileLoadBufferedConsole.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFileName}\"");
+                                            fileLoadBufferedConsole.ResetColor();
                                             continue;
                                         }
 
@@ -2492,10 +2504,10 @@ namespace EternalModLoader
                                             }
                                             catch
                                             {
-                                                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                                BufferedConsole.Write("ERROR: ");
-                                                BufferedConsole.ResetColor();
-                                                BufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
+                                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                                fileLoadBufferedConsole.Write("ERROR: ");
+                                                fileLoadBufferedConsole.ResetColor();
+                                                fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
                                                 continue;
                                             }
                                         }
@@ -2519,26 +2531,29 @@ namespace EternalModLoader
 
                     totalZippedModCount += zippedModCount;
 
-                    if (zippedModCount > 0 && !listResources)
+                    lock (fileLoadBufferedConsole)
                     {
-                        BufferedConsole.Write("Found ");
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
-                        BufferedConsole.Write(string.Format("{0} file(s) ", zippedModCount));
-                        BufferedConsole.ResetColor();
-                        BufferedConsole.Write("in archive ");
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.Write(zippedMod);
-                        BufferedConsole.ResetColor();
-                        BufferedConsole.WriteLine();
+                        if (zippedModCount > 0 && !listResources)
+                        {
+                            fileLoadBufferedConsole.Write("Found ");
+                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
+                            fileLoadBufferedConsole.Write(string.Format("{0} file(s) ", zippedModCount));
+                            fileLoadBufferedConsole.ResetColor();
+                            fileLoadBufferedConsole.Write("in archive ");
+                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                            fileLoadBufferedConsole.Write(zippedMod);
+                            fileLoadBufferedConsole.ResetColor();
+                            fileLoadBufferedConsole.WriteLine();
+                        }
                     }
+
                 }));
             }
 
             // Wait for the loading of zipped mods to complete
             Task.WaitAll(zippedModsTaskList.ToArray());
-
+            fileLoadBufferedConsole.Flush();
             zippedStopwatch.Stop();
-            BufferedConsole.Flush();
 
             // Unload Zlib now that we don't need it anymore, if it was loaded
             if (zippedModsTaskList.Count > 0)
@@ -2641,11 +2656,15 @@ namespace EternalModLoader
 
                                 if (!SoundEncoding.SupportedFileFormats.Contains(soundExtension))
                                 {
-                                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                    BufferedConsole.Write("WARNING: ");
-                                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                    BufferedConsole.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFileName}\"");
-                                    BufferedConsole.ResetColor();
+                                    lock (fileLoadBufferedConsole)
+                                    {
+                                        fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                        fileLoadBufferedConsole.Write("WARNING: ");
+                                        fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                        fileLoadBufferedConsole.WriteLine($"Unsupported sound mod file format \"{soundExtension}\" for file \"{modFileName}\"");
+                                        fileLoadBufferedConsole.ResetColor();
+                                    }
+
                                     return;
                                 }
 
@@ -2711,10 +2730,14 @@ namespace EternalModLoader
                                     }
                                     catch
                                     {
-                                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                        BufferedConsole.Write("ERROR: ");
-                                        BufferedConsole.ResetColor();
-                                        BufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                        lock (fileLoadBufferedConsole)
+                                        {
+                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                            fileLoadBufferedConsole.Write("ERROR: ");
+                                            fileLoadBufferedConsole.ResetColor();
+                                            fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                        }
+
                                         return;
                                     }
                                 }
@@ -2738,6 +2761,7 @@ namespace EternalModLoader
 
             // Wait for the unzipped mod loading to finish
             Task.WaitAll(unzippedModsTaskList.ToArray());
+            fileLoadBufferedConsole.Flush();
             looseStopwatch.Stop();
 
             if (unzippedModCount > 0 && !listResources)
