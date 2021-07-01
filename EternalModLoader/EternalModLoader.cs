@@ -65,6 +65,11 @@ namespace EternalModLoader
         public static bool CompressTextures;
 
         /// <summary>
+        /// Use multi-threading?
+        /// </summary>
+        public static bool MultiThreading = true;
+
+        /// <summary>
         /// Divinity magic header for compressed texture files
         /// </summary>
         public static byte[] DivinityMagic = new byte[] { 0x44, 0x49, 0x56, 0x49, 0x4E, 0x49, 0x54, 0x59 };
@@ -2182,6 +2187,7 @@ namespace EternalModLoader
                 BufferedConsole.WriteLine("\t--verbose - Print more information during the mod loading process.");
                 BufferedConsole.WriteLine("\t--slow - Slow mod loading mode that produces slightly smaller .resources files.");
                 BufferedConsole.WriteLine("\t--compress-textures - Compress texture files during the mod loading process.");
+                BufferedConsole.WriteLine("\t--disable-multithreading - Disables multi-threaded mod loading.");
                 BufferedConsole.Flush();
                 return 1;
             }
@@ -2234,6 +2240,13 @@ namespace EternalModLoader
                         CompressTextures = true;
                         BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
                         BufferedConsole.WriteLine("INFO: Texture compression is enabled.");
+                        BufferedConsole.ResetColor();
+                    }
+                    else if (args[i] == "--disable-multithreading")
+                    {
+                        MultiThreading = false;
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        BufferedConsole.WriteLine("INFO: Multi-threading is disabled.");
                         BufferedConsole.ResetColor();
                     }
                     else
@@ -2320,7 +2333,7 @@ namespace EternalModLoader
             {
                 int zippedModCount = 0;
 
-                zippedModsTaskList.Add(Task.Run(() =>
+                var task = Task.Run(() =>
                 {
                     // Mod object for this mod
                     Mod mod = new Mod();
@@ -2547,11 +2560,24 @@ namespace EternalModLoader
                         }
                     }
 
-                }));
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    zippedModsTaskList.Add(task);
+                }
             }
 
             // Wait for the loading of zipped mods to complete
-            Task.WaitAll(zippedModsTaskList.ToArray());
+            if (MultiThreading)
+            {
+                Task.WaitAll(zippedModsTaskList.ToArray());
+            }
+
             fileLoadBufferedConsole.Flush();
             zippedStopwatch.Stop();
 
@@ -2572,7 +2598,7 @@ namespace EternalModLoader
 
             foreach (var file in Directory.EnumerateFiles(Path.Combine(args[0], ModsFolderName), "*", SearchOption.AllDirectories))
             {
-                unzippedModsTaskList.Add(Task.Run(() =>
+                var task = Task.Run(() =>
                 {
                     if (file.EndsWith(".zip", StringComparison.Ordinal))
                     {
@@ -2756,11 +2782,24 @@ namespace EternalModLoader
                             unzippedModCount++;
                         }
                     }
-                }));
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    unzippedModsTaskList.Add(task);
+                }
             }
 
             // Wait for the unzipped mod loading to finish
-            Task.WaitAll(unzippedModsTaskList.ToArray());
+            if (MultiThreading)
+            {
+                Task.WaitAll(unzippedModsTaskList.ToArray());
+            }
+
             fileLoadBufferedConsole.Flush();
             looseStopwatch.Stop();
 
@@ -2878,25 +2917,46 @@ namespace EternalModLoader
             // Load the resource file mods
             foreach (var resource in ResourceList)
             {
-                modLoadingTaskList.Add(Task.Run(() =>
+                var task = Task.Run(() =>
                 {
                     LoadMods(resource);
-                }));
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    modLoadingTaskList.Add(task);
+                }
             }
 
             // Load the sound mods
             foreach (var soundContainer in SoundContainerList)
             {
-                modLoadingTaskList.Add(Task.Run(() =>
+                var task = Task.Run(() =>
                 {
                     LoadSoundMods(soundContainer);
-                }));
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    modLoadingTaskList.Add(task);
+                }
             }
 
             BufferedConsole.Flush();
 
             // Wait for all the mod loading tasks to complete
-            Task.WaitAll(modLoadingTaskList.ToArray());
+            if (MultiThreading)
+            {
+                Task.WaitAll(modLoadingTaskList.ToArray());
+            }
 
             // Modify packageMapSpec JSON if needed
             ModifyPackageMapSpec();
