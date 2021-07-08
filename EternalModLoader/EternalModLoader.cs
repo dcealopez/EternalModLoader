@@ -70,6 +70,11 @@ namespace EternalModLoader
         public static bool MultiThreading = true;
 
         /// <summary>
+        /// Only load online-safe mods?
+        /// </summary>
+        public static bool LoadOnlineSafeOnlyMods = false;
+
+        /// <summary>
         /// Global flag that determines if the mods being loaded are safe for online play or not
         /// </summary>
         public static bool AreModsSafeForOnline = true;
@@ -1316,7 +1321,7 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    var blangModFile = new ResourceModFile(null, blangFileEntry.Key);
+                    var blangModFile = new ResourceModFile(null, blangFileEntry.Key, resourceContainer.Name);
                     blangModFile.FileData = encryptedDataMemoryStream;
 
                     SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, 0);
@@ -1345,7 +1350,7 @@ namespace EternalModLoader
                         }
                         else
                         {
-                            var mapResourcesModFile = new ResourceModFile(null, mapResourcesChunk.ResourceName.NormalizedFileName);
+                            var mapResourcesModFile = new ResourceModFile(null, mapResourcesChunk.ResourceName.NormalizedFileName, resourceContainer.Name);
                             mapResourcesModFile.FileData = new MemoryStream(compressedMapResourcesData, 0, compressedMapResourcesData.Length, false);
 
                             SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, mapResourcesChunk, mapResourcesModFile, compressedMapResourcesData.Length, decompressedMapResourcesData.Length, null);
@@ -2191,6 +2196,7 @@ namespace EternalModLoader
                 BufferedConsole.WriteLine("\t--list-res - List the game files that will be modified and exit.");
                 BufferedConsole.WriteLine("\t--verbose - Print more information during the mod loading process.");
                 BufferedConsole.WriteLine("\t--slow - Slow mod loading mode that produces slightly smaller .resources files.");
+                BufferedConsole.WriteLine("\t--online-safe - Only load online-safe mods.");
                 BufferedConsole.WriteLine("\t--compress-textures - Compress texture files during the mod loading process.");
                 BufferedConsole.WriteLine("\t--disable-multithreading - Disables multi-threaded mod loading.");
                 BufferedConsole.Flush();
@@ -2238,6 +2244,13 @@ namespace EternalModLoader
                         SlowMode = true;
                         BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
                         BufferedConsole.WriteLine("INFO: Slow mod loading mode is enabled.");
+                        BufferedConsole.ResetColor();
+                    }
+                    else if (args[i] == "--online-safe")
+                    {
+                        LoadOnlineSafeOnlyMods = true;
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        BufferedConsole.WriteLine("INFO: Only online-safe mods will be loaded.");
                         BufferedConsole.ResetColor();
                     }
                     else if (args[i] == "--compress-textures")
@@ -2494,7 +2507,7 @@ namespace EternalModLoader
                                     }
 
                                     // Create the mod object and read the unzipped files
-                                    ResourceModFile resourceModFile = new ResourceModFile(mod, modFileName);
+                                    ResourceModFile resourceModFile = new ResourceModFile(mod, modFileName, resourceName);
 
                                     if (!listResources)
                                     {
@@ -2540,7 +2553,21 @@ namespace EternalModLoader
                                         }
                                     }
 
-                                    resource.ModFileList.Add(resourceModFile);
+                                    // Determine if the mod is safe for online play
+                                    if (mod.IsSafeForOnline)
+                                    {
+                                        if (!OnlineSafety.IsModSafeForOnline(resourceModFile))
+                                        {
+                                            AreModsSafeForOnline = false;
+                                            mod.IsSafeForOnline = false;
+                                        }
+                                    }
+
+                                    if (!LoadOnlineSafeOnlyMods || (LoadOnlineSafeOnlyMods && mod.IsSafeForOnline))
+                                    {
+                                        resource.ModFileList.Add(resourceModFile);
+                                    }
+
                                     zippedModCount++;
                                 }
                             }
@@ -2553,15 +2580,35 @@ namespace EternalModLoader
                     {
                         if (zippedModCount > 0 && !listResources)
                         {
-                            fileLoadBufferedConsole.Write("Found ");
-                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
-                            fileLoadBufferedConsole.Write(string.Format("{0} file(s) ", zippedModCount));
-                            fileLoadBufferedConsole.ResetColor();
-                            fileLoadBufferedConsole.Write("in archive ");
-                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                            fileLoadBufferedConsole.Write(zippedMod);
-                            fileLoadBufferedConsole.ResetColor();
-                            fileLoadBufferedConsole.WriteLine();
+                            if ((LoadOnlineSafeOnlyMods && mod.IsSafeForOnline) || !LoadOnlineSafeOnlyMods)
+                            {
+                                fileLoadBufferedConsole.Write("Found ");
+                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
+                                fileLoadBufferedConsole.Write(string.Format("{0} file(s) ", zippedModCount));
+                                fileLoadBufferedConsole.ResetColor();
+                                fileLoadBufferedConsole.Write("in archive ");
+                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                fileLoadBufferedConsole.Write(zippedMod);
+                                fileLoadBufferedConsole.ResetColor();
+                                fileLoadBufferedConsole.WriteLine();
+
+                                if (!mod.IsSafeForOnline)
+                                {
+                                    fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                    fileLoadBufferedConsole.Write("WARNING: ");
+                                    fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                    fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" is not safe for online play, multiplayer will be disabled");
+                                    fileLoadBufferedConsole.ResetColor();
+                                }
+                            }
+                            else
+                            {
+                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                fileLoadBufferedConsole.Write("WARNING: ");
+                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                                fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" is not safe for online play, skipping");
+                                fileLoadBufferedConsole.ResetColor();
+                            }
                         }
                     }
 
@@ -2727,7 +2774,7 @@ namespace EternalModLoader
                             }
 
                             // Create the mod object and read the files
-                            ResourceModFile mod = new ResourceModFile(globalLooseMod, modFileName);
+                            ResourceModFile mod = new ResourceModFile(globalLooseMod, modFileName, resourceName);
 
                             if (!listResources)
                             {
@@ -2783,7 +2830,21 @@ namespace EternalModLoader
                                 }
                             }
 
-                            resource.ModFileList.Add(mod);
+                            // Determine if the mod is safe for online play
+                            if (globalLooseMod.IsSafeForOnline)
+                            {
+                                if (!OnlineSafety.IsModSafeForOnline(mod))
+                                {
+                                    AreModsSafeForOnline = false;
+                                    globalLooseMod.IsSafeForOnline = false;
+                                }
+                            }
+
+                            if (!LoadOnlineSafeOnlyMods || (LoadOnlineSafeOnlyMods && globalLooseMod.IsSafeForOnline))
+                            {
+                                resource.ModFileList.Add(mod);
+                            }
+
                             unzippedModCount++;
                         }
                     }
@@ -2810,15 +2871,35 @@ namespace EternalModLoader
 
             if (unzippedModCount > 0 && !listResources)
             {
-                BufferedConsole.Write("Found ");
-                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
-                BufferedConsole.Write(string.Format("{0} file(s) ", unzippedModCount));
-                BufferedConsole.ResetColor();
-                BufferedConsole.Write("in ");
-                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                BufferedConsole.Write("'Mods' ");
-                BufferedConsole.ResetColor();
-                BufferedConsole.WriteLine("folder...");
+                if (LoadOnlineSafeOnlyMods && !globalLooseMod.IsSafeForOnline)
+                {
+                    fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    fileLoadBufferedConsole.Write("WARNING: ");
+                    fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    fileLoadBufferedConsole.WriteLine("Loose mod files are not safe for online play, skipping");
+                    fileLoadBufferedConsole.ResetColor();
+                }
+                else
+                {
+                    BufferedConsole.Write("Found ");
+                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Blue;
+                    BufferedConsole.Write(string.Format("{0} file(s) ", unzippedModCount));
+                    BufferedConsole.ResetColor();
+                    BufferedConsole.Write("in ");
+                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    BufferedConsole.Write("'Mods' ");
+                    BufferedConsole.ResetColor();
+                    BufferedConsole.WriteLine("folder...");
+
+                    if (!globalLooseMod.IsSafeForOnline)
+                    {
+                        fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        fileLoadBufferedConsole.Write("WARNING: ");
+                        fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        fileLoadBufferedConsole.WriteLine($"Loose mode files are not safe for online play, multiplayer will be disabled");
+                        fileLoadBufferedConsole.ResetColor();
+                    }
+                }
             }
 
             foreach (var notFoundContainer in notFoundContainerList)
@@ -2833,17 +2914,29 @@ namespace EternalModLoader
 
             BufferedConsole.Flush();
 
-            // Disable multiplayer if needed
-            foreach (ResourceModFile mod in OnlineSafety.MultiplayerDisablerMod)
+            // Remove resources from the list if they have no mods to load
+            for (int i = ResourceList.Count - 1; i >= 0; i--)
             {
-                var resource = ResourceList.FirstOrDefault(res => res.Name == mod.ResourceName);
-
-                if (resource == null)
+                if (ResourceList[i].ModFileList == null || ResourceList[i].ModFileList.Count == 0)
                 {
-                    continue;
+                    ResourceList.RemoveAt(i);
                 }
+            }
 
-                resource.ModFileList.Add(mod);
+            // Disable multiplayer if needed
+            if (!AreModsSafeForOnline && !LoadOnlineSafeOnlyMods)
+            {
+                foreach (ResourceModFile mod in OnlineSafety.MultiplayerDisablerMod)
+                {
+                    var resource = ResourceList.FirstOrDefault(res => res.Name == mod.ResourceName);
+
+                    if (resource == null)
+                    {
+                        continue;
+                    }
+
+                    resource.ModFileList.Add(mod);
+                }
             }
 
             // List the resources that will be modified

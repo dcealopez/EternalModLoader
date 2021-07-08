@@ -10,6 +10,11 @@ namespace EternalModLoader.Mods
     public class Mod
     {
         /// <summary>
+        /// Is this mod safe for online play?
+        /// </summary>
+        public bool IsSafeForOnline = true;
+
+        /// <summary>
         /// Mod load priority
         /// </summary>
         public int LoadPriority;
