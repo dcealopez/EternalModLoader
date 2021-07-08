@@ -70,6 +70,11 @@ namespace EternalModLoader
         public static bool MultiThreading = true;
 
         /// <summary>
+        /// Global flag that determines if the mods being loaded are safe for online play or not
+        /// </summary>
+        public static bool AreModsSafeForOnline = true;
+
+        /// <summary>
         /// Divinity magic header for compressed texture files
         /// </summary>
         public static byte[] DivinityMagic = new byte[] { 0x44, 0x49, 0x56, 0x49, 0x4E, 0x49, 0x54, 0x59 };
@@ -2827,6 +2832,19 @@ namespace EternalModLoader
             }
 
             BufferedConsole.Flush();
+
+            // Disable multiplayer if needed
+            foreach (ResourceModFile mod in OnlineSafety.MultiplayerDisablerMod)
+            {
+                var resource = ResourceList.FirstOrDefault(res => res.Name == mod.ResourceName);
+
+                if (resource == null)
+                {
+                    continue;
+                }
+
+                resource.ModFileList.Add(mod);
+            }
 
             // List the resources that will be modified
             if (listResources)

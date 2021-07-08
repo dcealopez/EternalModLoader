@@ -19,6 +19,11 @@ namespace EternalModLoader.Mods.Resources
         public string Name;
 
         /// <summary>
+        /// Resource this mod belongs to
+        /// </summary>
+        public string ResourceName;
+
+        /// <summary>
         /// Mod file data memory stream
         /// </summary>
         public MemoryStream FileData;
@@ -91,10 +96,12 @@ namespace EternalModLoader.Mods.Resources
         /// </summary>
         /// <param name="parent">parent mod</param>
         /// <param name="name">mod name</param>
-        public ResourceModFile(Mod parent, string name)
+        /// <param name="resourceName">name of the resource file this mods belongs in</param>
+        public ResourceModFile(Mod parent, string name, string resourceName)
         {
             Parent = parent;
             Name = name;
+            ResourceName = resourceName;
         }
 
         /// <summary>
