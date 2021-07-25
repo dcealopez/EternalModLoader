@@ -19,6 +19,11 @@ namespace EternalModLoader.Mods.Resources
         public string Name;
 
         /// <summary>
+        /// Resource this mod belongs to
+        /// </summary>
+        public string ResourceName;
+
+        /// <summary>
         /// Mod file data memory stream
         /// </summary>
         public MemoryStream FileData;
@@ -87,14 +92,22 @@ namespace EternalModLoader.Mods.Resources
         public byte? SpecialByte3 = null;
 
         /// <summary>
+        /// Whether or not to announce this mod file as added/replaced
+        /// </summary>
+        public bool Announce = true;
+
+        /// <summary>
         /// Resource mod file constructor
         /// </summary>
         /// <param name="parent">parent mod</param>
         /// <param name="name">mod name</param>
-        public ResourceModFile(Mod parent, string name)
+        /// <param name="resourceName">name of the resource file this mods belongs in</param>
+        public ResourceModFile(Mod parent, string name, string resourceName, bool announce = true)
         {
             Parent = parent;
             Name = name;
+            ResourceName = resourceName;
+            Announce = announce;
         }
 
         /// <summary>
@@ -110,21 +123,6 @@ namespace EternalModLoader.Mods.Resources
 
             FileData.Position = 0;
             FileData.CopyTo(stream);
-        }
-
-        /// <summary>
-        /// Disposes the mod file data
-        /// </summary>
-        public void DisposeFileData()
-        {
-            if (FileData == null)
-            {
-                return;
-            }
-
-            FileData.Close();
-            FileData.Dispose();
-            FileData = null;
         }
     }
 }

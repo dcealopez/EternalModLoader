@@ -47,20 +47,5 @@ namespace EternalModLoader.Mods.Sounds
             FileData.Position = 0;
             FileData.CopyTo(stream);
         }
-
-        /// <summary>
-        /// Disposes the mod file data
-        /// </summary>
-        public void DisposeFileData()
-        {
-            if (FileData == null)
-            {
-                return;
-            }
-
-            FileData.Close();
-            FileData.Dispose();
-            FileData = null;
-        }
     }
 }
