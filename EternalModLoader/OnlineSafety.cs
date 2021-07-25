@@ -152,7 +152,7 @@ namespace EternalModLoader
         /// </summary>
         public static List<ResourceModFile> MultiplayerDisablerMod = new List<ResourceModFile>()
         {
-            new ResourceModFile(ParentMod, "generated/decls/menuelement/main_menu/screens/multiplayer.decl", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "generated/decls/menuelement/main_menu/screens/multiplayer.decl", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(new byte[]
                 {
@@ -179,7 +179,7 @@ namespace EternalModLoader
                     0x22, 0x3B, 0x0D, 0x0A, 0x09, 0x09, 0x7D, 0x0D, 0x0A, 0x09, 0x7D, 0x0D, 0x0A, 0x7D
                 })
             },
-            new ResourceModFile(ParentMod, "generated/decls/menuelement/main_menu/screens/battle_arena_play_online.decl", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "generated/decls/menuelement/main_menu/screens/battle_arena_play_online.decl", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(new byte[]
                 {
@@ -202,83 +202,83 @@ namespace EternalModLoader
                     0x0A, 0x09, 0x7D, 0x0A, 0x7D
                 })
             },
-            new ResourceModFile(ParentMod, "swf/hud/menus/battle_arena/play_online_screen.swf", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "swf/hud/menus/battle_arena/play_online_screen.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(GenericSWFData, 0, GenericSWFData.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "swf/hud/menus/battle_arena/lobby.swf", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "swf/hud/menus/battle_arena/lobby.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(GenericSWFData, 0, GenericSWFData.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "swf/main_menu/screens/battle_arena.swf", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "swf/main_menu/screens/battle_arena.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(GenericSWFData, 0, GenericSWFData.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "swf/main_menu/screens/match_browser.swf", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "swf/main_menu/screens/match_browser.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(GenericSWFData, 0, GenericSWFData.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/french.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/french.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/italian.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/italian.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/german.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/german.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/spanish.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/spanish.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/russian.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/russian.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/polish.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/polish.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/japanese.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/japanese.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/latin_spanish.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/latin_spanish.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/portuguese.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/portuguese.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/traditional_chinese.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/traditional_chinese.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/simplified_chinese.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/simplified_chinese.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/korean.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/korean.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)
             },
-            new ResourceModFile(ParentMod, "EternalMod/strings/english.json", "gameresources_patch2")
+            new ResourceModFile(ParentMod, "EternalMod/strings/english.json", "gameresources_patch2", false)
             {
                 IsBlangJson = true,
                 FileData = new MemoryStream(BlangJsonMultiplayerDisabled, 0, BlangJsonMultiplayerDisabled.Length, false, true)

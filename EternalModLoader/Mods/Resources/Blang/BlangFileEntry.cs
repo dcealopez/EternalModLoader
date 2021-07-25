@@ -23,6 +23,11 @@ namespace EternalModLoader.Mods.Resources.Blang
         public bool WasModified;
 
         /// <summary>
+        /// Wheter or not to announce the file as modified
+        /// </summary>
+        public bool Announce;
+
+        /// <summary>
         /// Blang file entry constructor
         /// </summary>
         /// <param name="blangFile">deserialized .blang file</param>

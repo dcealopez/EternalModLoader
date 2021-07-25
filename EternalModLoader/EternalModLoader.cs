@@ -26,7 +26,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 9;
+        public const int Version = 10;
 
         /// <summary>
         /// Resource data file name
@@ -1187,6 +1187,11 @@ namespace EternalModLoader
                             continue;
                         }
 
+                        if (!blangFileEntry.Announce && modFile.Announce)
+                        {
+                            blangFileEntry.Announce = true;
+                        }
+
                         // Read the blang JSON and add the strings to the .blang file
                         BlangJson blangJson;
 
@@ -1227,7 +1232,12 @@ namespace EternalModLoader
                                     stringFound = true;
                                     blangString.Text = blangJsonString.Text;
                                     blangFileEntry.WasModified = true;
-                                    bufferedConsole.WriteLine($"\tReplaced string \"{blangString.Identifier}\" in \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
+
+                                    if (modFile.Announce)
+                                    {
+                                        bufferedConsole.WriteLine($"\tReplaced string \"{blangString.Identifier}\" in \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
+                                    }
+
                                     break;
                                 }
                             }
@@ -1243,7 +1253,11 @@ namespace EternalModLoader
                                 Text = blangJsonString.Text,
                             });
 
-                            bufferedConsole.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
+                            if (modFile.Announce)
+                            {
+                                bufferedConsole.WriteLine($"\tAdded string \"{blangJsonString.Name}\" to \"{modFile.Name}\" in \"{resourceContainer.Name}\"");
+                            }
+
                             blangFileEntry.WasModified = true;
                         }
 
@@ -1294,8 +1308,11 @@ namespace EternalModLoader
 
                     SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, chunk, modFile, compressedSize, uncompressedSize, compressionMode);
 
-                    bufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
-                    fileCount++;
+                    if (modFile.Announce)
+                    {
+                        bufferedConsole.WriteLine(string.Format("\tReplaced {0}", modFile.Name));
+                        fileCount++;
+                    }
                 }
 
                 // Modify the necessary .blang files
@@ -1325,8 +1342,12 @@ namespace EternalModLoader
                     blangModFile.FileData = encryptedDataMemoryStream;
 
                     SetModFileDataForContainerChunk(stream, binaryReader, resourceContainer, blangFileEntry.Value.Chunk, blangModFile, blangModFile.FileData.Length, blangModFile.FileData.Length, 0);
-                    bufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
-                    fileCount++;
+
+                    if (blangFileEntry.Value.Announce)
+                    {
+                        bufferedConsole.WriteLine(string.Format("\tModified {0}", blangFileEntry.Key));
+                        fileCount++;
+                    }
                 }
 
                 // Modify the map resources file if needed
@@ -1463,6 +1484,7 @@ namespace EternalModLoader
             int infoOldLength = infoMemoryStream.GetBuffer().Length;
             int nameIdsOldLength = nameIdsMemoryStream.GetBuffer().Length;
             int newChunksCount = 0;
+            int addedCount = 0;
 
             // Find the resource data for the new mod files and set them
             foreach (var mod in resourceContainer.ModFileList.OrderByDescending(mod => mod.Parent.LoadPriority))
@@ -1744,7 +1766,12 @@ namespace EternalModLoader
                 // Add the new file info section at the end
                 infoMemoryStream.Write(newFileInfo, 0, 0x90);
 
-                bufferedConsole.WriteLine(string.Format("\tAdded {0}", mod.Name));
+                if (mod.Announce)
+                {
+                    bufferedConsole.WriteLine(string.Format("\tAdded {0}", mod.Name));
+                    addedCount++;
+                }
+
                 newChunksCount++;
             }
 
@@ -1803,11 +1830,11 @@ namespace EternalModLoader
             dataMemoryStream.Position = 0;
             dataMemoryStream.CopyTo(stream);
 
-            if (newChunksCount != 0)
+            if (addedCount != 0)
             {
                 bufferedConsole.Write("Number of files added: ");
                 bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
-                bufferedConsole.Write(string.Format("{0} file(s) ", newChunksCount));
+                bufferedConsole.Write(string.Format("{0} file(s) ", addedCount));
                 bufferedConsole.ResetColor();
                 bufferedConsole.Write("in ");
                 bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
