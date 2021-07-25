@@ -2686,7 +2686,7 @@ namespace EternalModLoader
 
                     string[] modFilePathParts = file.Substring(args[0].Length + 1 + ModsFolderName.Length, file.Length - (args[0].Length + 1 + ModsFolderName.Length)).Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (modFilePathParts.Length <= 2)
+                    if (modFilePathParts.Length < 2)
                     {
                         return;
                     }
