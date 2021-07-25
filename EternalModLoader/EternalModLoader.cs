@@ -2622,8 +2622,7 @@ namespace EternalModLoader
                                 if (!mod.IsSafeForOnline)
                                 {
                                     fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                    fileLoadBufferedConsole.Write("WARNING: ");
-                                    fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" is not safe for online play, multiplayer will be disabled");
+                                    fileLoadBufferedConsole.WriteLine($"WARNING: Mod \"{zippedMod}\" is not safe for online play, multiplayer will be disabled");
                                     fileLoadBufferedConsole.ResetColor();
                                 }
                             }
@@ -2920,8 +2919,7 @@ namespace EternalModLoader
                     if (!globalLooseMod.IsSafeForOnline)
                     {
                         fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        fileLoadBufferedConsole.Write("WARNING: ");
-                        fileLoadBufferedConsole.WriteLine($"Loose mode files are not safe for online play, multiplayer will be disabled");
+                        fileLoadBufferedConsole.WriteLine($"WARNING: Loose mode files are not safe for online play, multiplayer will be disabled");
                         fileLoadBufferedConsole.ResetColor();
                     }
                 }
