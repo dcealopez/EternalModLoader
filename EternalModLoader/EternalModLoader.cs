@@ -2983,7 +2983,11 @@ namespace EternalModLoader
 
                     var assetsInfoJsonModFiles = resource.ModFileList.Where(mod => mod.IsAssetsInfoJson);
 
-                    // Print the path to "packagemapspec.json" if the mod will modify it
+                    if (assetsInfoJsonModFiles.Count() != resource.ModFileList.Count)
+                    {
+                        shouldListResource = true;
+                    }
+
                     foreach (var assetsInfoJsonFile in assetsInfoJsonModFiles)
                     {
                         if (assetsInfoJsonFile.AssetsInfo == null)
@@ -2991,34 +2995,21 @@ namespace EternalModLoader
                             continue;
                         }
 
+                        // Print the path to "packagemapspec.json" if the mod will modify it
                         if (!printPackageMapSpecJsonPath && assetsInfoJsonFile.AssetsInfo.Resources != null)
                         {
                             printPackageMapSpecJsonPath = true;
                         }
-                    }
 
-                    // If this resource only has assetsinfo JSON files, only print this resource if necessary
-                    if (assetsInfoJsonModFiles.Count() == resource.ModFileList.Count)
-                    {
-                        foreach (var assetsInfoJsonFile in assetsInfoJsonModFiles)
+                        // If this resource only has assetsinfo JSON files, only print this resource if necessary
+                        if (!shouldListResource && assetsInfoJsonModFiles.Count() == resource.ModFileList.Count
+                            && (assetsInfoJsonFile.AssetsInfo.Assets != null
+                            || assetsInfoJsonFile.AssetsInfo.Layers != null
+                            || assetsInfoJsonFile.AssetsInfo.Maps != null))
                         {
-                            if (assetsInfoJsonFile.AssetsInfo == null)
-                            {
-                                continue;
-                            }
-
-                            if (assetsInfoJsonFile.AssetsInfo.Assets != null
-                                || assetsInfoJsonFile.AssetsInfo.Layers != null
-                                || assetsInfoJsonFile.AssetsInfo.Maps != null)
-                            {
-                                shouldListResource = true;
-                                break;
-                            }
+                            shouldListResource = true;
+                            break;
                         }
-                    }
-                    else
-                    {
-                        shouldListResource = true;
                     }
 
                     if (!shouldListResource)
