@@ -2965,6 +2965,8 @@ namespace EternalModLoader
             // List the resources that will be modified
             if (listResources)
             {
+                bool printPackageMapSpecJsonPath = false;
+
                 // We need to set the console encoding to ASCII here to avoid problems with
                 // the mod injector parsing the resources list
                 Console.OutputEncoding = Encoding.ASCII;
@@ -2989,6 +2991,12 @@ namespace EternalModLoader
                             if (assetsInfoJsonFile.AssetsInfo == null)
                             {
                                 continue;
+                            }
+
+                            // Print the path to "packagemapspec.json" if the mod will modify it
+                            if (!printPackageMapSpecJsonPath && assetsInfoJsonFile.AssetsInfo.Resources != null)
+                            {
+                                printPackageMapSpecJsonPath = true;
                             }
 
                             if (assetsInfoJsonFile.AssetsInfo.Assets != null
@@ -3017,6 +3025,20 @@ namespace EternalModLoader
                     else
                     {
                         Console.WriteLine($".{resource.Path.Substring(resource.Path.IndexOf("/base/", StringComparison.Ordinal))}");
+                    }
+                }
+
+                if (printPackageMapSpecJsonPath)
+                {
+                    var packageMapSpecJsonPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+
+                    if (Path.DirectorySeparatorChar == '\\')
+                    {
+                        Console.WriteLine($".{packageMapSpecJsonPath.Substring(packageMapSpecJsonPath.IndexOf("\\base\\", StringComparison.Ordinal))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($".{packageMapSpecJsonPath.Substring(packageMapSpecJsonPath.IndexOf("/base/", StringComparison.Ordinal))}");
                     }
                 }
 
