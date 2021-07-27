@@ -2983,6 +2983,20 @@ namespace EternalModLoader
 
                     var assetsInfoJsonModFiles = resource.ModFileList.Where(mod => mod.IsAssetsInfoJson);
 
+                    // Print the path to "packagemapspec.json" if the mod will modify it
+                    foreach (var assetsInfoJsonFile in assetsInfoJsonModFiles)
+                    {
+                        if (assetsInfoJsonFile.AssetsInfo == null)
+                        {
+                            continue;
+                        }
+
+                        if (!printPackageMapSpecJsonPath && assetsInfoJsonFile.AssetsInfo.Resources != null)
+                        {
+                            printPackageMapSpecJsonPath = true;
+                        }
+                    }
+
                     // If this resource only has assetsinfo JSON files, only print this resource if necessary
                     if (assetsInfoJsonModFiles.Count() == resource.ModFileList.Count)
                     {
@@ -2991,12 +3005,6 @@ namespace EternalModLoader
                             if (assetsInfoJsonFile.AssetsInfo == null)
                             {
                                 continue;
-                            }
-
-                            // Print the path to "packagemapspec.json" if the mod will modify it
-                            if (!printPackageMapSpecJsonPath && assetsInfoJsonFile.AssetsInfo.Resources != null)
-                            {
-                                printPackageMapSpecJsonPath = true;
                             }
 
                             if (assetsInfoJsonFile.AssetsInfo.Assets != null
