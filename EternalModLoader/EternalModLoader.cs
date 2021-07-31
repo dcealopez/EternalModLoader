@@ -2262,37 +2262,22 @@ namespace EternalModLoader
                     else if (args[i] == "--verbose")
                     {
                         Verbose = true;
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.WriteLine("INFO: Verbose logging is enabled.");
-                        BufferedConsole.ResetColor();
                     }
                     else if (args[i] == "--slow")
                     {
                         SlowMode = true;
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.WriteLine("INFO: Slow mod loading mode is enabled.");
-                        BufferedConsole.ResetColor();
                     }
                     else if (args[i] == "--online-safe")
                     {
                         LoadOnlineSafeOnlyMods = true;
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.WriteLine("INFO: Only online-safe mods will be loaded.");
-                        BufferedConsole.ResetColor();
                     }
                     else if (args[i] == "--compress-textures")
                     {
                         CompressTextures = true;
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.WriteLine("INFO: Texture compression is enabled.");
-                        BufferedConsole.ResetColor();
                     }
                     else if (args[i] == "--disable-multithreading")
                     {
                         MultiThreading = false;
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        BufferedConsole.WriteLine("INFO: Multi-threading is disabled.");
-                        BufferedConsole.ResetColor();
                     }
                     else
                     {
@@ -2304,6 +2289,38 @@ namespace EternalModLoader
                         return 1;
                     }
                 }
+            }
+
+            if (!listResources)
+            {
+                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+
+                if (Verbose)
+                {
+                    BufferedConsole.WriteLine("INFO: Verbose logging is enabled.");
+                }
+
+                if (SlowMode)
+                {
+                    BufferedConsole.WriteLine("INFO: Slow mod loading mode is enabled.");
+                }
+
+                if (LoadOnlineSafeOnlyMods)
+                {
+                    BufferedConsole.WriteLine("INFO: Only online-safe mods will be loaded.");
+                }
+
+                if (CompressTextures)
+                {
+                    BufferedConsole.WriteLine("INFO: Texture compression is enabled.");
+                }
+
+                if (MultiThreading)
+                {
+                    BufferedConsole.WriteLine("INFO: Multi-threading is disabled.");
+                }
+
+                BufferedConsole.ResetColor();
             }
 
             // Set the optimal buffer size for I/O file operations
@@ -2319,10 +2336,14 @@ namespace EternalModLoader
                 catch (Exception ex)
                 {
                     BufferSize = 4096;
-                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    BufferedConsole.Write("ERROR: ");
-                    BufferedConsole.ResetColor();
-                    BufferedConsole.WriteLine($"Error while determining the optimal buffer size, using 4096 as the default: {ex}");
+
+                    if (!listResources)
+                    {
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("WARNING: ");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine($"Couldn't determine the optimal buffer size, using 4096 as the default.");
+                    }
                 }
             }
 
@@ -2562,10 +2583,14 @@ namespace EternalModLoader
                                             }
                                             catch
                                             {
-                                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                                fileLoadBufferedConsole.Write("ERROR: ");
-                                                fileLoadBufferedConsole.ResetColor();
-                                                fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
+                                                if (!listResources)
+                                                {
+                                                    fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                                    fileLoadBufferedConsole.Write("ERROR: ");
+                                                    fileLoadBufferedConsole.ResetColor();
+                                                    fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(resourceModFile.Name)}.json");
+                                                }
+
                                                 continue;
                                             }
                                         }
@@ -2833,12 +2858,15 @@ namespace EternalModLoader
                                     }
                                     catch
                                     {
-                                        lock (fileLoadBufferedConsole)
+                                        if (!listResources)
                                         {
-                                            fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                            fileLoadBufferedConsole.Write("ERROR: ");
-                                            fileLoadBufferedConsole.ResetColor();
-                                            fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                            lock (fileLoadBufferedConsole)
+                                            {
+                                                fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                                                fileLoadBufferedConsole.Write("ERROR: ");
+                                                fileLoadBufferedConsole.ResetColor();
+                                                fileLoadBufferedConsole.WriteLine($"Failed to parse EternalMod/assetsinfo/{Path.GetFileNameWithoutExtension(mod.Name)}.json");
+                                            }
                                         }
 
                                         return;
@@ -2925,14 +2953,17 @@ namespace EternalModLoader
                 }
             }
 
-            foreach (var notFoundContainer in notFoundContainerList)
+            if (!listResources && notFoundContainerList.Count > 0)
             {
-                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                BufferedConsole.Write("WARNING: ");
-                BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                BufferedConsole.Write($"{notFoundContainer}.resources");
-                BufferedConsole.ResetColor();
-                BufferedConsole.WriteLine(" was not found! Skipping...");
+                foreach (var notFoundContainer in notFoundContainerList)
+                {
+                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    BufferedConsole.Write("WARNING: ");
+                    BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    BufferedConsole.Write($"{notFoundContainer}.resources");
+                    BufferedConsole.ResetColor();
+                    BufferedConsole.WriteLine(" was not found! Skipping...");
+                }
             }
 
             BufferedConsole.Flush();
