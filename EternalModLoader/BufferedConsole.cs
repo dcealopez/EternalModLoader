@@ -53,7 +53,7 @@ namespace EternalModLoader
         /// <summary>
         /// Buffered stream for the console (standard)
         /// </summary>
-        private BufferedStream BufferedStream;
+        private BufferedStream _bufferedStream;
 
         /// <summary>
         /// Buffered console initialization method
@@ -64,7 +64,7 @@ namespace EternalModLoader
             Console.OutputEncoding = Encoding.Unicode;
 
             // Avoid special "ShadowBuffer" for hard-coded size 0x14000
-            BufferedStream = new BufferedStream(Console.OpenStandardOutput(), 0x15000);
+            _bufferedStream = new BufferedStream(Console.OpenStandardOutput(), 0x15000);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace EternalModLoader
             var rgb = new byte[text.Length << 1];
             Encoding.Unicode.GetBytes(text, 0, text.Length, rgb, 0);
 
-            BufferedStream.Write(rgb, 0, rgb.Length);
+            _bufferedStream.Write(rgb, 0, rgb.Length);
         }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace EternalModLoader
             var rgb = new byte[ForegroundColor.Length << 1];
             Encoding.Unicode.GetBytes(ForegroundColor, 0, ForegroundColor.Length, rgb, 0);
 
-            BufferedStream.Write(rgb, 0, rgb.Length);
+            _bufferedStream.Write(rgb, 0, rgb.Length);
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace EternalModLoader
         /// </summary>
         public void Flush()
         {
-            BufferedStream.Flush();
+            _bufferedStream.Flush();
         }
     }
 }

@@ -27,12 +27,12 @@ namespace EternalModLoader.Zlib
 		/// <summary>
 		/// Use UTF8 for name and comment
 		/// </summary>
-		private bool UTF8Encoding;
+		private bool _utf8Encoding;
 
 		/// <summary>
 		/// The file attributes for the zip entry
 		/// </summary>
-		private FileAttributes FileAttributes;
+		private FileAttributes _fileAttributes;
 
 		/// <summary>
 		/// Initializes a instance of the <see cref="ZipEntry"/> class with the given name
@@ -81,13 +81,13 @@ namespace EternalModLoader.Zlib
 				throw new ZipException($"Could not read entry from zip file \"{Name}\"", result);
 			}
 
-			UTF8Encoding = (entryInfo.Flag & ZipEntryFlag.UTF8) == ZipEntryFlag.UTF8;
-			Encoding encoding = UTF8Encoding ? Encoding.UTF8 : ZlibWrapper.OEMEncoding;
+			_utf8Encoding = (entryInfo.Flag & ZipEntryFlag.UTF8) == ZipEntryFlag.UTF8;
+			Encoding encoding = _utf8Encoding ? Encoding.UTF8 : ZlibWrapper.OEMEncoding;
 
 			Name = encoding.GetString(entryNameBuffer);
 			UncompressedLength = (long)entryInfo.UncompressedSize;
-			FileAttributes = (FileAttributes)entryInfo.ExternalFileAttributes;
-			IsDirectory = (FileAttributes & FileAttributes.Directory) != 0;
+			_fileAttributes = (FileAttributes)entryInfo.ExternalFileAttributes;
+			IsDirectory = (_fileAttributes & FileAttributes.Directory) != 0;
 		}
 	}
 }

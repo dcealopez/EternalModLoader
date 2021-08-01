@@ -13,17 +13,17 @@ namespace EternalModLoader.Zlib
 		/// <summary>
 		/// ZipFile handle to read data from
 		/// </summary>
-		private IntPtr ZipFileHandle = IntPtr.Zero;
+		private IntPtr _zipFileHandle = IntPtr.Zero;
+
+		/// <summary>
+		/// Current zip entry open for reading
+		/// </summary>
+		private ZipEntry _currentZipEntry = null;
 
 		/// <summary>
 		/// Name of zip file
 		/// </summary>
 		public string FileName = null;
-
-		/// <summary>
-		/// Current zip entry open for reading
-		/// </summary>
-		private ZipEntry CurrentZipEntry = null;
 
 		/// <summary>
 		/// Initializes a instance of the <see cref="ZipReader"/> class for reading the zip file with the given name
@@ -32,9 +32,9 @@ namespace EternalModLoader.Zlib
 		public ZipReader(string fileName)
 		{
 			FileName = fileName;
-			ZipFileHandle = ZlibWrapper.ZlibUnzOpen(fileName);
+			_zipFileHandle = ZlibWrapper.ZlibUnzOpen(fileName);
 
-			if (ZipFileHandle == IntPtr.Zero)
+			if (_zipFileHandle == IntPtr.Zero)
 			{
 				throw new ZipException(string.Format("Could not open zip file '{0}'", fileName));
 			}
@@ -75,7 +75,7 @@ namespace EternalModLoader.Zlib
 		/// <returns></returns>
 		public IEnumerator<ZipEntry> GetEnumerator()
 		{
-			if (CurrentZipEntry != null)
+			if (_currentZipEntry != null)
 			{
 				throw new InvalidOperationException("Entry already open/enumeration already in progress");
 			}
@@ -95,26 +95,26 @@ namespace EternalModLoader.Zlib
 		/// <summary>
 		/// Advances the enumerator to the next element of the collection
 		/// </summary>
-		/// <summary>Sets <see cref="CurrentZipEntry"/> to the next zip entry</summary>
+		/// <summary>Sets <see cref="_currentZipEntry"/> to the next zip entry</summary>
 		/// <returns>true if the next entry is not null, otherwise false</returns>
 		private bool MoveNext()
 		{
 			int result;
 
-			if (CurrentZipEntry == null)
+			if (_currentZipEntry == null)
 			{
-				result = ZlibWrapper.ZlibUnzGoToFirstFile(ZipFileHandle);
+				result = ZlibWrapper.ZlibUnzGoToFirstFile(_zipFileHandle);
 			}
 			else
 			{
 				CloseCurrentEntry();
-				result = ZlibWrapper.ZlibUnzGoToNextFile(ZipFileHandle);
+				result = ZlibWrapper.ZlibUnzGoToNextFile(_zipFileHandle);
 			}
 
 			if (result == ZipReturnCode.EndOfListOfFile)
 			{
 				// No more entries
-				CurrentZipEntry = null;
+				_currentZipEntry = null;
 			}
 			else if (result < 0)
 			{
@@ -126,7 +126,7 @@ namespace EternalModLoader.Zlib
 				OpenCurrentEntry();
 			}
 
-			return CurrentZipEntry != null;
+			return _currentZipEntry != null;
 		}
 
 		/// <summary>
@@ -142,19 +142,19 @@ namespace EternalModLoader.Zlib
 		/// </summary>
 		private void CloseCurrentEntry()
 		{
-			if (CurrentZipEntry == null)
+			if (_currentZipEntry == null)
 			{
 				return;
 			}
 
-			int result = ZlibWrapper.ZlibUnzCloseCurrentFile(ZipFileHandle);
+			int result = ZlibWrapper.ZlibUnzCloseCurrentFile(_zipFileHandle);
 
 			if (result < 0)
 			{
 				throw new ZipException("Could not close zip entry.", result);
 			}
 
-			CurrentZipEntry = null;
+			_currentZipEntry = null;
 		}
 
 		/// <summary>
@@ -162,12 +162,12 @@ namespace EternalModLoader.Zlib
 		/// </summary>
 		private void OpenCurrentEntry()
 		{
-			CurrentZipEntry = new ZipEntry(ZipFileHandle);
-			int result = ZlibWrapper.ZlibUnzOpenCurrentFile(ZipFileHandle);
+			_currentZipEntry = new ZipEntry(_zipFileHandle);
+			int result = ZlibWrapper.ZlibUnzOpenCurrentFile(_zipFileHandle);
 
 			if (result < 0)
 			{
-				CurrentZipEntry = null;
+				_currentZipEntry = null;
 				throw new ZipException("Could not open entry for reading.", result);
 			}
 		}
@@ -183,7 +183,7 @@ namespace EternalModLoader.Zlib
 		public void ReadCurrentEntry(MemoryStream memoryStream)
 		{
 			// Make sure the memory stream has enough capacity to hold the data
-			memoryStream.SetLength(CurrentZipEntry.UncompressedLength);
+			memoryStream.SetLength(_currentZipEntry.UncompressedLength);
 
 			byte[] memBuffer = memoryStream.GetBuffer();
 			int bytesRead = 0;
@@ -195,7 +195,7 @@ namespace EternalModLoader.Zlib
 				{
 					for (; ; )
 					{
-						bytesRead = ZlibWrapper.ZlibUnzReadCurrentFile(ZipFileHandle, (IntPtr)p + offset, 4096);
+						bytesRead = ZlibWrapper.ZlibUnzReadCurrentFile(_zipFileHandle, (IntPtr)p + offset, 4096);
 						offset += bytesRead;
 
 						if (bytesRead <= 0)
@@ -212,7 +212,7 @@ namespace EternalModLoader.Zlib
 		/// </summary>
 		private void CloseFile()
 		{
-			if (ZipFileHandle == IntPtr.Zero)
+			if (_zipFileHandle == IntPtr.Zero)
 			{
 				return;
 			}
@@ -223,14 +223,14 @@ namespace EternalModLoader.Zlib
 			}
 			finally
 			{
-				int result = ZlibWrapper.ZlibUnzClose(ZipFileHandle);
+				int result = ZlibWrapper.ZlibUnzClose(_zipFileHandle);
 
 				if (result < 0)
 				{
 					throw new ZipException("Could not close zip file.", result);
 				}
 
-				ZipFileHandle = IntPtr.Zero;
+				_zipFileHandle = IntPtr.Zero;
 			}
 		}
 
@@ -260,7 +260,7 @@ namespace EternalModLoader.Zlib
 			{
 				get
 				{
-					return ZipReader.CurrentZipEntry;
+					return ZipReader._currentZipEntry;
 				}
 			}
 
