@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,7 +8,7 @@ namespace EternalModLoader.Mods.Resources.Blang
     /// <summary>
     /// BlangCrypt class
     /// </summary>
-    internal class BlangCrypt
+    internal class BlangDecrypt
     {
         /// <summary>
         /// Encrypts or decrypts a blang file

@@ -1155,7 +1155,7 @@ namespace EternalModLoader
                             byte[] blangFileBytes = new byte[chunk.Size];
                             stream.Read(blangFileBytes, 0, (int)chunk.Size);
 
-                            var blangMemoryStream = BlangCrypt.IdCrypt(blangFileBytes, blangFilePath, true);
+                            var blangMemoryStream = BlangDecrypt.IdCrypt(blangFileBytes, blangFilePath, true);
 
                             if (blangMemoryStream == null)
                             {
@@ -1327,7 +1327,7 @@ namespace EternalModLoader
                     }
 
                     byte[] cryptDataBuffer = blangFileEntry.Value.BlangFile.WriteToStream().ToArray();
-                    var encryptedDataMemoryStream = BlangCrypt.IdCrypt(cryptDataBuffer, blangFileEntry.Key, false);
+                    var encryptedDataMemoryStream = BlangDecrypt.IdCrypt(cryptDataBuffer, blangFileEntry.Key, false);
 
                     if (encryptedDataMemoryStream == null)
                     {
@@ -2986,7 +2986,8 @@ namespace EternalModLoader
 
                     if (resource == null)
                     {
-                        continue;
+                        resource = new ResourceContainer(mod.ResourceName, PathToResource(mod.ResourceName + ".resources"));
+                        ResourceList.Add(resource);
                     }
 
                     resource.ModFileList.Add(mod);
