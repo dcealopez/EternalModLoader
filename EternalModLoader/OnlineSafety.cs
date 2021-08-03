@@ -566,13 +566,19 @@ namespace EternalModLoader
                     if (mod.AssetsInfo.Assets != null)
                     {
                         // Don't allow any new assets in multiplayer maps
-                        if (mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrEmpty(mod.ResourceName)
+                            && mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
                         {
                             return false;
                         }
 
                         foreach (var asset in mod.AssetsInfo.Assets)
                         {
+                            if (string.IsNullOrEmpty(asset.MapResourceType))
+                            {
+                                continue;
+                            }
+
                             if (!OnlineSafeMapResourceTypes.Contains(asset.MapResourceType.ToLowerInvariant()))
                             {
                                 return false;
@@ -581,7 +587,9 @@ namespace EternalModLoader
                     }
 
                     // Don't allow adding resources to the multiplayer maps
-                    if (mod.AssetsInfo.Resources != null && mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
+                    if (mod.AssetsInfo.Resources != null
+                        && !string.IsNullOrEmpty(mod.ResourceName)
+                        && mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
                     }
@@ -589,7 +597,8 @@ namespace EternalModLoader
             }
 
             // Allow modification of anything outside "generated/decls/"
-            if (!mod.Name.StartsWith("generated/decls/", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(mod.Name)
+                && !mod.Name.StartsWith("generated/decls/", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
