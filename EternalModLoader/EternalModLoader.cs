@@ -2315,7 +2315,7 @@ namespace EternalModLoader
                     BufferedConsole.WriteLine("INFO: Texture compression is enabled.");
                 }
 
-                if (MultiThreading)
+                if (!MultiThreading)
                 {
                     BufferedConsole.WriteLine("INFO: Multi-threading is disabled.");
                 }
@@ -2498,7 +2498,7 @@ namespace EternalModLoader
                                         }
                                     }
 
-                                    return;
+                                    continue;
                                 }
                             }
 
