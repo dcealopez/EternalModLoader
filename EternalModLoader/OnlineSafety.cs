@@ -480,7 +480,9 @@ namespace EternalModLoader
             "globalshell",
             "warehouseitem",
             "warehouseofflinecontainer",
-            "tooltip"
+            "tooltip",
+            "livetile",
+            "tutorialevent"
         };
 
         /// <summary>
@@ -548,7 +550,15 @@ namespace EternalModLoader
             "/globalshell/",
             "/warehouseitem/",
             "/warehouseofflinecontainer/",
-            "/tooltip/"
+            "/tooltip/",
+            "/livetile/",
+            "/tutorialevent/",
+            "/maps/game/dlc/",
+            "/maps/game/dlc2/",
+            "/maps/game/hub/",
+            "/maps/game/shell/",
+            "/maps/game/sp/",
+            "/maps/game/tutorials/",
         };
 
         /// <summary>
