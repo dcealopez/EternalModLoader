@@ -2545,9 +2545,9 @@ namespace EternalModLoader
                             }
                             else
                             {
-                                // Get the resource object
                                 lock (ResourceList)
                                 {
+                                    // Get the resource object
                                     var resource = ResourceList.FirstOrDefault(res => res.Name == resourceName);
 
                                     if (resource == null)
@@ -2624,11 +2624,14 @@ namespace EternalModLoader
                         // Unload the mod files if necessary
                         if (LoadOnlineSafeOnlyMods)
                         {
-                            foreach (var resource in ResourceList)
+                            lock (ResourceList)
                             {
-                                foreach (ResourceModFile modFile in mod.Files.Where(file => file is ResourceModFile))
+                                foreach (var resource in ResourceList)
                                 {
-                                    resource.ModFileList.Remove(modFile);
+                                    foreach (ResourceModFile modFile in mod.Files.Where(file => file is ResourceModFile))
+                                    {
+                                        resource.ModFileList.Remove(modFile);
+                                    }
                                 }
                             }
                         }
