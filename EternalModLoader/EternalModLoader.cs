@@ -3004,7 +3004,7 @@ namespace EternalModLoader
                 {
                     for (int i = resource.ModFileList.Count - 1; i >= 0; i--)
                     {
-                        if (OnlineSafety.MultiplayerDisablerMod.Any(file => file.Name == resource.ModFileList[i].Name))
+                        if (OnlineSafety.MultiplayerDisablerMod.Any(file => !file.IsBlangJson && !file.IsAssetsInfoJson && file.Name == resource.ModFileList[i].Name))
                         {
                             resource.ModFileList.RemoveAt(i);
                         }
