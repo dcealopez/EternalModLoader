@@ -1,5 +1,6 @@
 ﻿using EternalModLoader.Mods;
 using EternalModLoader.Mods.Resources;
+using EternalModLoader.Mods.Sounds;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -408,84 +409,6 @@ namespace EternalModLoader
         };
 
         /// <summary>
-        /// Online-safe map resource types for assets
-        /// </summary>
-        public static string[] OnlineSafeMapResourceTypes = new string[]
-        {
-            "advancedscreenviewshake",
-            "ambientsh",
-            "audiolog",
-            "audiologstory",
-            "automap",
-            "automapplayerprofile",
-            "automapproperties",
-            "automapsoundprofile",
-            "basemodel",
-            "binarygorecontainer",
-            "binarymd6def",
-            "binaryrig",
-            "colorlut",
-            "cswf",
-            "env",
-            "font",
-            "fontfx",
-            "fx",
-            "gameitem",
-            "globalfonttable",
-            "gorebehavior",
-            "gorecontainer",
-            "gorewounds",
-            "handsbobcycle",
-            "havokragdoll",
-            "havokshape",
-            "highlightlos",
-            "highlights",
-            "hitconfirmationsoundsinfo",
-            "hud",
-            "hudelement",
-            "image",
-            "lightrig",
-            "lodgroup",
-            "material2",
-            "md6def",
-            "model",
-            "modelasset",
-            "modelstream",
-            "particle",
-            "particlestage",
-            "renderlayerdefinition",
-            "renderparm",
-            "renderparmmeta",
-            "renderprogdatabase",
-            "renderprogflag",
-            "renderprogresource",
-            "ribbon2",
-            "rumble",
-            "screenviewshake",
-            "soundevent",
-            "soundpack",
-            "soundrtpc",
-            "soundstate",
-            "soundswitch",
-            "speaker",
-            "staticimage",
-            "swfresources",
-            "uianchor",
-            "uicolor",
-            "weaponreticle",
-            "weaponreticleswfinfo",
-            "impacteffect",
-            "uiweapon",
-            "globalinitialwarehouse",
-            "globalshell",
-            "warehouseitem",
-            "warehouseofflinecontainer",
-            "tooltip",
-            "livetile",
-            "tutorialevent"
-        };
-
-        /// <summary>
         /// Online-safe mod name keywords
         /// </summary>
         public static string[] OnlineSafeModNameKeywords = new string[]
@@ -559,6 +482,18 @@ namespace EternalModLoader
             "/maps/game/shell/",
             "/maps/game/sp/",
             "/maps/game/tutorials/",
+            "/decls/campaign/"
+        };
+
+        /// <summary>
+        /// Online-unsafe resource name keywords
+        /// </summary>
+        public static string[] UnsafeResourceNameKeywords = new string[]
+        {
+            "gameresources",
+            "pvp",
+            "shell",
+            "warehouse"
         };
 
         /// <summary>
@@ -566,54 +501,70 @@ namespace EternalModLoader
         /// </summary>
         /// <param name="mod">mod</param>
         /// <returns>whether or not the mod with the given name and resource name is safe for online play</returns>
-        public static bool IsModSafeForOnline(ResourceModFile mod)
+        public static bool IsModSafeForOnline(Mod mod)
         {
-            if (mod.IsAssetsInfoJson)
+            bool isSafe = true;
+            bool isModifyingUnsafeResource = false;
+            List<ResourceModFile> assetsInfoJsons = new List<ResourceModFile>();
+
+            foreach (var modFile in mod.Files)
             {
-                if (mod.AssetsInfo != null)
+                if (modFile is SoundModFile)
                 {
-                    // Restrict new assets by map resource type
-                    if (mod.AssetsInfo.Assets != null)
-                    {
-                        // Don't allow any new assets in multiplayer maps
-                        if (!string.IsNullOrEmpty(mod.ResourceName)
-                            && mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return false;
-                        }
+                    continue;
+                }
 
-                        foreach (var asset in mod.AssetsInfo.Assets)
-                        {
-                            if (string.IsNullOrEmpty(asset.MapResourceType))
-                            {
-                                continue;
-                            }
+                var resourceModFile = modFile as ResourceModFile;
 
-                            if (!OnlineSafeMapResourceTypes.Contains(asset.MapResourceType.Trim().ToLowerInvariant()))
-                            {
-                                return false;
-                            }
-                        }
-                    }
+                // Check assets info files last
+                if (resourceModFile.IsAssetsInfoJson)
+                {
+                    assetsInfoJsons.Add(resourceModFile);
+                    continue;
+                }
 
-                    // Don't allow adding resources to the multiplayer maps
-                    if (mod.AssetsInfo.Resources != null
-                        && !string.IsNullOrEmpty(mod.ResourceName)
-                        && mod.ResourceName.StartsWith("pvp", StringComparison.OrdinalIgnoreCase))
+                if (UnsafeResourceNameKeywords.Any(keyword => resourceModFile.ResourceName.StartsWith(keyword)))
+                {
+                    isModifyingUnsafeResource = true;
+                }
+
+                // Allow modification of anything outside of "generated/decls/"
+                if (!string.IsNullOrEmpty(resourceModFile.Name)
+                    && !resourceModFile.Name.StartsWith("generated/decls/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                isSafe = OnlineSafeModNameKeywords.Any(keyword => resourceModFile.Name.Contains(keyword));
+            }
+
+            if (isSafe)
+            {
+                return true;
+            }
+
+            if (!isSafe && isModifyingUnsafeResource)
+            {
+                return false;
+            }
+
+            // Don't allow adding unsafe mods in safe resource files into unsafe resources files
+            // Otherwise, don't mark the mod as unsafe, it should be fine for single-player if
+            // the mod is not modifying a critical resource
+            foreach (var assetsInfo in assetsInfoJsons)
+            {
+                if (assetsInfo.AssetsInfo != null)
+                {
+                    if (assetsInfo.AssetsInfo.Resources != null
+                        && !string.IsNullOrEmpty(assetsInfo.ResourceName)
+                        && UnsafeResourceNameKeywords.Any(keyword => assetsInfo.ResourceName.StartsWith(keyword)))
                     {
                         return false;
                     }
                 }
             }
 
-            // Allow modification of anything outside "generated/decls/"
-            if (!string.IsNullOrEmpty(mod.Name)
-                && !mod.Name.StartsWith("generated/decls/", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return OnlineSafeModNameKeywords.Any(keyword => mod.Name.Contains(keyword));
+            return true;
         }
     }
 }

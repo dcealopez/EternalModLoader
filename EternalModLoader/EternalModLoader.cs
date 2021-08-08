@@ -2533,6 +2533,8 @@ namespace EternalModLoader
 
                                         // Load the sound mod
                                         SoundModFile soundModFile = new SoundModFile(mod, Path.GetFileName(modFileName));
+                                        mod.Files.Add(soundModFile);
+
                                         soundModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
                                         zipReader.ReadCurrentEntry(soundModFile.FileData);
 
@@ -2556,6 +2558,7 @@ namespace EternalModLoader
 
                                     // Create the mod object and read the unzipped files
                                     ResourceModFile resourceModFile = new ResourceModFile(mod, modFileName, resourceName);
+                                    mod.Files.Add(resourceModFile);
 
                                     if (!listResources)
                                     {
@@ -2605,22 +2608,27 @@ namespace EternalModLoader
                                         }
                                     }
 
-                                    // Determine if the mod is safe for online play
-                                    if (mod.IsSafeForOnline)
-                                    {
-                                        if (!OnlineSafety.IsModSafeForOnline(resourceModFile))
-                                        {
-                                            AreModsSafeForOnline = false;
-                                            mod.IsSafeForOnline = false;
-                                        }
-                                    }
-
-                                    if (!LoadOnlineSafeOnlyMods || (LoadOnlineSafeOnlyMods && mod.IsSafeForOnline))
-                                    {
-                                        resource.ModFileList.Add(resourceModFile);
-                                    }
-
+                                    resource.ModFileList.Add(resourceModFile);
                                     zippedModCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    // Check if the mod is safe for online play
+                    if (!OnlineSafety.IsModSafeForOnline(mod))
+                    {
+                        AreModsSafeForOnline = false;
+                        mod.IsSafeForOnline = false;
+
+                        // Unload the mod files if necessary
+                        if (LoadOnlineSafeOnlyMods)
+                        {
+                            foreach (var resource in ResourceList)
+                            {
+                                foreach (ResourceModFile modFile in mod.Files.Where(file => file is ResourceModFile))
+                                {
+                                    resource.ModFileList.Remove(modFile);
                                 }
                             }
                         }
@@ -2798,6 +2806,7 @@ namespace EternalModLoader
 
                                 // Load the sound mod
                                 SoundModFile soundModFile = new SoundModFile(globalLooseMod, Path.GetFileName(modFileName));
+                                globalLooseMod.Files.Add(soundModFile);
 
                                 using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
                                 {
@@ -2825,6 +2834,7 @@ namespace EternalModLoader
 
                             // Create the mod object and read the files
                             ResourceModFile mod = new ResourceModFile(globalLooseMod, modFileName, resourceName);
+                            globalLooseMod.Files.Add(mod);
 
                             if (!listResources)
                             {
@@ -2883,21 +2893,7 @@ namespace EternalModLoader
                                 }
                             }
 
-                            // Determine if the mod is safe for online play
-                            if (globalLooseMod.IsSafeForOnline)
-                            {
-                                if (!OnlineSafety.IsModSafeForOnline(mod))
-                                {
-                                    AreModsSafeForOnline = false;
-                                    globalLooseMod.IsSafeForOnline = false;
-                                }
-                            }
-
-                            if (!LoadOnlineSafeOnlyMods || (LoadOnlineSafeOnlyMods && globalLooseMod.IsSafeForOnline))
-                            {
-                                resource.ModFileList.Add(mod);
-                            }
-
+                            resource.ModFileList.Add(mod);
                             unzippedModCount++;
                         }
                     }
@@ -2921,6 +2917,25 @@ namespace EternalModLoader
 
             fileLoadBufferedConsole.Flush();
             looseStopwatch.Stop();
+
+            // Check if the global loose mod is safe for online play
+            if (!OnlineSafety.IsModSafeForOnline(globalLooseMod))
+            {
+                AreModsSafeForOnline = false;
+                globalLooseMod.IsSafeForOnline = false;
+
+                // Unload the mod files if necessary
+                if (LoadOnlineSafeOnlyMods)
+                {
+                    foreach (var resource in ResourceList)
+                    {
+                        foreach (ResourceModFile modFile in globalLooseMod.Files.Where(file => file is ResourceModFile))
+                        {
+                            resource.ModFileList.Remove(modFile);
+                        }
+                    }
+                }
+            }
 
             if (unzippedModCount > 0 && !listResources)
             {
@@ -2980,6 +2995,20 @@ namespace EternalModLoader
             // Disable multiplayer if needed
             if (!AreModsSafeForOnline && !LoadOnlineSafeOnlyMods)
             {
+                // First, if any other mod is modifying the same files as the multiplayer disabler
+                // don't load those mod files at all
+                foreach (var resource in ResourceList)
+                {
+                    for (int i = resource.ModFileList.Count - 1; i >= 0; i--)
+                    {
+                        if (OnlineSafety.MultiplayerDisablerMod.Any(file => file.Name == resource.ModFileList[i].Name))
+                        {
+                            resource.ModFileList.RemoveAt(i);
+                        }
+                    }
+                }
+
+                // Load in the multiplayer disabler mod files
                 foreach (ResourceModFile mod in OnlineSafety.MultiplayerDisablerMod)
                 {
                     var resource = ResourceList.FirstOrDefault(res => res.Name == mod.ResourceName);

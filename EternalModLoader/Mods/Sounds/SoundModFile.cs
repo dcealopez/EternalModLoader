@@ -5,13 +5,8 @@ namespace EternalModLoader.Mods.Sounds
     /// <summary>
     /// Sound mod class
     /// </summary>
-    public class SoundModFile
+    public class SoundModFile : ModFile
     {
-        /// <summary>
-        /// Parent mod where this mod file is from
-        /// </summary>
-        public Mod Parent;
-
         /// <summary>
         /// Sound mod name (file name, either a sound number identifier or string)
         /// </summary>

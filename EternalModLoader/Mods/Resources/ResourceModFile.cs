@@ -6,13 +6,8 @@ namespace EternalModLoader.Mods.Resources
     /// <summary>
     /// Mod class
     /// </summary>
-    public class ResourceModFile
+    public class ResourceModFile : ModFile
     {
-        /// <summary>
-        /// Parent mod where this mod file is from
-        /// </summary>
-        public Mod Parent;
-
         /// <summary>
         /// Mod name
         /// </summary>

@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace EternalModLoader.Mods
@@ -23,6 +24,11 @@ namespace EternalModLoader.Mods
         /// Required mod loader version to run the mod
         /// </summary>
         public int RequiredVersion;
+
+        /// <summary>
+        /// This mod's files
+        /// </summary>
+        public List<ModFile> Files = new List<ModFile>();
 
         /// <summary>
         /// Deserializes a Mod object from a JSON string
