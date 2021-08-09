@@ -523,7 +523,7 @@ namespace EternalModLoader
                     continue;
                 }
 
-                if (UnsafeResourceNameKeywords.Any(keyword => resourceModFile.ResourceName.StartsWith(keyword)))
+                if (UnsafeResourceNameKeywords.Any(keyword => resourceModFile.ResourceName.StartsWith(keyword, StringComparison.OrdinalIgnoreCase)))
                 {
                     isModifyingUnsafeResource = true;
                 }
@@ -535,7 +535,10 @@ namespace EternalModLoader
                     continue;
                 }
 
-                isSafe = OnlineSafeModNameKeywords.Any(keyword => resourceModFile.Name.Contains(keyword));
+                if (isSafe)
+                {
+                    isSafe = OnlineSafeModNameKeywords.Any(keyword => resourceModFile.Name.ToLower().Contains(keyword));
+                }
             }
 
             if (isSafe)
@@ -557,7 +560,7 @@ namespace EternalModLoader
                 {
                     if (assetsInfo.AssetsInfo.Resources != null
                         && !string.IsNullOrEmpty(assetsInfo.ResourceName)
-                        && UnsafeResourceNameKeywords.Any(keyword => assetsInfo.ResourceName.StartsWith(keyword)))
+                        && UnsafeResourceNameKeywords.Any(keyword => assetsInfo.ResourceName.StartsWith(keyword, StringComparison.OrdinalIgnoreCase)))
                     {
                         return false;
                     }
