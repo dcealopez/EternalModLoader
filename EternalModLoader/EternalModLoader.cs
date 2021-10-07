@@ -543,17 +543,11 @@ namespace EternalModLoader
 
                                         // Add the extra resources before all the original resources the level loads
                                         // Find the necessary map and file indexes
-                                        int fileIndex = -1;
-                                        int mapIndex = -1;
+                                        var filesList = PackageMapSpecInfo.PackageMapSpec.Files.ToList();
+                                        var mapsList = PackageMapSpecInfo.PackageMapSpec.Maps.ToList();
 
-                                        for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
-                                        {
-                                            if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.Contains(extraResource.Name))
-                                            {
-                                                fileIndex = i;
-                                                break;
-                                            }
-                                        }
+                                        int fileIndex = filesList.FindIndex(file => Path.GetFileName(file.Name).Equals(extraResource.Name, StringComparison.Ordinal));
+                                        int mapIndex = -1;
 
                                         // Special cases for the hubs
                                         string modFileMapName = Path.GetFileNameWithoutExtension(modFile.Name);
@@ -561,19 +555,16 @@ namespace EternalModLoader
                                         if (resourceContainer.Name.StartsWith("dlc_hub", StringComparison.Ordinal))
                                         {
                                             modFileMapName = "game/dlc/hub/hub";
+                                            mapIndex = mapsList.FindIndex(map => map.Name.Equals(modFileMapName, StringComparison.Ordinal));
                                         }
                                         else if (resourceContainer.Name.StartsWith("hub", StringComparison.Ordinal))
                                         {
                                             modFileMapName = "game/hub/hub";
+                                            mapIndex = mapsList.FindIndex(map => map.Name.Equals(modFileMapName, StringComparison.Ordinal));
                                         }
-
-                                        for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Maps.Count; i++)
+                                        else
                                         {
-                                            if (PackageMapSpecInfo.PackageMapSpec.Maps[i].Name.EndsWith(modFileMapName, StringComparison.Ordinal))
-                                            {
-                                                mapIndex = i;
-                                                break;
-                                            }
+                                            mapIndex = mapsList.FindIndex(map => Path.GetFileName(map.Name).Equals(modFileMapName, StringComparison.Ordinal));
                                         }
 
                                         if (fileIndex == -1)
@@ -683,16 +674,7 @@ namespace EternalModLoader
                                             else
                                             {
                                                 // Find placement resource index
-                                                int placeBeforeFileIndex = -1;
-
-                                                for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
-                                                {
-                                                    if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.Contains(extraResource.PlaceByName))
-                                                    {
-                                                        placeBeforeFileIndex = i;
-                                                        break;
-                                                    }
-                                                }
+                                                int placeBeforeFileIndex = filesList.FindIndex(file => Path.GetFileName(file.Name).Equals(extraResource.PlaceByName, StringComparison.Ordinal));
 
                                                 // Find placement resource map-file reference
                                                 for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Count; i++)
@@ -2178,13 +2160,15 @@ namespace EternalModLoader
             {
                 var dlcHubFileName = name.Substring(4, name.Length - 4);
                 name = $"game{Path.DirectorySeparatorChar}dlc{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{dlcHubFileName}";
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
             }
             else if (name.StartsWith("hub", StringComparison.Ordinal))
             {
                 name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{name}";
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
             }
 
-            return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
+            return ResourceContainerPathList.FirstOrDefault(p => Path.GetFileName(p).Equals(name, StringComparison.Ordinal));
         }
 
         /// <summary>
@@ -2194,7 +2178,7 @@ namespace EternalModLoader
         /// <returns>the path to the .snd file for the specified sound container name, empty string if it wasn't found</returns>
         public static string PathToSoundContainer(string name)
         {
-            return SoundContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
+            return SoundContainerPathList.FirstOrDefault(p => Path.GetFileName(p).Equals(name, StringComparison.Ordinal));
         }
 
         /// <summary>
