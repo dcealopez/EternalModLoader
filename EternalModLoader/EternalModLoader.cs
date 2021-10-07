@@ -2178,13 +2178,15 @@ namespace EternalModLoader
             {
                 var dlcHubFileName = name.Substring(4, name.Length - 4);
                 name = $"game{Path.DirectorySeparatorChar}dlc{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{dlcHubFileName}";
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal);
             }
             else if (name.StartsWith("hub", StringComparison.Ordinal))
             {
                 name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{name}";
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal);
             }
 
-            return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
+            return ResourceContainerPathList.FirstOrDefault(p => Path.GetFileName(p).Equals(name, StringComparison.Ordinal));
         }
 
         /// <summary>
