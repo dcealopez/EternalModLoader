@@ -26,7 +26,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 14;
 
         /// <summary>
         /// Resource data file name
@@ -546,6 +546,15 @@ namespace EternalModLoader
                                         int fileIndex = -1;
                                         int mapIndex = -1;
 
+                                        // Get the map name of the resource container
+                                        string modFileMapName = Path.GetFileNameWithoutExtension(modFile.Name);
+
+                                        // Check if there is a resource with the map's name, if so, build the map name using the path of the resource container
+                                        if (!string.IsNullOrEmpty(PathToResource(modFileMapName + ".resources")))
+                                        {
+                                            modFileMapName = $"{Path.GetDirectoryName(resourceContainer.Path.Substring(resourceContainer.Path.IndexOf($"{Path.DirectorySeparatorChar}base{Path.DirectorySeparatorChar}") + 6)).Replace('\\', '/')}/{modFileMapName}";
+                                        }
+
                                         for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
                                         {
                                             if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.Contains(extraResource.Name))
@@ -555,21 +564,9 @@ namespace EternalModLoader
                                             }
                                         }
 
-                                        // Special cases for the hubs
-                                        string modFileMapName = Path.GetFileNameWithoutExtension(modFile.Name);
-
-                                        if (resourceContainer.Name.StartsWith("dlc_hub", StringComparison.Ordinal))
-                                        {
-                                            modFileMapName = "game/dlc/hub/hub";
-                                        }
-                                        else if (resourceContainer.Name.StartsWith("hub", StringComparison.Ordinal))
-                                        {
-                                            modFileMapName = "game/hub/hub";
-                                        }
-
                                         for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Maps.Count; i++)
                                         {
-                                            if (PackageMapSpecInfo.PackageMapSpec.Maps[i].Name.EndsWith(modFileMapName, StringComparison.Ordinal))
+                                            if (PackageMapSpecInfo.PackageMapSpec.Maps[i].Name.Equals(modFileMapName, StringComparison.Ordinal))
                                             {
                                                 mapIndex = i;
                                                 break;
@@ -2178,13 +2175,17 @@ namespace EternalModLoader
             {
                 var dlcHubFileName = name.Substring(4, name.Length - 4);
                 name = $"game{Path.DirectorySeparatorChar}dlc{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{dlcHubFileName}";
+
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
             }
             else if (name.StartsWith("hub", StringComparison.Ordinal))
             {
                 name = $"game{Path.DirectorySeparatorChar}hub{Path.DirectorySeparatorChar}{name}";
+
+                return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
             }
 
-            return ResourceContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
+            return ResourceContainerPathList.FirstOrDefault(p => Path.GetFileName(p).Equals(name, StringComparison.Ordinal));
         }
 
         /// <summary>
@@ -2194,7 +2195,7 @@ namespace EternalModLoader
         /// <returns>the path to the .snd file for the specified sound container name, empty string if it wasn't found</returns>
         public static string PathToSoundContainer(string name)
         {
-            return SoundContainerPathList.FirstOrDefault(p => p.EndsWith(name, StringComparison.Ordinal));
+            return SoundContainerPathList.FirstOrDefault(p => Path.GetFileName(p).EndsWith(name, StringComparison.Ordinal));
         }
 
         /// <summary>
