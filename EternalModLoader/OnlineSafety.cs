@@ -325,11 +325,11 @@ namespace EternalModLoader
                     0x65, 0x6E, 0x61, 0x5F, 0x6E, 0x61, 0x6D, 0x65, 0x22, 0x3B, 0x7D, 0x7D
                 })
             },
-            new ResourceModFile(s_parentMod, "swf/hud/menus/battle_arena/play_online_screen.swf", "gameresources_patch1", false)
+            new ResourceModFile(s_parentMod, "swf/hud/menus/battle_arena/play_online_screen.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(s_genericSWFData, 0, s_genericSWFData.Length, false, true)
             },
-            new ResourceModFile(s_parentMod, "swf/hud/menus/battle_arena/lobby.swf", "gameresources_patch1", false)
+            new ResourceModFile(s_parentMod, "swf/hud/menus/battle_arena/lobby.swf", "gameresources_patch2", false)
             {
                 FileData = new MemoryStream(s_genericSWFData, 0, s_genericSWFData.Length, false, true)
             },
