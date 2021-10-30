@@ -2384,6 +2384,9 @@ namespace EternalModLoader
 
             BufferedConsole.Flush();
 
+            // Initialize the multiplayer disabler mod
+            OnlineSafety.InitMultiplayerDisablerMod();
+
             // Read all the necessary game file paths
             FillContainerPathList();
 
