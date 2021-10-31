@@ -271,7 +271,7 @@ namespace EternalModLoader
             { "italian",                "^8BATTLEMODE 2.0 (DISABILITATO)" },
             { "german",                 "^8BATTLEMODE 2.0 (DEAKTIVIERT)" },
             { "spanish",                "^8BATTLEMODE 2.0 (DESHABILITADO)" },
-            { "russian",                "^8BATTLEMODE 2.0 (ОТКЛЮЧЕНА)" },
+            { "russian",                "^8BATTLEMODE 2.0 (ОТКЛЮЧЕН)" },
             { "polish",                 "^8BATTLEMODE 2.0 (DEZAKTYWOWANY)" },
             { "japanese",               "^8BATTLEMODE 2.0(無効)" },
             { "latin_spanish",          "^8BATTLEMODE 2.0 (DESHABILITADO)" },

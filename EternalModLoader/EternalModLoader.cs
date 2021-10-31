@@ -172,15 +172,16 @@ namespace EternalModLoader
 
                 for (int i = 0; i < namesSize; i++)
                 {
+                    // Stop reading this section if we already got all the names
+                    if (namesList.Count == namesNum)
+                    {
+                        break;
+                    }
+
                     byte currentByte = binaryReader.ReadByte();
 
                     if (currentByte == '\x00' || i == namesSize - 1)
                     {
-                        if (charCount == 0)
-                        {
-                            continue;
-                        }
-
                         nameBuffer[charCount] = '\x00';
 
                         // Support full filenames and "normalized" filenames (backwards compatibility)
