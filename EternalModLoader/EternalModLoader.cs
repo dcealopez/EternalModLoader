@@ -26,7 +26,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 14;
+        public const int Version = 15;
 
         /// <summary>
         /// Resource data file name
