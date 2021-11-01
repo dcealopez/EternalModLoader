@@ -529,19 +529,6 @@ namespace EternalModLoader
                                 {
                                     foreach (var extraResource in modFile.AssetsInfo.Resources)
                                     {
-                                        // First check that the resource trying to be added actually exists
-                                        var extraResourcePath = PathToResource(extraResource.Name);
-
-                                        if (extraResourcePath == null)
-                                        {
-                                            bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                            bufferedConsole.Write("WARNING: ");
-                                            bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                            bufferedConsole.WriteLine($"Trying to add non-existing extra resource \"{extraResource.Name}\" to \"{resourceContainer.Name}\", skipping");
-                                            bufferedConsole.ResetColor();
-                                            continue;
-                                        }
-
                                         // Add the extra resources before all the original resources the level loads
                                         // Find the necessary map and file indexes
                                         int fileIndex = -1;
