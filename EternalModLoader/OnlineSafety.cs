@@ -386,7 +386,7 @@ namespace EternalModLoader
             {
                 var jsonBytes = Encoding.UTF8.GetBytes($"{{\"strings\":[{{\"name\":\"#str_code_mainmenu_play_online_name\",\"text\":\"{localization.Value}\"}}]}}");
 
-                MultiplayerDisablerMod.Add(new ResourceModFile(s_parentMod, $"EternalMod/strings/{localization.Key}.json", "gameresources_patch2", false)
+                MultiplayerDisablerMod.Add(new ResourceModFile(s_parentMod, $"EternalMod/strings/{localization.Key}.json", "gameresources_patch1", false)
                 {
                     IsBlangJson = true,
                     FileData = new MemoryStream(jsonBytes, 0, jsonBytes.Length, false, true)
