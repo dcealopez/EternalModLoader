@@ -26,7 +26,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 17;
+        public const int Version = 18;
 
         /// <summary>
         /// Resource data file name
@@ -1255,7 +1255,8 @@ namespace EternalModLoader
                     byte? compressionMode = 0;
 
                     // If this is a texture, check if it's compressed, or compress it if necessary
-                    if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga", StringComparison.Ordinal))
+                    if (chunk.ResourceName.NormalizedFileName.EndsWith(".tga", StringComparison.Ordinal) ||
+                        chunk.ResourceName.NormalizedFileName.EndsWith(".png", StringComparison.Ordinal))
                     {
                         // Get the texture data buffer, check if it's a DIVINITY compressed texture
                         var textureDataBuffer = modFile.FileData.GetBuffer();
@@ -1656,7 +1657,7 @@ namespace EternalModLoader
                 long uncompressedSize = mod.FileData.Length;
                 byte compressionMode = 0;
 
-                if (mod.Name.Contains(".tga"))
+                if (mod.Name.Contains(".tga") || mod.Name.Contains(".png"))
                 {
                     // Get the texture data buffer, check if it's a DIVINITY compressed texture
                     var textureDataBuffer = mod.FileData.GetBuffer();
