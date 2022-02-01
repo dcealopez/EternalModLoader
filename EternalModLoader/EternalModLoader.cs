@@ -11,6 +11,7 @@ using EternalModLoader.Mods.Resources.ResourceData;
 using EternalModLoader.Mods.Resources.Blang;
 using EternalModLoader.Mods.Resources.MapResources;
 using EternalModLoader.Mods.Sounds;
+using EternalModLoader.Mods.StreamDB;
 using EternalModLoader.Zlib;
 using System.Threading.Tasks;
 
@@ -93,6 +94,11 @@ namespace EternalModLoader
         /// Sound container list
         /// </summary>
         public static List<SoundContainer> SoundContainerList = new List<SoundContainer>();
+
+        /// <summary>
+        /// Streamdb container list
+        /// </summary>
+        public static List<StreamDBContainer> StreamDBContainerList = new List<StreamDBContainer>();
 
         /// <summary>
         /// List of all the game's .resources and .streamdb file paths
@@ -2449,6 +2455,7 @@ namespace EternalModLoader
 
                             // Determine the game container for each mod file
                             bool isSoundMod = false;
+                            bool isStreamDBMod = false;
                             string modFileName = zipEntry.Name;
                             var firstForwardSlash = modFileName.IndexOf('/');
 
@@ -2470,10 +2477,18 @@ namespace EternalModLoader
                                 modFileName = modFileName.Substring(firstForwardSlash + 1);
                             }
 
-                            // Check if this is a sound mod or not
+                            // Get path to resource file
                             var resourcePath = PathToResource($"{resourceName}.resources");
 
-                            if (resourcePath == null)
+                            // Check if this is a streamdb mod
+                            if (resourceName == "streamdb")
+                            {
+                                isStreamDBMod = true;
+                                resourcePath = Path.GetFullPath(Path.Combine(BasePath + "\\EternalMod.streamdb"));
+                            }
+
+                            // Check if this is a sound mod
+                            if (resourcePath == null && resourceName != "streamdb")
                             {
                                 resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
@@ -2495,7 +2510,36 @@ namespace EternalModLoader
                                 }
                             }
 
-                            if (isSoundMod)
+                            if (isStreamDBMod)
+                            {
+                                // Get the streamdb container info object, create it if it doesn't exist
+                                lock (StreamDBContainerList)
+                                {
+                                    var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+
+                                    if (streamDBContainer == null)
+                                    {
+                                        streamDBContainer = new StreamDBContainer("EternalMod.streamdb", resourcePath);
+                                        StreamDBContainerList.Add(streamDBContainer);
+                                    }
+
+                                    // Create the mod object and read the unzipped files
+                                    if (!listResources)
+                                    {
+                                        // Load the streamdb mod
+                                        StreamDBModFile streamDBModFile = new StreamDBModFile(mod, Path.GetFileName(modFileName));
+                                        mod.Files.Add(streamDBModFile);
+
+                                        streamDBModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
+                                        zipReader.ReadCurrentEntry(streamDBModFile.FileData);
+
+                                        streamDBContainer.ModFiles.Add(streamDBModFile);
+                                        zippedModCount++;
+                                    }
+                                }
+
+                            }
+                            else if (isSoundMod)
                             {
                                 // Get the sound container info object, create it if it doesn't exist
                                 lock (SoundContainerList)
