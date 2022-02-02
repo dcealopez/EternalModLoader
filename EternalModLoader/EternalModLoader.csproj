@@ -101,6 +101,9 @@
     <Compile Include="Mods\Mod.cs" />
     <Compile Include="Mods\Resources\ResourceName.cs" />
     <Compile Include="Mods\Sounds\SoundEntry.cs" />
+    <Compile Include="Mods\StreamDB\StreamDBContainer.cs" />
+    <Compile Include="Mods\StreamDB\StreamDBEntry.cs" />
+    <Compile Include="Mods\StreamDB\StreamDBModFile.cs" />
     <Compile Include="OnlineSafety.cs" />
     <Compile Include="OodleWrapper.cs" />
     <Compile Include="Mods\Resources\PackageMapSpec.cs" />

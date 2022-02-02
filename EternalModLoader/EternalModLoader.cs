@@ -527,6 +527,15 @@ namespace EternalModLoader
                                             bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
                                             PackageMapSpecInfo.InvalidPackageMapSpec = true;
                                         }
+
+                                        // Add custom streamdb if needed
+                                        if (PackageMapSpecInfo.PackageMapSpec != null && !PackageMapSpecInfo.InvalidPackageMapSpec)
+                                        {
+                                            if (StreamDBContainerList.Exists(streamDBContainer => streamDBContainer.Name == "EternalMod.streamdb"))
+                                            {
+                                                AddCustomStreamDB("EternalMod.streamdb");
+                                            }
+                                        }
                                     }
                                 }
 
@@ -2194,6 +2203,48 @@ namespace EternalModLoader
         }
 
         /// <summary>
+        /// Adds a new .streamdb file to packagemapspec
+        /// </summary>
+        /// <param name="fileName">streamdb's filename</param>
+        public static void AddCustomStreamDB(string fileName)
+        {
+            // Find the first streamdb file in the files array
+            int firstStreamDBIndex = -1;
+
+            for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
+            {
+                if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.EndsWith(".streamdb"))
+                {
+                    firstStreamDBIndex = i;
+                    break;
+                }
+            }
+
+            if (firstStreamDBIndex == -1)
+            {
+                // This really shouldn't happen
+                firstStreamDBIndex = PackageMapSpecInfo.PackageMapSpec.Files.Count - 1;
+            }
+
+            // Insert the modded streamdb file before the rest
+            PackageMapSpecInfo.PackageMapSpec.Files.Insert(firstStreamDBIndex, new PackageMapSpecFile()
+            {
+                Name = fileName
+            });
+
+            // Fix the file indexes in the mapFileRefs
+            foreach (var mapFileRef in PackageMapSpecInfo.PackageMapSpec.MapFileRefs)
+            {
+                if (mapFileRef.File >= firstStreamDBIndex)
+                {
+                    mapFileRef.File += 1;
+                }
+            }
+
+            PackageMapSpecInfo.WasPackageMapSpecModified = true;
+        }
+
+        /// <summary>
         /// Main entry point
         /// </summary>
         /// <param name="args">program args</param>
@@ -3066,7 +3117,8 @@ namespace EternalModLoader
             // List the resources that will be modified
             if (listResources)
             {
-                bool printPackageMapSpecJsonPath = false;
+                // Print the packagemapspec path if the modded streamdb was added
+                bool printPackageMapSpecJsonPath = StreamDBContainerList.Exists(streamDbContainer => streamDbContainer.Name == "EternalMod.streamdb");
 
                 // We need to set the console encoding to ASCII here to avoid problems with
                 // the mod injector parsing the resources list
