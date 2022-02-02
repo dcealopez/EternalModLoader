@@ -2817,6 +2817,7 @@ namespace EternalModLoader
 
                     // Determine the game container for each mod file
                     bool isSoundMod = false;
+                    bool isStreamDBMod = false;
                     var firstForwardSlash = modFileName.IndexOf('/');
 
                     if (firstForwardSlash == -1)
@@ -2837,10 +2838,18 @@ namespace EternalModLoader
                         modFileName = modFileName.Substring(firstForwardSlash + 1);
                     }
 
-                    // Check if this is a sound mod or not
+                    // Get path to resource file
                     var resourcePath = PathToResource($"{resourceName}.resources");
 
-                    if (resourcePath == null)
+                    // Check if this is a streamdb mod
+                    if (resourceName == "streamdb")
+                    {
+                        isStreamDBMod = true;
+                        resourcePath = Path.GetFullPath(Path.Combine(BasePath + "\\EternalMod.streamdb"));
+                    }
+
+                    // Check if this is a sound mod
+                    if (resourcePath == null && resourceName != "streamdb")
                     {
                         resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
@@ -2862,7 +2871,39 @@ namespace EternalModLoader
                         }
                     }
 
-                    if (isSoundMod)
+                    if (isStreamDBMod)
+                    {
+                        // Get the streamdb container info object, create it if it doesn't exist
+                        lock (StreamDBContainerList)
+                        {
+                            var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+
+                            if (streamDBContainer == null)
+                            {
+                                streamDBContainer = new StreamDBContainer("EternalMod.streamdb", resourcePath);
+                                StreamDBContainerList.Add(streamDBContainer);
+                            }
+
+                            // Create the mod object and read the unzipped files
+                            if (!listResources)
+                            {
+                                // Load the streamdb mod
+                                StreamDBModFile streamDBModFile = new StreamDBModFile(globalLooseMod, Path.GetFileName(modFileName));
+                                globalLooseMod.Files.Add(streamDBModFile);
+
+                                using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+                                {
+                                    streamDBModFile.FileData = new MemoryStream((int)fileStream.Length);
+                                    fileStream.CopyTo(streamDBModFile.FileData);
+                                }
+
+                                streamDBContainer.ModFiles.Add(streamDBModFile);
+                                unzippedModCount++;
+                            }
+                        }
+
+                    }
+                    else if (isSoundMod)
                     {
                         lock (SoundContainerList)
                         {
