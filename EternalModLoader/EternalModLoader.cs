@@ -500,42 +500,12 @@ namespace EternalModLoader
                                 // Deserialize the packagemapspec JSON if it hasn't been deserialized yet
                                 if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                                 {
-                                    PackageMapSpecInfo.PackageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
-
-                                    if (!File.Exists(PackageMapSpecInfo.PackageMapSpecPath))
+                                    if (!ReadPackageMapSpec())
                                     {
                                         bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                                         bufferedConsole.Write("ERROR: ");
                                         bufferedConsole.ResetColor();
-                                        bufferedConsole.WriteLine($"{PackageMapSpecInfo.PackageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
-                                        PackageMapSpecInfo.InvalidPackageMapSpec = true;
-                                    }
-                                    else
-                                    {
-                                        var packageMapSpecFileBytes = File.ReadAllBytes(PackageMapSpecInfo.PackageMapSpecPath);
-
-                                        try
-                                        {
-                                            // Try to parse the JSON
-                                            PackageMapSpecInfo.PackageMapSpec = PackageMapSpec.FromJson(Encoding.UTF8.GetString(packageMapSpecFileBytes));
-                                        }
-                                        catch
-                                        {
-                                            bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                            bufferedConsole.Write("ERROR: ");
-                                            bufferedConsole.ResetColor();
-                                            bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
-                                            PackageMapSpecInfo.InvalidPackageMapSpec = true;
-                                        }
-
-                                        // Add custom streamdb if needed
-                                        if (PackageMapSpecInfo.PackageMapSpec != null && !PackageMapSpecInfo.InvalidPackageMapSpec)
-                                        {
-                                            if (StreamDBContainerList.Exists(streamDBContainer => streamDBContainer.Name == "EternalMod.streamdb"))
-                                            {
-                                                AddCustomStreamDB("EternalMod.streamdb");
-                                            }
-                                        }
+                                        bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
                                     }
                                 }
 
@@ -1399,11 +1369,65 @@ namespace EternalModLoader
         }
 
         /// <summary>
+        /// Reads the packageMapSpec JSON file
+        /// </summary>
+        /// <returns>true if no errors occured, false if errors occured</returns>
+        public static bool ReadPackageMapSpec()
+        {
+            PackageMapSpecInfo.PackageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+
+            if (!File.Exists(PackageMapSpecInfo.PackageMapSpecPath))
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            var packageMapSpecFileBytes = File.ReadAllBytes(PackageMapSpecInfo.PackageMapSpecPath);
+
+            try
+            {
+                // Try to parse the JSON
+                PackageMapSpecInfo.PackageMapSpec = PackageMapSpec.FromJson(Encoding.UTF8.GetString(packageMapSpecFileBytes));
+            }
+            catch
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            if (PackageMapSpecInfo.PackageMapSpec == null)
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Modifies the packageMapSpec JSON file if needed
         /// </summary>
         public static void ModifyPackageMapSpec()
         {
             var bufferedConsole = new BufferedConsole();
+
+            // Add custom streamdb if needed
+            if (StreamDBContainerList.Exists(streamDBContainer => streamDBContainer.Name == "EternalMod.streamdb"))
+            {
+                if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
+                {
+                    if (!ReadPackageMapSpec())
+                    {
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        bufferedConsole.Write("ERROR: ");
+                        bufferedConsole.ResetColor();
+                        bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
+                        return;
+                    }
+                }
+
+                AddCustomStreamDB("EternalMod.streamdb");
+            }
 
             if (PackageMapSpecInfo.PackageMapSpec != null && PackageMapSpecInfo.WasPackageMapSpecModified)
             {
