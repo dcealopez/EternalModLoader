@@ -2563,7 +2563,7 @@ namespace EternalModLoader
                             }
 
                             // Check if this is a sound mod
-                            if (resourcePath == null && resourceName != "streamdb")
+                            if (resourcePath == null && !isStreamDBMod)
                             {
                                 resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
@@ -2873,7 +2873,7 @@ namespace EternalModLoader
                     }
 
                     // Check if this is a sound mod
-                    if (resourcePath == null && resourceName != "streamdb")
+                    if (resourcePath == null && !isStreamDBMod)
                     {
                         resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
