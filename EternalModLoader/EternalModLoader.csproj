@@ -103,6 +103,7 @@
     <Compile Include="Mods\Sounds\SoundEntry.cs" />
     <Compile Include="Mods\StreamDB\StreamDBContainer.cs" />
     <Compile Include="Mods\StreamDB\StreamDBEntry.cs" />
+    <Compile Include="Mods\StreamDB\StreamDBHeader.cs" />
     <Compile Include="Mods\StreamDB\StreamDBModFile.cs" />
     <Compile Include="OnlineSafety.cs" />
     <Compile Include="OodleWrapper.cs" />

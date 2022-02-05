@@ -6,24 +6,31 @@
     public class StreamDBEntry
     {
         /// <summary>
-        /// File Id
+        /// 0x00 - File Id
         /// </summary>
-        public uint FileId;
+        public ulong FileId;
 
         /// <summary>
-        /// Data offset for this file entry in the streamdb file
+        /// 0x08 - Data offset for this file entry in the streamdb file - multiply by 16 for real offset
         /// </summary>
-        public long DataOffset;
+        public uint DataOffset16;
+
+        /// <summary>
+        /// 0x0C - Compressed file length
+        /// </summary>
+        public uint DataLength;
 
         /// <summary>
         /// StreamDB entry constructor
         /// </summary>
         /// <param name="fileId">file id</param>
-        /// <param name="dataOffset">data offset</param>
-        public StreamDBEntry(uint fileId, long dataOffset)
+        /// <param name="dataOffset16">data offset for this entry, divided by 16</param>
+        /// <param name="dataLength">data length</param>
+        public StreamDBEntry(ulong fileId, uint dataOffset16, uint dataLength)
         {
             FileId = fileId;
-            DataOffset = dataOffset;
+            DataOffset16 = dataOffset16;
+            DataLength = dataLength;
         }
     }
 }

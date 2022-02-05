@@ -2148,6 +2148,121 @@ namespace EternalModLoader
             bufferedConsole.Flush();
         }
 
+        /// <summary>
+        /// Loads the streamdb mods present in the given streamdb container
+        /// </summary>
+        /// <param name="streamDBContainer">streamdb container to load the streamdb mods to</param>
+        public static void LoadStreamDBMods(StreamDBContainer streamDBContainer)
+        {
+            // Buffered console for this operation
+            var bufferedConsole = new BufferedConsole();
+
+            using (var fileStream = new FileStream(streamDBContainer.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+            {
+                // Load the streamdb mods
+                WriteStreamDBFile(fileStream, streamDBContainer, bufferedConsole);
+            }
+        }
+
+        /// <summary>
+        /// Writes a new streamdb file containing all mods present in the specified streamdb container object
+        /// </summary>
+        /// <param name="stream">file/memory stream for the streamdb container file</param>
+        /// <param name="streamDBContainer">streamdb container info object</param>
+        public static void WriteStreamDBFile(Stream stream, StreamDBContainer streamDBContainer, BufferedConsole bufferedConsole)
+        {
+            int fileCount = 0;
+
+            using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
+            {
+                // Load the streamdb mods
+                foreach (var streamDBMod in streamDBContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
+                {
+                    // Parse the identifier of the streamdb file we want to replace
+                    var streamDBFileNameWithoutExtension = Path.GetFileNameWithoutExtension(streamDBMod.Name);
+                    int streamDBModId = 0;
+
+                    // Try to find the id at the end of the filename
+                    // Format: _#id{id here}
+                    var splittedName = streamDBFileNameWithoutExtension.Split('_');
+                    var idString = splittedName[splittedName.Length - 1];
+                    var idStringData = idString.Split('#');
+
+                    if (idStringData.Length == 2 && idStringData[0] == "id")
+                    {
+                        int.TryParse(idStringData[1], out streamDBModId);
+                    }
+
+                    if (streamDBModId == 0)
+                    {
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        bufferedConsole.Write("WARNING: ");
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        bufferedConsole.WriteLine($"Bad file name for streamdb mod \"{streamDBMod.Name}\" - streamdb mod files should have the streamdb file id at the end of the filename with format \"_id#{{id here}}\", skipping");
+                        bufferedConsole.WriteLine($"Examples of valid streamdb file names:");
+                        bufferedConsole.WriteLine($"ammo_shotgun_01_id#16091849271191434112.lwo");
+                        bufferedConsole.WriteLine($"health_pack_big_a_id#8336390282703422224.lwo");
+                        bufferedConsole.ResetColor();
+                        continue;
+                    }
+
+                    // Determine the model format by extension
+                    var modelExtension = Path.GetExtension(streamDBMod.Name);
+                    int compressedSize = (int)streamDBMod.FileData.Length;
+                    short format = -1;
+
+                    switch (modelExtension)
+                    {
+                        case ".lwo":
+                            format = 1;
+                            break;
+                        case ".md6mesh":    // placeholder, not implemented yet
+                            format = 2;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (format == -1)
+                    {
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        bufferedConsole.Write("WARNING: ");
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        bufferedConsole.WriteLine($"Couldn't determine the streamdb mod format for \"{streamDBMod.Name}\", skipping");
+                        bufferedConsole.ResetColor();
+                        continue;
+                    }
+                    else if (format == 2)
+                    {
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        bufferedConsole.Write("WARNING: ");
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                        bufferedConsole.WriteLine($".md6mesh mods are not yet supported for \"{streamDBMod.Name}\", skipping");
+                        bufferedConsole.ResetColor();
+                        continue;
+                    }
+
+                    // WIP Incomplete
+                    // Next we need to sort streamdb mods by file ID
+                    // No file injection happening yet
+                }
+            }
+
+            if (fileCount > 0)
+            {
+                bufferedConsole.Write("Number of streamdb entries replaced: ");
+                bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
+                bufferedConsole.Write(string.Format("{0} sound(s) ", fileCount));
+                bufferedConsole.ResetColor();
+                bufferedConsole.Write("in ");
+                bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                bufferedConsole.WriteLine(streamDBContainer.Path);
+                bufferedConsole.ResetColor();
+            }
+
+            bufferedConsole.Flush();
+        }
+
         public static void FillContainerPathList()
         {
             DirectoryInfo searchDirectory = new DirectoryInfo(BasePath);
@@ -3277,6 +3392,24 @@ namespace EternalModLoader
                     }
                 }
 
+                // Streamdb mods
+                foreach (var streamDBContainer in StreamDBContainerList)
+                {
+                    if (streamDBContainer.Path == string.Empty)
+                    {
+                        continue;
+                    }
+
+                    if (Path.DirectorySeparatorChar == '\\')
+                    {
+                        Console.WriteLine($".{streamDBContainer.Path.Substring(streamDBContainer.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($".{streamDBContainer.Path.Substring(streamDBContainer.Path.IndexOf("/base/", StringComparison.Ordinal))}");
+                    }
+                }
+
                 return 0;
             }
 
@@ -3311,6 +3444,24 @@ namespace EternalModLoader
                 var task = Task.Run(() =>
                 {
                     LoadSoundMods(soundContainer);
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    modLoadingTaskList.Add(task);
+                }
+            }
+
+            // Load the streamdb mods
+            foreach (var streamDBContainer in StreamDBContainerList)
+            {
+                var task = Task.Run(() =>
+                {
+                    LoadStreamDBMods(streamDBContainer);
                 });
 
                 if (!MultiThreading)

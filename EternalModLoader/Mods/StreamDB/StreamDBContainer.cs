@@ -18,6 +18,11 @@ namespace EternalModLoader.Mods.StreamDB
         public string Path;
 
         /// <summary>
+        /// streamdb file header
+        /// </summary>
+        public List<StreamDBHeader> Header;
+
+        /// <summary>
         /// Mod file list for this streamdb archive
         /// </summary>
         public List<StreamDBModFile> ModFiles;
@@ -28,14 +33,15 @@ namespace EternalModLoader.Mods.StreamDB
         public List<StreamDBEntry> StreamDBEntries;
 
         /// <summary>
-        /// Sound container constructor
+        /// streamdb container constructor
         /// </summary>
-        /// <param name="name">sound container name</param>
-        /// <param name="path">sound container path</param>
+        /// <param name="name">streamdb container name</param>
+        /// <param name="path">streamdb container path</param>
         public StreamDBContainer(string name, string path)
         {
             Name = name;
             Path = path;
+            Header = new List<StreamDBHeader>(); 
             ModFiles = new List<StreamDBModFile>();
             StreamDBEntries = new List<StreamDBEntry>();
         }
