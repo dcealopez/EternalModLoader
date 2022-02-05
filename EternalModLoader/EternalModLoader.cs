@@ -2264,6 +2264,30 @@ namespace EternalModLoader
                     mapFileRef.File += 1;
                 }
             }
+            
+            // Get common map index
+            int commonMapIndex = PackageMapSpecInfo.PackageMapSpec.Maps.IndexOf(new PackageMapSpecMap()
+            {
+                Name = "common"
+            });
+
+            if (commonMapIndex == -1)
+            {
+                // This really shouldn't happen either
+                PackageMapSpecInfo.PackageMapSpec.Maps.Insert(0, new PackageMapSpecMap()
+                {
+                    Name = "common"
+                });
+
+                commonMapIndex = 0;
+            }
+            
+            // Add custom streamdb to common map
+            PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Add(new PackageMapSpecMapFileRef()
+            {
+                File = firstStreamDBIndex,
+                Map = commonMapIndex
+            });
 
             PackageMapSpecInfo.WasPackageMapSpecModified = true;
         }
