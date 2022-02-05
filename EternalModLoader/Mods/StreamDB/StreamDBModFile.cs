@@ -13,6 +13,11 @@ namespace EternalModLoader.Mods.StreamDB
         public string Name;
 
         /// <summary>
+        /// StreamDB mod file ID
+        /// </summary>
+        public ulong FileId = 0;
+
+        /// <summary>
         /// File data memory stream
         /// </summary>
         public MemoryStream FileData;

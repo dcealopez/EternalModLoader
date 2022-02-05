@@ -2156,11 +2156,126 @@ namespace EternalModLoader
         {
             // Buffered console for this operation
             var bufferedConsole = new BufferedConsole();
-
+            
             using (var fileStream = new FileStream(streamDBContainer.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
             {
                 // Load the streamdb mods
+                BuildStreamDBIndex(streamDBContainer, bufferedConsole);
                 WriteStreamDBFile(fileStream, streamDBContainer, bufferedConsole);
+            }
+        }
+
+        /// <summary>
+        /// Constructs StreamDBHeader and StreamDBEntries table for the specified streamdb container object
+        /// </summary>
+        /// <param name="streamDBContainer">streamdb container info object</param>
+        public static void BuildStreamDBIndex(StreamDBContainer streamDBContainer, BufferedConsole bufferedConsole)
+        {
+            // Get the streamdb mod file IDs
+            foreach (var streamDBMod in streamDBContainer.ModFiles)
+            {
+                // Parse the identifier of the streamdb file we want to replace
+                var streamDBFileNameWithoutExtension = Path.GetFileNameWithoutExtension(streamDBMod.Name);
+                ulong streamDBModId = 0;
+
+                // Try to find the id at the end of the filename
+                // Format: _#id{id here}
+                var splittedName = streamDBFileNameWithoutExtension.Split('_');
+                var idString = splittedName[splittedName.Length - 1];
+                var idStringData = idString.Split('#');
+
+                if (idStringData.Length == 2 && idStringData[0] == "id")
+                {
+                    ulong.TryParse(idStringData[1], out streamDBModId);
+                }
+
+                if (streamDBModId == 0)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($"Bad file name for streamdb mod \"{streamDBMod.Name}\" - streamdb mod files should have the streamdb file id at the end of the filename with format \"_id#{{id here}}\", skipping");
+                    bufferedConsole.WriteLine($"Examples of valid streamdb file names:");
+                    bufferedConsole.WriteLine($"ammo_shotgun_01_id#16091849271191434112.lwo");
+                    bufferedConsole.WriteLine($"health_pack_big_a_id#8336390282703422224.lwo");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+
+                // Determine the model format by extension
+                var modelExtension = Path.GetExtension(streamDBMod.Name);
+                int compressedSize = (int)streamDBMod.FileData.Length;
+                short format = -1;
+
+                switch (modelExtension)
+                {
+                    case ".lwo":
+                        format = 1;
+                        break;
+                    case ".md6mesh":    // placeholder, not implemented yet
+                        format = 2;
+                        break;
+                    default:
+                        break;
+                }
+
+                if (format == -1)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($"Couldn't determine the streamdb mod format for \"{streamDBMod.Name}\", skipping");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+                else if (format == 2)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($".md6mesh mods are not yet supported for \"{streamDBMod.Name}\", skipping");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+
+                streamDBMod.FileId = streamDBModId;
+            }
+
+            // Build the streamdb index in numerical order by FileId
+            foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
+            {
+                // Skip bad filenames
+                if (streamDBMod.FileId == 0)
+                {
+                    continue;
+                }
+
+                // Add file to StreamDB entry list - use dummy offset16 for now
+                StreamDBEntry streamDBEntry = new StreamDBEntry(streamDBMod.FileId, 0, (uint)streamDBMod.FileData.Length);
+                streamDBContainer.StreamDBEntries.Add(streamDBEntry);
+            }
+
+            // Build the streamdb header
+            int dataStartOffset = 32 + (streamDBContainer.StreamDBEntries.Count * 16) + 16;
+            StreamDBHeader streamDBHeader = new StreamDBHeader(dataStartOffset, streamDBContainer.StreamDBEntries.Count);
+            streamDBContainer.Header.Add(streamDBHeader);
+
+            // First StreamDBEntry dataOffset16 is known
+            streamDBContainer.StreamDBEntries[0].DataOffset16 = (uint)dataStartOffset / 16;
+
+            // Calculate additional StreamDBEntry data offsets after the first
+            for (int i = 1; i < streamDBContainer.StreamDBEntries.Count; i++)
+            {
+                uint previousOffset = streamDBContainer.StreamDBEntries[i - 1].DataOffset16 * 16;
+                uint thisOffset = previousOffset + streamDBContainer.StreamDBEntries[i].DataLength;
+
+                if (thisOffset % 16 != 0)
+                {
+                    // Integer math, gets next offset evenly divisible by 16
+                    thisOffset = (thisOffset + 16) / 16 * 16;
+                }
+
+                streamDBContainer.StreamDBEntries[i].DataOffset16 = thisOffset / 16;
             }
         }
 
@@ -2173,78 +2288,53 @@ namespace EternalModLoader
         {
             int fileCount = 0;
 
+            // Write streamdb file
             using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
             {
-                // Load the streamdb mods
-                foreach (var streamDBMod in streamDBContainer.ModFiles.OrderByDescending(mod => mod.Parent.LoadPriority))
+                // Write the StreamDBHeader
+
+                /*
+                streamDBContainer.Header[0].Magic;
+                streamDBContainer.Header[0].HeaderLength;
+                streamDBContainer.Header[0].Padding0;
+                streamDBContainer.Header[0].Padding1;
+                streamDBContainer.Header[0].Padding2;
+                streamDBContainer.Header[0].NumEntries;
+                streamDBContainer.Header[0].Flags;
+                */
+
+                // Write the StreamDBEntry table
+                foreach (var streamDBEntry in streamDBContainer.StreamDBEntries.OrderBy(entry => entry.FileId))
                 {
-                    // Parse the identifier of the streamdb file we want to replace
-                    var streamDBFileNameWithoutExtension = Path.GetFileNameWithoutExtension(streamDBMod.Name);
-                    int streamDBModId = 0;
+                    /*
+                    streamDBEntry.FileId;
+                    streamDBEntry.DataOffset16;
+                    streamDBEntry.DataLength;
+                    */
+                }
 
-                    // Try to find the id at the end of the filename
-                    // Format: _#id{id here}
-                    var splittedName = streamDBFileNameWithoutExtension.Split('_');
-                    var idString = splittedName[splittedName.Length - 1];
-                    var idStringData = idString.Split('#');
+                // Write the StreamDBPrefetchBlock
 
-                    if (idStringData.Length == 2 && idStringData[0] == "id")
+                /*
+                int numPrefetchBlocks = 0;
+                int totalPrefetchLength = 8;
+                long padding = 0;
+                */
+
+                // Write the actual mod files
+                foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
+                {
+                    // skip bad file ids
+                    if (streamDBMod.FileId == 0)
                     {
-                        int.TryParse(idStringData[1], out streamDBModId);
-                    }
-
-                    if (streamDBModId == 0)
-                    {
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                        bufferedConsole.Write("WARNING: ");
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        bufferedConsole.WriteLine($"Bad file name for streamdb mod \"{streamDBMod.Name}\" - streamdb mod files should have the streamdb file id at the end of the filename with format \"_id#{{id here}}\", skipping");
-                        bufferedConsole.WriteLine($"Examples of valid streamdb file names:");
-                        bufferedConsole.WriteLine($"ammo_shotgun_01_id#16091849271191434112.lwo");
-                        bufferedConsole.WriteLine($"health_pack_big_a_id#8336390282703422224.lwo");
-                        bufferedConsole.ResetColor();
                         continue;
                     }
 
-                    // Determine the model format by extension
-                    var modelExtension = Path.GetExtension(streamDBMod.Name);
-                    int compressedSize = (int)streamDBMod.FileData.Length;
-                    short format = -1;
+                    // TODO
+                    // need to make sure we write each file at the correct offset, add null padding if needed
 
-                    switch (modelExtension)
-                    {
-                        case ".lwo":
-                            format = 1;
-                            break;
-                        case ".md6mesh":    // placeholder, not implemented yet
-                            format = 2;
-                            break;
-                        default:
-                            break;
-                    }
-
-                    if (format == -1)
-                    {
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                        bufferedConsole.Write("WARNING: ");
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        bufferedConsole.WriteLine($"Couldn't determine the streamdb mod format for \"{streamDBMod.Name}\", skipping");
-                        bufferedConsole.ResetColor();
-                        continue;
-                    }
-                    else if (format == 2)
-                    {
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                        bufferedConsole.Write("WARNING: ");
-                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        bufferedConsole.WriteLine($".md6mesh mods are not yet supported for \"{streamDBMod.Name}\", skipping");
-                        bufferedConsole.ResetColor();
-                        continue;
-                    }
-
-                    // WIP Incomplete
-                    // Next we need to sort streamdb mods by file ID
-                    // No file injection happening yet
+                    bufferedConsole.WriteLine(string.Format("\tAdded streamdb mod file with id {0} [{1}]", streamDBMod.FileId, streamDBMod.Name));
+                    fileCount++;
                 }
             }
 
