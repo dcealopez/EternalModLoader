@@ -1414,6 +1414,14 @@ namespace EternalModLoader
             // Add custom streamdb if needed
             if (StreamDBContainerList.Exists(streamDBContainer => streamDBContainer.Name == "EternalMod.streamdb"))
             {
+                var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+                if (streamDBContainer.StreamDBEntries.Count == 0)
+                {
+                    // No valid StreamDBEntries, return without modifying PackageMapSpec
+                    return;
+                }
+
+
                 if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                 {
                     if (!ReadPackageMapSpec())
@@ -2157,10 +2165,18 @@ namespace EternalModLoader
             // Buffered console for this operation
             var bufferedConsole = new BufferedConsole();
 
+            // Construct StreamDBHeader and StreamDBEntries list in memory
+            BuildStreamDBIndex(streamDBContainer, bufferedConsole);
+
+            // This can happen if streamdb fileIds are missing from the filename, or we have unrecognized file extensions for the mods.
+            if (streamDBContainer.StreamDBEntries.Count == 0)
+            {
+                return;
+            }
+
+            // Write the custom .streamdb file
             using (var fileStream = new FileStream(streamDBContainer.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
             {
-                // Load the streamdb mods
-                BuildStreamDBIndex(streamDBContainer, bufferedConsole);
                 WriteStreamDBFile(fileStream, streamDBContainer, bufferedConsole);
             }
         }
@@ -2255,6 +2271,13 @@ namespace EternalModLoader
                 streamDBContainer.StreamDBEntries.Add(streamDBEntry);
             }
 
+            // Return early if we have no valid mod files
+            if (streamDBContainer.StreamDBEntries.Count == 0)
+            {
+                bufferedConsole.Flush();
+                return;
+            }
+
             // Build the streamdb header
             int dataStartOffset = 32 + (streamDBContainer.StreamDBEntries.Count * 16) + 16;
             StreamDBHeader streamDBHeader = new StreamDBHeader(dataStartOffset, streamDBContainer.StreamDBEntries.Count);
@@ -2276,7 +2299,7 @@ namespace EternalModLoader
                 }
 
                 streamDBContainer.StreamDBEntries[i].DataOffset16 = thisOffset / 16;
-            }
+            }            
         }
 
         /// <summary>
