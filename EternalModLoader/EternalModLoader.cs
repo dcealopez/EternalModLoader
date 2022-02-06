@@ -2156,7 +2156,7 @@ namespace EternalModLoader
         {
             // Buffered console for this operation
             var bufferedConsole = new BufferedConsole();
-            
+
             using (var fileStream = new FileStream(streamDBContainer.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
             {
                 // Load the streamdb mods
@@ -2258,7 +2258,7 @@ namespace EternalModLoader
             // Build the streamdb header
             int dataStartOffset = 32 + (streamDBContainer.StreamDBEntries.Count * 16) + 16;
             StreamDBHeader streamDBHeader = new StreamDBHeader(dataStartOffset, streamDBContainer.StreamDBEntries.Count);
-            streamDBContainer.Header.Add(streamDBHeader);
+            streamDBContainer.Header = streamDBHeader;
 
             // First StreamDBEntry dataOffset16 is known
             streamDBContainer.StreamDBEntries[0].DataOffset16 = (uint)dataStartOffset / 16;
@@ -2292,34 +2292,29 @@ namespace EternalModLoader
             using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
             {
                 // Write the StreamDBHeader
-
-                /*
-                streamDBContainer.Header[0].Magic;
-                streamDBContainer.Header[0].HeaderLength;
-                streamDBContainer.Header[0].Padding0;
-                streamDBContainer.Header[0].Padding1;
-                streamDBContainer.Header[0].Padding2;
-                streamDBContainer.Header[0].NumEntries;
-                streamDBContainer.Header[0].Flags;
-                */
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Magic), 0, 8);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.DataStartOffset), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding0), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding1), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding2), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.NumEntries), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Flags), 0, 4);
 
                 // Write the StreamDBEntry table
                 foreach (var streamDBEntry in streamDBContainer.StreamDBEntries.OrderBy(entry => entry.FileId))
                 {
-                    /*
-                    streamDBEntry.FileId;
-                    streamDBEntry.DataOffset16;
-                    streamDBEntry.DataLength;
-                    */
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.FileId), 0, 8);
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.DataOffset16), 0, 4);
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.DataLength), 0, 4);
                 }
 
                 // Write the StreamDBPrefetchBlock
-
-                /*
                 int numPrefetchBlocks = 0;
                 int totalPrefetchLength = 8;
-                long padding = 0;
-                */
+
+                stream.Write(FastBitConverter.GetBytes(numPrefetchBlocks), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(totalPrefetchLength), 0, 4);
+                stream.Write(new byte[8], 0, 8);
 
                 // Write the actual mod files
                 foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
@@ -2330,10 +2325,47 @@ namespace EternalModLoader
                         continue;
                     }
 
-                    // TODO
-                    // need to make sure we write each file at the correct offset, add null padding if needed
+                    // Check if we have fileIds in streamdb that aren't in our mod list, or vice versa
+                    if (streamDBMod.FileId != streamDBContainer.StreamDBEntries[fileCount].FileId)
+                    {
+                        // Fatal error occurred, delete custom streamdb
+                        stream.Close();
+                        File.Delete(streamDBContainer.Path);
+                        StreamDBContainerList.Remove(streamDBContainer);
 
-                    bufferedConsole.WriteLine(string.Format("\tAdded streamdb mod file with id {0} [{1}]", streamDBMod.FileId, streamDBMod.Name));
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("ERROR: ");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine("Invalid file id for streamdb mod!");
+                        BufferedConsole.Flush();
+                        break;
+                    }
+
+                    // Write padding (max 15 bytes)
+                    long desiredOffset = streamDBContainer.StreamDBEntries[fileCount].DataOffset16 * 16;
+                    long offsetDiff = desiredOffset - stream.Position;
+
+                    if (offsetDiff < 0 || offsetDiff > 15)
+                    {
+                        // Fatal error occurred, delete custom streamdb
+                        stream.Close();
+                        File.Delete(streamDBContainer.Path);
+                        StreamDBContainerList.Remove(streamDBContainer);
+
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("ERROR: ");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine("Invalid file id for streamdb mod!");
+                        BufferedConsole.Flush();
+                        break;
+                    }
+
+                    stream.Write(new byte[offsetDiff], 0, (int)offsetDiff);
+
+                    // Write mod file data
+                    streamDBMod.CopyFileDataToStream(stream);
+
+                    bufferedConsole.WriteLine($"\tAdded streamdb mod file with id {streamDBMod.FileId} [{streamDBMod.Name}]");
                     fileCount++;
                 }
             }
@@ -2469,7 +2501,7 @@ namespace EternalModLoader
                     mapFileRef.File += 1;
                 }
             }
-            
+
             // Get common map index
             int commonMapIndex = PackageMapSpecInfo.PackageMapSpec.Maps.IndexOf(new PackageMapSpecMap()
             {
@@ -2486,7 +2518,7 @@ namespace EternalModLoader
 
                 commonMapIndex = 0;
             }
-            
+
             // Add custom streamdb to common map
             PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Add(new PackageMapSpecMapFileRef()
             {
