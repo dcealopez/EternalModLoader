@@ -20,7 +20,7 @@ namespace EternalModLoader.Mods.StreamDB
         /// <summary>
         /// streamdb file header
         /// </summary>
-        public List<StreamDBHeader> Header;
+        public StreamDBHeader Header;
 
         /// <summary>
         /// Mod file list for this streamdb archive
@@ -41,7 +41,7 @@ namespace EternalModLoader.Mods.StreamDB
         {
             Name = name;
             Path = path;
-            Header = new List<StreamDBHeader>(); 
+            Header = null;
             ModFiles = new List<StreamDBModFile>();
             StreamDBEntries = new List<StreamDBEntry>();
         }

@@ -258,7 +258,6 @@ namespace EternalModLoader
                 int16 = new Int16Struct() { Byte0 = array[startIndex], Byte1 = array[++startIndex] };
             }
 
-
             return int16.Int16;
         }
 
