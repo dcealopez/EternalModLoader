@@ -2267,8 +2267,21 @@ namespace EternalModLoader
                 }
 
                 // Add file to StreamDB entry list - use dummy offset16 for now
-                StreamDBEntry streamDBEntry = new StreamDBEntry(streamDBMod.FileId, 0, (uint)streamDBMod.FileData.Length);
+                StreamDBEntry streamDBEntry = new StreamDBEntry(streamDBMod.FileId, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
                 streamDBContainer.StreamDBEntries.Add(streamDBEntry);
+
+                // For .lwo files, add 2 entries (for lower level-of-detail models)
+                if (Path.GetExtension(streamDBMod.Name) == ".lwo")
+                {
+                    // File data is identical, but we need to increment the fileId by 1 for each LOD (as the game expects)
+                    ulong fileId_lod_1 = streamDBMod.FileId + 1;
+                    ulong fileId_lod_2 = streamDBMod.FileId + 2;
+                    StreamDBEntry streamDBEntry_lod_1 = new StreamDBEntry(fileId_lod_1, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
+                    StreamDBEntry streamDBEntry_lod_2 = new StreamDBEntry(fileId_lod_2, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
+                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_1);
+                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_2);
+                }
+
             }
 
             // Return early if we have no valid mod files
@@ -2340,37 +2353,15 @@ namespace EternalModLoader
                 stream.Write(new byte[8], 0, 8);
 
                 // Write the actual mod files
-                foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
+                foreach (var streamDBEntry in streamDBContainer.StreamDBEntries.OrderBy(entry => entry.FileId))
                 {
-                    // skip bad file ids
-                    if (streamDBMod.FileId == 0)
-                    {
-                        continue;
-                    }
-
-                    // Check if we have fileIds in streamdb that aren't in our mod list, or vice versa
-                    if (streamDBMod.FileId != streamDBContainer.StreamDBEntries[fileCount].FileId)
-                    {
-                        // Fatal error occurred, delete custom streamdb
-                        stream.Close();
-                        File.Delete(streamDBContainer.Path);
-                        StreamDBContainerList.Remove(streamDBContainer);
-
-                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                        BufferedConsole.Write("ERROR: ");
-                        BufferedConsole.ResetColor();
-                        BufferedConsole.WriteLine("Invalid file id for streamdb mod!");
-                        BufferedConsole.Flush();
-                        break;
-                    }
-
                     // Write padding (max 15 bytes)
-                    long desiredOffset = streamDBContainer.StreamDBEntries[fileCount].DataOffset16 * 16;
+                    long desiredOffset = streamDBEntry.DataOffset16 * 16;
                     long offsetDiff = desiredOffset - stream.Position;
 
+                    // If the offsetDiff is outside this range, we have a corrupt StreamDBEntries table and need to abort
                     if (offsetDiff < 0 || offsetDiff > 15)
                     {
-                        // Fatal error occurred, delete custom streamdb
                         stream.Close();
                         File.Delete(streamDBContainer.Path);
                         StreamDBContainerList.Remove(streamDBContainer);
@@ -2378,17 +2369,18 @@ namespace EternalModLoader
                         BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                         BufferedConsole.Write("ERROR: ");
                         BufferedConsole.ResetColor();
-                        BufferedConsole.WriteLine("Invalid file id for streamdb mod!");
+                        BufferedConsole.WriteLine($"Failed to build {streamDBContainer.Name} file!");
                         BufferedConsole.Flush();
                         break;
                     }
 
+                    // Write null padding so file offsets are divisible by 16
                     stream.Write(new byte[offsetDiff], 0, (int)offsetDiff);
 
                     // Write mod file data
-                    streamDBMod.CopyFileDataToStream(stream);
+                    streamDBEntry.CopyFileDataToStream(stream);
 
-                    bufferedConsole.WriteLine($"\tAdded streamdb mod file with id {streamDBMod.FileId} [{streamDBMod.Name}]");
+                    bufferedConsole.WriteLine($"\tAdded streamdb mod file with id {streamDBEntry.FileId} [{streamDBEntry.Name}]");
                     fileCount++;
                 }
             }

@@ -15,7 +15,7 @@ namespace EternalModLoader.Mods.StreamDB
         /// <summary>
         /// StreamDB mod file ID
         /// </summary>
-        public ulong FileId = 0;
+        public ulong FileId;
 
         /// <summary>
         /// File data memory stream
@@ -31,21 +31,6 @@ namespace EternalModLoader.Mods.StreamDB
         {
             Parent = parent;
             Name = name;
-        }
-
-        /// <summary>
-        /// Copies the mod file data stream to the given stream
-        /// </summary>
-        /// <param name="stream">destination stream</param>
-        public void CopyFileDataToStream(Stream stream)
-        {
-            if (FileData == null)
-            {
-                return;
-            }
-
-            FileData.Position = 0;
-            FileData.CopyTo(stream);
         }
     }
 }
