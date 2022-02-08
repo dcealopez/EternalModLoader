@@ -1,6 +1,7 @@
 ﻿using EternalModLoader.Mods;
 using EternalModLoader.Mods.Resources;
 using EternalModLoader.Mods.Sounds;
+using EternalModLoader.Mods.StreamDB;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -409,7 +410,7 @@ namespace EternalModLoader
 
             foreach (var modFile in mod.Files)
             {
-                if (modFile is SoundModFile)
+                if (modFile is SoundModFile || modFile is StreamDBModFile)
                 {
                     continue;
                 }

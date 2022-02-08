@@ -11,6 +11,7 @@ using EternalModLoader.Mods.Resources.ResourceData;
 using EternalModLoader.Mods.Resources.Blang;
 using EternalModLoader.Mods.Resources.MapResources;
 using EternalModLoader.Mods.Sounds;
+using EternalModLoader.Mods.StreamDB;
 using EternalModLoader.Zlib;
 using System.Threading.Tasks;
 
@@ -93,6 +94,11 @@ namespace EternalModLoader
         /// Sound container list
         /// </summary>
         public static List<SoundContainer> SoundContainerList = new List<SoundContainer>();
+
+        /// <summary>
+        /// Streamdb container list
+        /// </summary>
+        public static List<StreamDBContainer> StreamDBContainerList = new List<StreamDBContainer>();
 
         /// <summary>
         /// List of all the game's .resources and .streamdb file paths
@@ -494,33 +500,12 @@ namespace EternalModLoader
                                 // Deserialize the packagemapspec JSON if it hasn't been deserialized yet
                                 if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                                 {
-                                    PackageMapSpecInfo.PackageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
-
-                                    if (!File.Exists(PackageMapSpecInfo.PackageMapSpecPath))
+                                    if (!ReadPackageMapSpec())
                                     {
                                         bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                                         bufferedConsole.Write("ERROR: ");
                                         bufferedConsole.ResetColor();
-                                        bufferedConsole.WriteLine($"{PackageMapSpecInfo.PackageMapSpecPath} not found while trying to add extra resources for level {resourceContainer.Name}");
-                                        PackageMapSpecInfo.InvalidPackageMapSpec = true;
-                                    }
-                                    else
-                                    {
-                                        var packageMapSpecFileBytes = File.ReadAllBytes(PackageMapSpecInfo.PackageMapSpecPath);
-
-                                        try
-                                        {
-                                            // Try to parse the JSON
-                                            PackageMapSpecInfo.PackageMapSpec = PackageMapSpec.FromJson(Encoding.UTF8.GetString(packageMapSpecFileBytes));
-                                        }
-                                        catch
-                                        {
-                                            bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                                            bufferedConsole.Write("ERROR: ");
-                                            bufferedConsole.ResetColor();
-                                            bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
-                                            PackageMapSpecInfo.InvalidPackageMapSpec = true;
-                                        }
+                                        bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
                                     }
                                 }
 
@@ -1384,11 +1369,73 @@ namespace EternalModLoader
         }
 
         /// <summary>
+        /// Reads the packageMapSpec JSON file
+        /// </summary>
+        /// <returns>true if no errors occured, false if errors occured</returns>
+        public static bool ReadPackageMapSpec()
+        {
+            PackageMapSpecInfo.PackageMapSpecPath = Path.Combine(BasePath, PackageMapSpecJsonFileName);
+
+            if (!File.Exists(PackageMapSpecInfo.PackageMapSpecPath))
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            var packageMapSpecFileBytes = File.ReadAllBytes(PackageMapSpecInfo.PackageMapSpecPath);
+
+            try
+            {
+                // Try to parse the JSON
+                PackageMapSpecInfo.PackageMapSpec = PackageMapSpec.FromJson(Encoding.UTF8.GetString(packageMapSpecFileBytes));
+            }
+            catch
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            if (PackageMapSpecInfo.PackageMapSpec == null)
+            {
+                PackageMapSpecInfo.InvalidPackageMapSpec = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Modifies the packageMapSpec JSON file if needed
         /// </summary>
         public static void ModifyPackageMapSpec()
         {
             var bufferedConsole = new BufferedConsole();
+
+            // Add custom streamdb if needed
+            if (StreamDBContainerList.Exists(streamDBContainer => streamDBContainer.Name == "EternalMod.streamdb"))
+            {
+                var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+                if (streamDBContainer.StreamDBEntries.Count == 0)
+                {
+                    // No valid StreamDBEntries, return without modifying PackageMapSpec
+                    return;
+                }
+
+
+                if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
+                {
+                    if (!ReadPackageMapSpec())
+                    {
+                        bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        bufferedConsole.Write("ERROR: ");
+                        bufferedConsole.ResetColor();
+                        bufferedConsole.WriteLine($"Failed to parse {PackageMapSpecInfo.PackageMapSpecPath} - malformed JSON?");
+                        return;
+                    }
+                }
+
+                AddCustomStreamDB("EternalMod.streamdb");
+            }
 
             if (PackageMapSpecInfo.PackageMapSpec != null && PackageMapSpecInfo.WasPackageMapSpecModified)
             {
@@ -2109,6 +2156,250 @@ namespace EternalModLoader
             bufferedConsole.Flush();
         }
 
+        /// <summary>
+        /// Loads the streamdb mods present in the given streamdb container
+        /// </summary>
+        /// <param name="streamDBContainer">streamdb container to load the streamdb mods to</param>
+        public static void LoadStreamDBMods(StreamDBContainer streamDBContainer)
+        {
+            // Buffered console for this operation
+            var bufferedConsole = new BufferedConsole();
+
+            // Construct StreamDBHeader and StreamDBEntries list in memory
+            BuildStreamDBIndex(streamDBContainer, bufferedConsole);
+
+            // This can happen if streamdb fileIds are missing from the filename, or we have unrecognized file extensions for the mods.
+            if (streamDBContainer.StreamDBEntries.Count == 0)
+            {
+                return;
+            }
+
+            // Write the custom .streamdb file
+            using (var fileStream = new FileStream(streamDBContainer.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+            {
+                WriteStreamDBFile(fileStream, streamDBContainer, bufferedConsole);
+            }
+        }
+
+        /// <summary>
+        /// Constructs StreamDBHeader and StreamDBEntries table for the specified streamdb container object
+        /// </summary>
+        /// <param name="streamDBContainer">streamdb container info object</param>
+        public static void BuildStreamDBIndex(StreamDBContainer streamDBContainer, BufferedConsole bufferedConsole)
+        {
+            // Get the streamdb mod file IDs
+            foreach (var streamDBMod in streamDBContainer.ModFiles)
+            {
+                // Parse the identifier of the streamdb file we want to replace
+                var streamDBFileNameWithoutExtension = Path.GetFileNameWithoutExtension(streamDBMod.Name);
+                ulong streamDBModId = 0;
+
+                // Try to find the id at the end of the filename
+                // Format: _#id{id here}
+                var splittedName = streamDBFileNameWithoutExtension.Split('_');
+                var idString = splittedName[splittedName.Length - 1];
+                var idStringData = idString.Split('#');
+
+                if (idStringData.Length == 2 && idStringData[0] == "id")
+                {
+                    ulong.TryParse(idStringData[1], out streamDBModId);
+                }
+
+                if (streamDBModId == 0)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($"Bad file name for streamdb mod \"{streamDBMod.Name}\" - streamdb mod files should have the streamdb file id at the end of the filename with format \"_id#{{id here}}\", skipping");
+                    bufferedConsole.WriteLine($"Examples of valid streamdb file names:");
+                    bufferedConsole.WriteLine($"ammo_shotgun_01_id#16091849271191434112.lwo");
+                    bufferedConsole.WriteLine($"health_pack_big_a_id#8336390282703422224.lwo");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+
+                // Determine the model format by extension
+                var modelExtension = Path.GetExtension(streamDBMod.Name);
+                int compressedSize = (int)streamDBMod.FileData.Length;
+                short format = -1;
+
+                switch (modelExtension)
+                {
+                    case ".lwo":
+                        format = 1;
+                        break;
+                    case ".md6mesh":    // placeholder, not implemented yet
+                        format = 2;
+                        break;
+                    default:
+                        break;
+                }
+
+                if (format == -1)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($"Couldn't determine the streamdb mod format for \"{streamDBMod.Name}\", skipping");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+                else if (format == 2)
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($".md6mesh mods are not yet supported for \"{streamDBMod.Name}\", skipping");
+                    bufferedConsole.ResetColor();
+                    continue;
+                }
+
+                streamDBMod.FileId = streamDBModId;
+            }
+
+            // Build the streamdb index in numerical order by FileId
+            foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
+            {
+                // Skip bad filenames
+                if (streamDBMod.FileId == 0)
+                {
+                    continue;
+                }
+
+                // Add file to StreamDB entry list - use dummy offset16 for now
+                StreamDBEntry streamDBEntry = new StreamDBEntry(streamDBMod.FileId, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
+                streamDBContainer.StreamDBEntries.Add(streamDBEntry);
+
+                // For .lwo files, add 2 entries (for lower level-of-detail models)
+                if (Path.GetExtension(streamDBMod.Name) == ".lwo")
+                {
+                    // File data is identical, but we need to increment the fileId by 1 for each LOD (as the game expects)
+                    ulong fileId_lod_1 = streamDBMod.FileId + 1;
+                    ulong fileId_lod_2 = streamDBMod.FileId + 2;
+                    StreamDBEntry streamDBEntry_lod_1 = new StreamDBEntry(fileId_lod_1, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
+                    StreamDBEntry streamDBEntry_lod_2 = new StreamDBEntry(fileId_lod_2, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
+                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_1);
+                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_2);
+                }
+
+            }
+
+            // Return early if we have no valid mod files
+            if (streamDBContainer.StreamDBEntries.Count == 0)
+            {
+                bufferedConsole.Flush();
+                return;
+            }
+
+            // Build the streamdb header
+            int dataStartOffset = 32 + (streamDBContainer.StreamDBEntries.Count * 16) + 16;
+            StreamDBHeader streamDBHeader = new StreamDBHeader(dataStartOffset, streamDBContainer.StreamDBEntries.Count);
+            streamDBContainer.Header = streamDBHeader;
+
+            // First StreamDBEntry dataOffset16 is known
+            streamDBContainer.StreamDBEntries[0].DataOffset16 = (uint)dataStartOffset / 16;
+
+            // Calculate additional StreamDBEntry data offsets after the first
+            for (int i = 1; i < streamDBContainer.StreamDBEntries.Count; i++)
+            {
+                uint previousOffset = streamDBContainer.StreamDBEntries[i - 1].DataOffset16 * 16;
+                uint thisOffset = previousOffset + streamDBContainer.StreamDBEntries[i].DataLength;
+
+                if (thisOffset % 16 != 0)
+                {
+                    // Integer math, gets next offset evenly divisible by 16
+                    thisOffset = (thisOffset + 16) / 16 * 16;
+                }
+
+                streamDBContainer.StreamDBEntries[i].DataOffset16 = thisOffset / 16;
+            }            
+        }
+
+        /// <summary>
+        /// Writes a new streamdb file containing all mods present in the specified streamdb container object
+        /// </summary>
+        /// <param name="stream">file/memory stream for the streamdb container file</param>
+        /// <param name="streamDBContainer">streamdb container info object</param>
+        public static void WriteStreamDBFile(Stream stream, StreamDBContainer streamDBContainer, BufferedConsole bufferedConsole)
+        {
+            int fileCount = 0;
+
+            // Write streamdb file
+            using (var binaryReader = new BinaryReader(stream, Encoding.Default, true))
+            {
+                // Write the StreamDBHeader
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Magic), 0, 8);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.DataStartOffset), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding0), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding1), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Padding2), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.NumEntries), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(streamDBContainer.Header.Flags), 0, 4);
+
+                // Write the StreamDBEntry table
+                foreach (var streamDBEntry in streamDBContainer.StreamDBEntries.OrderBy(entry => entry.FileId))
+                {
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.FileId), 0, 8);
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.DataOffset16), 0, 4);
+                    stream.Write(FastBitConverter.GetBytes(streamDBEntry.DataLength), 0, 4);
+                }
+
+                // Write the StreamDBPrefetchBlock
+                int numPrefetchBlocks = 0;
+                int totalPrefetchLength = 8;
+
+                stream.Write(FastBitConverter.GetBytes(numPrefetchBlocks), 0, 4);
+                stream.Write(FastBitConverter.GetBytes(totalPrefetchLength), 0, 4);
+                stream.Write(new byte[8], 0, 8);
+
+                // Write the actual mod files
+                foreach (var streamDBEntry in streamDBContainer.StreamDBEntries.OrderBy(entry => entry.FileId))
+                {
+                    // Write padding (max 15 bytes)
+                    long desiredOffset = streamDBEntry.DataOffset16 * 16;
+                    long offsetDiff = desiredOffset - stream.Position;
+
+                    // If the offsetDiff is outside this range, we have a corrupt StreamDBEntries table and need to abort
+                    if (offsetDiff < 0 || offsetDiff > 15)
+                    {
+                        stream.Close();
+                        File.Delete(streamDBContainer.Path);
+                        StreamDBContainerList.Remove(streamDBContainer);
+
+                        BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                        BufferedConsole.Write("ERROR: ");
+                        BufferedConsole.ResetColor();
+                        BufferedConsole.WriteLine($"Failed to build {streamDBContainer.Name} file!");
+                        BufferedConsole.Flush();
+                        break;
+                    }
+
+                    // Write null padding so file offsets are divisible by 16
+                    stream.Write(new byte[offsetDiff], 0, (int)offsetDiff);
+
+                    // Write mod file data
+                    streamDBEntry.CopyFileDataToStream(stream);
+
+                    bufferedConsole.WriteLine($"\tAdded streamdb mod file with id {streamDBEntry.FileId} [{streamDBEntry.Name}]");
+                    fileCount++;
+                }
+            }
+
+            if (fileCount > 0)
+            {
+                bufferedConsole.Write("Number of streamdb entries replaced: ");
+                bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
+                bufferedConsole.Write(string.Format("{0} sound(s) ", fileCount));
+                bufferedConsole.ResetColor();
+                bufferedConsole.Write("in ");
+                bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                bufferedConsole.WriteLine(streamDBContainer.Path);
+                bufferedConsole.ResetColor();
+            }
+
+            bufferedConsole.Flush();
+        }
+
         public static void FillContainerPathList()
         {
             DirectoryInfo searchDirectory = new DirectoryInfo(BasePath);
@@ -2185,6 +2476,72 @@ namespace EternalModLoader
         public static string PathToSoundContainer(string name)
         {
             return SoundContainerPathList.FirstOrDefault(p => Path.GetFileName(p).EndsWith(name, StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// Adds a new .streamdb file to packagemapspec
+        /// </summary>
+        /// <param name="fileName">streamdb's filename</param>
+        public static void AddCustomStreamDB(string fileName)
+        {
+            // Find the first streamdb file in the files array
+            int firstStreamDBIndex = -1;
+
+            for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Files.Count; i++)
+            {
+                if (PackageMapSpecInfo.PackageMapSpec.Files[i].Name.EndsWith(".streamdb"))
+                {
+                    firstStreamDBIndex = i;
+                    break;
+                }
+            }
+
+            if (firstStreamDBIndex == -1)
+            {
+                // This really shouldn't happen
+                firstStreamDBIndex = PackageMapSpecInfo.PackageMapSpec.Files.Count - 1;
+            }
+
+            // Insert the modded streamdb file before the rest
+            PackageMapSpecInfo.PackageMapSpec.Files.Insert(firstStreamDBIndex, new PackageMapSpecFile()
+            {
+                Name = fileName
+            });
+
+            // Fix the file indexes in the mapFileRefs
+            foreach (var mapFileRef in PackageMapSpecInfo.PackageMapSpec.MapFileRefs)
+            {
+                if (mapFileRef.File >= firstStreamDBIndex)
+                {
+                    mapFileRef.File += 1;
+                }
+            }
+
+            // Get common map index
+            int commonMapIndex = PackageMapSpecInfo.PackageMapSpec.Maps.IndexOf(new PackageMapSpecMap()
+            {
+                Name = "common"
+            });
+
+            if (commonMapIndex == -1)
+            {
+                // This really shouldn't happen either
+                PackageMapSpecInfo.PackageMapSpec.Maps.Insert(0, new PackageMapSpecMap()
+                {
+                    Name = "common"
+                });
+
+                commonMapIndex = 0;
+            }
+
+            // Add custom streamdb to common map
+            PackageMapSpecInfo.PackageMapSpec.MapFileRefs.Add(new PackageMapSpecMapFileRef()
+            {
+                File = firstStreamDBIndex,
+                Map = commonMapIndex
+            });
+
+            PackageMapSpecInfo.WasPackageMapSpecModified = true;
         }
 
         /// <summary>
@@ -2449,6 +2806,7 @@ namespace EternalModLoader
 
                             // Determine the game container for each mod file
                             bool isSoundMod = false;
+                            bool isStreamDBMod = false;
                             string modFileName = zipEntry.Name;
                             var firstForwardSlash = modFileName.IndexOf('/');
 
@@ -2470,10 +2828,18 @@ namespace EternalModLoader
                                 modFileName = modFileName.Substring(firstForwardSlash + 1);
                             }
 
-                            // Check if this is a sound mod or not
+                            // Get path to resource file
                             var resourcePath = PathToResource($"{resourceName}.resources");
 
-                            if (resourcePath == null)
+                            // Check if this is a streamdb mod
+                            if (resourceName == "streamdb")
+                            {
+                                isStreamDBMod = true;
+                                resourcePath = Path.GetFullPath(Path.Combine(BasePath + "\\EternalMod.streamdb"));
+                            }
+
+                            // Check if this is a sound mod
+                            if (resourcePath == null && !isStreamDBMod)
                             {
                                 resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
@@ -2495,7 +2861,36 @@ namespace EternalModLoader
                                 }
                             }
 
-                            if (isSoundMod)
+                            if (isStreamDBMod)
+                            {
+                                // Get the streamdb container info object, create it if it doesn't exist
+                                lock (StreamDBContainerList)
+                                {
+                                    var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+
+                                    if (streamDBContainer == null)
+                                    {
+                                        streamDBContainer = new StreamDBContainer("EternalMod.streamdb", resourcePath);
+                                        StreamDBContainerList.Add(streamDBContainer);
+                                    }
+
+                                    // Create the mod object and read the unzipped files
+                                    if (!listResources)
+                                    {
+                                        // Load the streamdb mod
+                                        StreamDBModFile streamDBModFile = new StreamDBModFile(mod, Path.GetFileName(modFileName));
+                                        mod.Files.Add(streamDBModFile);
+
+                                        streamDBModFile.FileData = new MemoryStream((int)zipEntry.UncompressedLength);
+                                        zipReader.ReadCurrentEntry(streamDBModFile.FileData);
+
+                                        streamDBContainer.ModFiles.Add(streamDBModFile);
+                                        zippedModCount++;
+                                    }
+                                }
+
+                            }
+                            else if (isSoundMod)
                             {
                                 // Get the sound container info object, create it if it doesn't exist
                                 lock (SoundContainerList)
@@ -2722,6 +3117,7 @@ namespace EternalModLoader
 
                     // Determine the game container for each mod file
                     bool isSoundMod = false;
+                    bool isStreamDBMod = false;
                     var firstForwardSlash = modFileName.IndexOf('/');
 
                     if (firstForwardSlash == -1)
@@ -2742,10 +3138,18 @@ namespace EternalModLoader
                         modFileName = modFileName.Substring(firstForwardSlash + 1);
                     }
 
-                    // Check if this is a sound mod or not
+                    // Get path to resource file
                     var resourcePath = PathToResource($"{resourceName}.resources");
 
-                    if (resourcePath == null)
+                    // Check if this is a streamdb mod
+                    if (resourceName == "streamdb")
+                    {
+                        isStreamDBMod = true;
+                        resourcePath = Path.GetFullPath(Path.Combine(BasePath + "\\EternalMod.streamdb"));
+                    }
+
+                    // Check if this is a sound mod
+                    if (resourcePath == null && !isStreamDBMod)
                     {
                         resourcePath = PathToSoundContainer($"{resourceName}.snd");
 
@@ -2767,7 +3171,39 @@ namespace EternalModLoader
                         }
                     }
 
-                    if (isSoundMod)
+                    if (isStreamDBMod)
+                    {
+                        // Get the streamdb container info object, create it if it doesn't exist
+                        lock (StreamDBContainerList)
+                        {
+                            var streamDBContainer = StreamDBContainerList.FirstOrDefault(streamdbFile => streamdbFile.Name == "EternalMod.streamdb");
+
+                            if (streamDBContainer == null)
+                            {
+                                streamDBContainer = new StreamDBContainer("EternalMod.streamdb", resourcePath);
+                                StreamDBContainerList.Add(streamDBContainer);
+                            }
+
+                            // Create the mod object and read the unzipped files
+                            if (!listResources)
+                            {
+                                // Load the streamdb mod
+                                StreamDBModFile streamDBModFile = new StreamDBModFile(globalLooseMod, Path.GetFileName(modFileName));
+                                globalLooseMod.Files.Add(streamDBModFile);
+
+                                using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+                                {
+                                    streamDBModFile.FileData = new MemoryStream((int)fileStream.Length);
+                                    fileStream.CopyTo(streamDBModFile.FileData);
+                                }
+
+                                streamDBContainer.ModFiles.Add(streamDBModFile);
+                                unzippedModCount++;
+                            }
+                        }
+
+                    }
+                    else if (isSoundMod)
                     {
                         lock (SoundContainerList)
                         {
@@ -3022,7 +3458,8 @@ namespace EternalModLoader
             // List the resources that will be modified
             if (listResources)
             {
-                bool printPackageMapSpecJsonPath = false;
+                // Print the packagemapspec path if the modded streamdb was added
+                bool printPackageMapSpecJsonPath = StreamDBContainerList.Exists(streamDbContainer => streamDbContainer.Name == "EternalMod.streamdb");
 
                 // We need to set the console encoding to ASCII here to avoid problems with
                 // the mod injector parsing the resources list
@@ -3116,6 +3553,24 @@ namespace EternalModLoader
                     }
                 }
 
+                // Streamdb mods
+                foreach (var streamDBContainer in StreamDBContainerList)
+                {
+                    if (streamDBContainer.Path == string.Empty)
+                    {
+                        continue;
+                    }
+
+                    if (Path.DirectorySeparatorChar == '\\')
+                    {
+                        Console.WriteLine($".{streamDBContainer.Path.Substring(streamDBContainer.Path.IndexOf("\\base\\", StringComparison.Ordinal))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($".{streamDBContainer.Path.Substring(streamDBContainer.Path.IndexOf("/base/", StringComparison.Ordinal))}");
+                    }
+                }
+
                 return 0;
             }
 
@@ -3150,6 +3605,24 @@ namespace EternalModLoader
                 var task = Task.Run(() =>
                 {
                     LoadSoundMods(soundContainer);
+                });
+
+                if (!MultiThreading)
+                {
+                    task.Wait();
+                }
+                else
+                {
+                    modLoadingTaskList.Add(task);
+                }
+            }
+
+            // Load the streamdb mods
+            foreach (var streamDBContainer in StreamDBContainerList)
+            {
+                var task = Task.Run(() =>
+                {
+                    LoadStreamDBMods(streamDBContainer);
                 });
 
                 if (!MultiThreading)
