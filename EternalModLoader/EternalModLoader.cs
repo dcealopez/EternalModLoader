@@ -1421,7 +1421,6 @@ namespace EternalModLoader
                     return;
                 }
 
-
                 if (PackageMapSpecInfo.PackageMapSpec == null && !PackageMapSpecInfo.InvalidPackageMapSpec)
                 {
                     if (!ReadPackageMapSpec())
@@ -2518,10 +2517,16 @@ namespace EternalModLoader
             }
 
             // Get common map index
-            int commonMapIndex = PackageMapSpecInfo.PackageMapSpec.Maps.IndexOf(new PackageMapSpecMap()
+            int commonMapIndex = -1;
+
+            for (int i = 0; i < PackageMapSpecInfo.PackageMapSpec.Maps.Count; i++)
             {
-                Name = "common"
-            });
+                if (PackageMapSpecInfo.PackageMapSpec.Maps[i].Name.Equals("common"))
+                {
+                    commonMapIndex = i;
+                    break;
+                }
+            }
 
             if (commonMapIndex == -1)
             {
