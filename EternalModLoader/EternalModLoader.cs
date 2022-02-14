@@ -2302,7 +2302,7 @@ namespace EternalModLoader
             for (int i = 1; i < streamDBContainer.StreamDBEntries.Count; i++)
             {
                 uint previousOffset = streamDBContainer.StreamDBEntries[i - 1].DataOffset16 * 16;
-                uint thisOffset = previousOffset + streamDBContainer.StreamDBEntries[i].DataLength;
+                uint thisOffset = previousOffset + streamDBContainer.StreamDBEntries[i - 1].DataLength;
 
                 if (thisOffset % 16 != 0)
                 {
@@ -2388,7 +2388,7 @@ namespace EternalModLoader
             {
                 bufferedConsole.Write("Number of streamdb entries replaced: ");
                 bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Green;
-                bufferedConsole.Write(string.Format("{0} sound(s) ", fileCount));
+                bufferedConsole.Write(string.Format("{0} streamdb entries(s) ", fileCount));
                 bufferedConsole.ResetColor();
                 bufferedConsole.Write("in ");
                 bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
