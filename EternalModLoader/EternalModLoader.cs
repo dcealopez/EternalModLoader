@@ -2256,6 +2256,20 @@ namespace EternalModLoader
                 streamDBMod.FileId = streamDBModId;
             }
 
+            // Remove mods with duplicate Mod.FileId. Keep the files added later (last .zip filename alphabetically)
+            // If two mods have the same FileId, but a different LoadPriority, keep both for now.
+            streamDBContainer.ModFiles = streamDBContainer.ModFiles
+                .GroupBy(mod => new { mod.FileId, mod.Parent.LoadPriority })
+                .Select(g => g.LastOrDefault())
+                .ToList();
+
+            // 2nd pass. Sort by LoadPriority, then remove any duplicate FileIds.
+            streamDBContainer.ModFiles = streamDBContainer.ModFiles
+                .OrderBy(mod => mod.Parent.LoadPriority)
+                .GroupBy(mod => mod.FileId)
+                .Select(g => g.FirstOrDefault())
+                .ToList();
+
             // Build the streamdb index in numerical order by FileId
             foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
             {
