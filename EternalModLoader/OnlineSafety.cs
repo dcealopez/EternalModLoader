@@ -349,6 +349,12 @@ namespace EternalModLoader
                     isModifyingUnsafeResource = true;
                 }
 
+                // Files with .lwo extension are unsafe - also catches $ variants such as .lwo$uvlayout_lightmap=1
+                if (Path.GetExtension(resourceModFile.Name).Contains(".lwo"))
+                {
+                    isSafe = false;
+                }
+
                 // Allow modification of anything outside of "generated/decls/"
                 if (!string.IsNullOrEmpty(resourceModFile.Name)
                     && !resourceModFile.Name.StartsWith("generated/decls/", StringComparison.OrdinalIgnoreCase))

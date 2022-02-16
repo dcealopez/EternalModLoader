@@ -2228,7 +2228,7 @@ namespace EternalModLoader
             // Remove mods with bad fileId from list
             streamDBContainer.ModFiles.RemoveAll(mod => mod.FileId == 0);
 
-            // Return early if we have no valid mod files
+            // Return if we have no valid mod files remaining
             if (streamDBContainer.ModFiles.Count == 0)
             {
                 bufferedConsole.Flush();
@@ -2280,6 +2280,13 @@ namespace EternalModLoader
 
             // Remove mods with missing LODCount - this means we couldn't read STREAMDB header
             streamDBContainer.ModFiles.RemoveAll(mod => mod.LODCount == 0);
+
+            // Return if we have no valid mod files remaining
+            if (streamDBContainer.ModFiles.Count == 0)
+            {
+                bufferedConsole.Flush();
+                return;
+            }
 
             // Copy the filedata we need for each LOD
             foreach (var streamDBMod in streamDBContainer.ModFiles)
