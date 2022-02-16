@@ -86,6 +86,11 @@ namespace EternalModLoader
         public static byte[] DivinityMagic = new byte[] { 0x44, 0x49, 0x56, 0x49, 0x4E, 0x49, 0x54, 0x59 };
 
         /// <summary>
+        /// StreamddBb magic header for streamdb mod files
+        /// </summary>
+        public static byte[] StreamDBMagic = new byte[] { 0x53, 0x54, 0x52, 0x45, 0x41, 0x4D, 0x44, 0x42 };
+
+        /// <summary>
         /// Resource list
         /// </summary>
         public static List<ResourceContainer> ResourceList = new List<ResourceContainer>();
@@ -2163,7 +2168,7 @@ namespace EternalModLoader
         {
             // Buffered console for this operation
             var bufferedConsole = new BufferedConsole();
-
+            
             // Construct StreamDBHeader and StreamDBEntries list in memory
             BuildStreamDBIndex(streamDBContainer, bufferedConsole);
 
@@ -2217,43 +2222,17 @@ namespace EternalModLoader
                     continue;
                 }
 
-                // Determine the model format by extension
-                var modelExtension = Path.GetExtension(streamDBMod.Name);
-                int compressedSize = (int)streamDBMod.FileData.Length;
-                short format = -1;
-
-                switch (modelExtension)
-                {
-                    case ".lwo":
-                        format = 1;
-                        break;
-                    case ".md6mesh":    // placeholder, not implemented yet
-                        format = 2;
-                        break;
-                    default:
-                        break;
-                }
-
-                if (format == -1)
-                {
-                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    bufferedConsole.Write("WARNING: ");
-                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    bufferedConsole.WriteLine($"Couldn't determine the streamdb mod format for \"{streamDBMod.Name}\", skipping");
-                    bufferedConsole.ResetColor();
-                    continue;
-                }
-                else if (format == 2)
-                {
-                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
-                    bufferedConsole.Write("WARNING: ");
-                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    bufferedConsole.WriteLine($".md6mesh mods are not yet supported for \"{streamDBMod.Name}\", skipping");
-                    bufferedConsole.ResetColor();
-                    continue;
-                }
-
                 streamDBMod.FileId = streamDBModId;
+            }
+
+            // Remove mods with bad fileId from list
+            streamDBContainer.ModFiles.RemoveAll(mod => mod.FileId == 0);
+
+            // Return early if we have no valid mod files
+            if (streamDBContainer.ModFiles.Count == 0)
+            {
+                bufferedConsole.Flush();
+                return;
             }
 
             // Remove mods with duplicate Mod.FileId. Keep the files added later (last .zip filename alphabetically)
@@ -2270,38 +2249,64 @@ namespace EternalModLoader
                 .Select(g => g.FirstOrDefault())
                 .ToList();
 
+            // Read the streamdb mod header
+            foreach (var streamDBMod in streamDBContainer.ModFiles)
+            {
+                var streamDBModBuffer = streamDBMod.FileData.GetBuffer();
+
+                // Streamdb header was found. Read LOD info
+                if (Utils.HasStreamDBMagicHeader(streamDBModBuffer, StreamDBMagic))
+                {
+                    int offset = 8;
+                    streamDBMod.LODCount = FastBitConverter.ToInt32(streamDBModBuffer, offset);
+                    offset += 4;
+
+                    for (int i = 0; i < streamDBMod.LODCount; i++)
+                    {
+                        streamDBMod.LODDataOffset.Add(FastBitConverter.ToInt32(streamDBModBuffer, offset));
+                        streamDBMod.LODDataLength.Add(FastBitConverter.ToInt32(streamDBModBuffer, offset + 4));
+                        offset += 8;
+                    }
+                }
+                else
+                {
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
+                    bufferedConsole.Write("WARNING: ");
+                    bufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
+                    bufferedConsole.WriteLine($"streamdb mod \"{streamDBMod.Name}\" is missing a required header. Skipping...");
+                    bufferedConsole.ResetColor();
+                }
+            }
+
+            // Remove mods with missing LODCount - this means we couldn't read STREAMDB header
+            streamDBContainer.ModFiles.RemoveAll(mod => mod.LODCount == 0);
+
+            // Copy the filedata we need for each LOD
+            foreach (var streamDBMod in streamDBContainer.ModFiles)
+            {
+                for (int i = 0; i < streamDBMod.LODCount; i++)
+                {
+                    int lodDataOffset = streamDBMod.LODDataOffset[i];
+                    int lodDataLength = streamDBMod.LODDataLength[i];
+                    var lodMemoryStream = new MemoryStream(lodDataLength);
+
+                    streamDBMod.FileData.Seek(lodDataOffset, SeekOrigin.Begin);
+                    streamDBMod.FileData.CopyTo(lodMemoryStream, lodDataLength);
+                    streamDBMod.LODFileData.Add(lodMemoryStream);
+                }         
+            }
+
             // Build the streamdb index in numerical order by FileId
             foreach (var streamDBMod in streamDBContainer.ModFiles.OrderBy(mod => mod.FileId))
             {
-                // Skip bad filenames
-                if (streamDBMod.FileId == 0)
+                for (int i = 0; i < streamDBMod.LODCount; i++)
                 {
-                    continue;
+                    // increment FileId by 1 for each LOD
+                    ulong fileId = streamDBMod.FileId + (ulong)i; 
+
+                    StreamDBEntry streamDBEntry = new StreamDBEntry(fileId, 0, (uint)streamDBMod.LODDataLength[i], streamDBMod.Name, streamDBMod.LODFileData[i]);
+                    streamDBContainer.StreamDBEntries.Add(streamDBEntry);
                 }
-
-                // Add file to StreamDB entry list - use dummy offset16 for now
-                StreamDBEntry streamDBEntry = new StreamDBEntry(streamDBMod.FileId, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
-                streamDBContainer.StreamDBEntries.Add(streamDBEntry);
-
-                // For .lwo files, add 2 entries (for lower level-of-detail models)
-                if (Path.GetExtension(streamDBMod.Name) == ".lwo")
-                {
-                    // File data is identical, but we need to increment the fileId by 1 for each LOD (as the game expects)
-                    ulong fileId_lod_1 = streamDBMod.FileId + 1;
-                    ulong fileId_lod_2 = streamDBMod.FileId + 2;
-                    StreamDBEntry streamDBEntry_lod_1 = new StreamDBEntry(fileId_lod_1, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
-                    StreamDBEntry streamDBEntry_lod_2 = new StreamDBEntry(fileId_lod_2, 0, (uint)streamDBMod.FileData.Length, streamDBMod.Name, streamDBMod.FileData);
-                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_1);
-                    streamDBContainer.StreamDBEntries.Add(streamDBEntry_lod_2);
-                }
-
-            }
-
-            // Return early if we have no valid mod files
-            if (streamDBContainer.StreamDBEntries.Count == 0)
-            {
-                bufferedConsole.Flush();
-                return;
             }
 
             // Build the streamdb header
