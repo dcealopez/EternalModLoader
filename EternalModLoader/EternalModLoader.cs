@@ -2284,16 +2284,20 @@ namespace EternalModLoader
             // Copy the filedata we need for each LOD
             foreach (var streamDBMod in streamDBContainer.ModFiles)
             {
-                for (int i = 0; i < streamDBMod.LODCount; i++)
+                using (var binaryReader = new BinaryReader(streamDBMod.FileData))
                 {
-                    int lodDataOffset = streamDBMod.LODDataOffset[i];
-                    int lodDataLength = streamDBMod.LODDataLength[i];
-                    var lodMemoryStream = new MemoryStream(lodDataLength);
+                    for (int i = 0; i < streamDBMod.LODCount; i++)
+                    {
+                        int lodDataOffset = streamDBMod.LODDataOffset[i];
+                        int lodDataLength = streamDBMod.LODDataLength[i];
+                        var lodMemoryStream = new MemoryStream(lodDataLength);
 
-                    streamDBMod.FileData.Seek(lodDataOffset, SeekOrigin.Begin);
-                    streamDBMod.FileData.CopyTo(lodMemoryStream, lodDataLength);
-                    streamDBMod.LODFileData.Add(lodMemoryStream);
-                }         
+                        streamDBMod.FileData.Seek(lodDataOffset, SeekOrigin.Begin);
+                        lodMemoryStream.Write(binaryReader.ReadBytes(lodDataLength), 0, lodDataLength);
+
+                        streamDBMod.LODFileData.Add(lodMemoryStream);
+                    }
+                }
             }
 
             // Build the streamdb index in numerical order by FileId
