@@ -288,8 +288,7 @@ namespace EternalModLoader
             "gameresources",
             "pvp",
             "shell",
-            "warehouse",
-            "e6"
+            "warehouse"
         };
 
         /// <summary>
