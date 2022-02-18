@@ -27,7 +27,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 18;
+        public const int Version = 19;
 
         /// <summary>
         /// Resource data file name
@@ -2168,7 +2168,7 @@ namespace EternalModLoader
         {
             // Buffered console for this operation
             var bufferedConsole = new BufferedConsole();
-            
+
             // Construct StreamDBHeader and StreamDBEntries list in memory
             BuildStreamDBIndex(streamDBContainer, bufferedConsole);
 
@@ -2313,7 +2313,7 @@ namespace EternalModLoader
                 for (int i = 0; i < streamDBMod.LODCount; i++)
                 {
                     // increment FileId by 1 for each LOD
-                    ulong fileId = streamDBMod.FileId + (ulong)i; 
+                    ulong fileId = streamDBMod.FileId + (ulong)i;
 
                     StreamDBEntry streamDBEntry = new StreamDBEntry(fileId, 0, (uint)streamDBMod.LODDataLength[i], streamDBMod.Name, streamDBMod.LODFileData[i]);
                     streamDBContainer.StreamDBEntries.Add(streamDBEntry);
@@ -2341,7 +2341,7 @@ namespace EternalModLoader
                 }
 
                 streamDBContainer.StreamDBEntries[i].DataOffset16 = thisOffset / 16;
-            }            
+            }
         }
 
         /// <summary>
