@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Collections.Generic;
 
 namespace EternalModLoader.Mods.StreamDB
 {
@@ -23,6 +24,26 @@ namespace EternalModLoader.Mods.StreamDB
         public MemoryStream FileData;
 
         /// <summary>
+        /// Number of LODs (level of detail) entries this streamdb mod requires
+        /// </summary>
+        public int LODCount;
+
+        /// <summary>
+        /// Start offsets for each LOD in FileData memorystream
+        /// </summary>
+        public List<int> LODDataOffset;
+
+        /// <summary>
+        /// Length of each LOD in FileData memorystream
+        /// </summary>
+        public List<int> LODDataLength;
+
+        /// <summary>
+        /// File data memory stream for each individual LOD
+        /// </summary>
+        public List<MemoryStream> LODFileData;
+
+        /// <summary>
         /// StreamDB mod file constructor
         /// </summary>
         /// <param name="parent">parent mod</param>
@@ -31,6 +52,10 @@ namespace EternalModLoader.Mods.StreamDB
         {
             Parent = parent;
             Name = name;
+            LODCount = 0;
+            LODDataOffset = new List<int>();
+            LODDataLength = new List<int>();
+            LODFileData = new List<MemoryStream>();
         }
     }
 }
