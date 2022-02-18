@@ -66,6 +66,40 @@
         }
 
         /// <summary>
+        /// Checks if the given mod file has a STREAMDB magic header
+        /// </summary>
+        /// <param name="streamDBModBuffer">texture data buffer</param>
+        /// <param name="streamDBMagic">streamdb magic to check against</param>
+        /// <returns>true if the file has STREAMDB magic header, false otherwise</returns>
+        public static bool HasStreamDBMagicHeader(byte[] streamDBModBuffer, byte[] streamDBMagic)
+        {
+            if (streamDBModBuffer.Length < streamDBMagic.Length + 8)
+            {
+                return false;
+            }
+
+            unsafe
+            {
+                fixed (byte* p1 = streamDBModBuffer, p2 = streamDBMagic)
+                {
+                    int remainingBytes = streamDBMagic.Length;
+                    byte* ptr1 = p1;
+                    byte* ptr2 = p2;
+
+                    while (remainingBytes-- > 0)
+                    {
+                        if (*ptr1++ != *ptr2++)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Fast, unsafe method to check if two byte arrays are equal
         /// </summary>
         /// <param name="b1">first byte array</param>
