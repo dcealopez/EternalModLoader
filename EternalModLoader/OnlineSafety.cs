@@ -44,21 +44,21 @@ namespace EternalModLoader
         /// <summary>
         /// Localization for the multiplayer disabler mod ("Public Match" menu label and "Private Match" descriptive text)
         /// </summary>
-        public static Dictionary<string, (string, string)> MultiplayerDisablerModLocalization = new Dictionary<string, (string, string)>()
+        public static Dictionary<string, Tuple<string, string>> MultiplayerDisablerModLocalization = new Dictionary<string, Tuple<string, string>>()
         {
-            { "french",                 ("^8No mods in public matches", "Jouez à des matchs BATTLEMODE avec les joueurs de votre groupe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") },
-            { "italian",                ("^8No mods in public matches", "Gioca in partite di BATTLEMODE con i giocatori del tuo gruppo\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "german",                 ("^8No mods in public matches", "Spiele BATTLE-MODUS-Matches mit den Spielern in deiner Gruppe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) },
-            { "spanish",                ("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas." ) },
-            { "russian",                ("^8No mods in public matches", "Участвуйте в матчах в режиме BATTLEMODE с игроками вашего отряда\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "polish",                 ("^8No mods in public matches", "Graj w trybie BATTLEMODE z graczami z twojej grupy.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) },
-            { "japanese",               ("^8No mods in public matches", "パーティー内のプレイヤーとバトルモードのマッチをプレイする\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "latin_spanish",          ("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas." ) },
-            { "portuguese",             ("^8PARTIDA ONLINE (DESACTIVADA)", "Jogue partidas do BATTLEMODE com os jogadores do seu grupo.\n^3Partidas públicas estão desativadas quando se usam mods que podem afetar GAMEPLAY. Apenas partidas privadas são autorizadas." ) },
-            { "traditional_chinese",    ("^8No mods in public matches", "與你隊伍中的玩家玩戰鬥模式對戰\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "simplified_chinese",     ("^8No mods in public matches", "与自己队伍的玩家玩战斗模式比赛\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "korean",                 ("^8No mods in public matches", "파티에 속한 플레이어들과 전투 모드 플레이\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
-            { "english",                ("^8No mods in public matches", "Play BATTLEMODE matches with the players in your party\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) }
+            { "french",                 Tuple.Create("^8No mods in public matches", "Jouez à des matchs BATTLEMODE avec les joueurs de votre groupe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") },
+            { "italian",                Tuple.Create("^8No mods in public matches", "Gioca in partite di BATTLEMODE con i giocatori del tuo gruppo\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "german",                 Tuple.Create("^8No mods in public matches", "Spiele BATTLE-MODUS-Matches mit den Spielern in deiner Gruppe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") },
+            { "spanish",                Tuple.Create("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas.") },
+            { "russian",                Tuple.Create("^8No mods in public matches", "Участвуйте в матчах в режиме BATTLEMODE с игроками вашего отряда\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "polish",                 Tuple.Create("^8No mods in public matches", "Graj w trybie BATTLEMODE z graczami z twojej grupy.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") },
+            { "japanese",               Tuple.Create("^8No mods in public matches", "パーティー内のプレイヤーとバトルモードのマッチをプレイする\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "latin_spanish",          Tuple.Create("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas.") },
+            { "portuguese",             Tuple.Create("^8PARTIDA ONLINE (DESACTIVADA)", "Jogue partidas do BATTLEMODE com os jogadores do seu grupo.\n^3Partidas públicas estão desativadas quando se usam mods que podem afetar GAMEPLAY. Apenas partidas privadas são autorizadas.") },
+            { "traditional_chinese",    Tuple.Create("^8No mods in public matches", "與你隊伍中的玩家玩戰鬥模式對戰\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "simplified_chinese",     Tuple.Create("^8No mods in public matches", "与自己队伍的玩家玩战斗模式比赛\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "korean",                 Tuple.Create("^8No mods in public matches", "파티에 속한 플레이어들과 전투 모드 플레이\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed") },
+            { "english",                Tuple.Create("^8No mods in public matches", "Play BATTLEMODE matches with the players in your party\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") }
         };
 
         /// <summary>
