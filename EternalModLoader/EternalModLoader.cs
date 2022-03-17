@@ -2715,7 +2715,7 @@ namespace EternalModLoader
                     baseDirectoryInfo = new DirectoryInfo(BasePath);
                     SetOptimalBufferSize(Path.GetPathRoot(baseDirectoryInfo.FullName));
                 }
-                catch (Exception ex)
+                catch
                 {
                     BufferSize = 4096;
 

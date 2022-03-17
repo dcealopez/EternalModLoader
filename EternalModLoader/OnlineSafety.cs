@@ -29,10 +29,10 @@ namespace EternalModLoader
             RequiredVersion = EternalModLoader.Version
         };
 
-		/// <summary>
-		/// ResourceModFile objects that contain the hard-coded mod that disables multiplayer
-		/// </summary>
-		public static List<ResourceModFile> MultiplayerDisablerMod = new List<ResourceModFile>()
+        /// <summary>
+        /// ResourceModFile objects that contain the hard-coded mod that disables multiplayer
+        /// </summary>
+        public static List<ResourceModFile> MultiplayerDisablerMod = new List<ResourceModFile>()
         {
             // Battlemode
             new ResourceModFile(s_parentMod, "swf/hud/menus/battle_arena/play_online_screen.swf", "gameresources_patch2", false)
@@ -42,49 +42,29 @@ namespace EternalModLoader
         };
 
         /// <summary>
-        /// Localization for the multiplayer disabler mod ("Public Match" menu label)
+        /// Localization for the multiplayer disabler mod ("Public Match" menu label and "Private Match" descriptive text)
         /// </summary>
-        public static Dictionary<string, string> MultiplayerDisablerModLocalization = new Dictionary<string, string>()
+        public static Dictionary<string, (string, string)> MultiplayerDisablerModLocalization = new Dictionary<string, (string, string)>()
         {
-            { "french",                 "^8No mods in public matches" },
-			{ "italian",                "^8No mods in public matches" },
-			{ "german",                 "^8No mods in public matches" },
-			{ "spanish",                "^8PARTIDA ONLINE (DESHABILITADA)" },
-            { "russian",                "^8No mods in public matches" },
-			{ "polish",                 "^8No mods in public matches" },
-			{ "japanese",               "^8No mods in public matches" },
-			{ "latin_spanish",          "^8PARTIDA ONLINE (DESHABILITADA)" },
-			{ "portuguese",             "^8PARTIDA ONLINE (DESACTIVADA)" },
-			{ "traditional_chinese",    "^8No mods in public matches" },
-			{ "simplified_chinese",     "^8No mods in public matches" },
-			{ "korean",                 "^8No mods in public matches" },
-			{ "english",                "^8No mods in public matches" }
+            { "french",                 ("^8No mods in public matches", "Jouez à des matchs BATTLEMODE avec les joueurs de votre groupe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed.") },
+            { "italian",                ("^8No mods in public matches", "Gioca in partite di BATTLEMODE con i giocatori del tuo gruppo\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "german",                 ("^8No mods in public matches", "Spiele BATTLE-MODUS-Matches mit den Spielern in deiner Gruppe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) },
+            { "spanish",                ("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas." ) },
+            { "russian",                ("^8No mods in public matches", "Участвуйте в матчах в режиме BATTLEMODE с игроками вашего отряда\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "polish",                 ("^8No mods in public matches", "Graj w trybie BATTLEMODE z graczami z twojej grupy.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) },
+            { "japanese",               ("^8No mods in public matches", "パーティー内のプレイヤーとバトルモードのマッチをプレイする\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "latin_spanish",          ("^8PARTIDA ONLINE (DESHABILITADA)", "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas públicas serán desactivadas al usar mods que alteren el gameplay.\nSolo partidas privadas serán permitidas." ) },
+            { "portuguese",             ("^8PARTIDA ONLINE (DESACTIVADA)", "Jogue partidas do BATTLEMODE com os jogadores do seu grupo.\n^3Partidas públicas estão desativadas quando se usam mods que podem afetar GAMEPLAY. Apenas partidas privadas são autorizadas." ) },
+            { "traditional_chinese",    ("^8No mods in public matches", "與你隊伍中的玩家玩戰鬥模式對戰\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "simplified_chinese",     ("^8No mods in public matches", "与自己队伍的玩家玩战斗模式比赛\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "korean",                 ("^8No mods in public matches", "파티에 속한 플레이어들과 전투 모드 플레이\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" ) },
+            { "english",                ("^8No mods in public matches", "Play BATTLEMODE matches with the players in your party\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." ) }
         };
 
-		/// <summary>
-		/// Localization for the multiplayer disabler mod ("Private Match" descriptive text)
-		/// </summary>
-		public static Dictionary<string, string> MultiplayerDisablerModLocalizationDescription = new Dictionary<string, string>()
-		{
-			{ "french",                 "Jouez à des matchs BATTLEMODE avec les joueurs de votre groupe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." },
-			{ "italian",                "Gioca in partite di BATTLEMODE con i giocatori del tuo gruppo\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "german",                 "Spiele BATTLE-MODUS-Matches mit den Spielern in deiner Gruppe.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." },
-			{ "spanish",                "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas publicas estan desactivadas al usar mods que alteren el GAMEPLAY.\nSolo partidas privadas estan permitidas." },
-			{ "russian",                "Участвуйте в матчах в режиме BATTLEMODE с игроками вашего отряда\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "polish",                 "Graj w trybie BATTLEMODE z graczami z twojej grupy.\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." },
-			{ "japanese",               "パーティー内のプレイヤーとバトルモードのマッチをプレイする\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "latin_spanish",          "Juega BATTLEMODE con jugadores de tu mismo grupo.\n^3Las partidas publicas estan desactivadas al usar mods que alteren el GAMEPLAY.\nSolo partidas privadas estan permitidas." },
-			{ "portuguese",             "Jogue partidas do BATTLEMODE com os jogadores do seu grupo.\n^3Partidas públicas estão desativadas quando se usam mods que podem afetar GAMEPLAY. Apenas partidas privadas são autorizadas." },
-			{ "traditional_chinese",    "與你隊伍中的玩家玩戰鬥模式對戰\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "simplified_chinese",     "与自己队伍的玩家玩战斗模式比赛\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "korean",                 "파티에 속한 플레이어들과 전투 모드 플레이\n^3Public matchmaking is unavailable when using mods that might affect gameplay\nOnly private matches are allowed" },
-			{ "english",                "Play BATTLEMODE matches with the players in your party\n^3Public matchmaking is unavailable when using mods that might affect gameplay.\nOnly private matches are allowed." }
-		};
-
-		/// <summary>
-		/// Online-safe mod name keywords
-		/// </summary>
-		public static string[] OnlineSafeModNameKeywords = new string[]
+        /// <summary>
+        /// Online-safe mod name keywords
+        /// </summary>
+        public static string[] OnlineSafeModNameKeywords = new string[]
         {
             "/eternalmod/",
             ".tga",
@@ -179,10 +159,10 @@ namespace EternalModLoader
                 return;
             }
 
-            // Build the resource mod files for the localization - "Public Match" menu label
+            // Build the resource mod files for the localization - "Public Match" menu label and "Private Match" menu description
             foreach (var localization in MultiplayerDisablerModLocalization)
             {
-                var jsonBytes = Encoding.UTF8.GetBytes($"{{\"strings\":[{{\"name\":\"#eternalmod_no_online_mods\",\"text\":\"{localization.Value}\"}}]}}");
+                var jsonBytes = Encoding.UTF8.GetBytes($"{{\"strings\":[{{\"name\":\"#eternalmod_no_online_mods\",\"text\":\"{localization.Value.Item1}\"}},{{\"name\":\"#str_decl_pvp_private_lobby_desc_GHOST71267\",\"text\":\"{localization.Value.Item2}\"}}]}}");
 
                 MultiplayerDisablerMod.Add(new ResourceModFile(s_parentMod, $"EternalMod/strings/{localization.Key}.json", "gameresources_patch1", false)
                 {
@@ -191,19 +171,7 @@ namespace EternalModLoader
                 });
             }
 
-			// Build the resource mod files for the localization - "Private Match" menu description
-			foreach (var localization in MultiplayerDisablerModLocalizationDescription)
-			{
-				var jsonBytes = Encoding.UTF8.GetBytes($"{{\"strings\":[{{\"name\":\"#str_decl_pvp_private_lobby_desc_GHOST71267\",\"text\":\"{localization.Value}\"}}]}}");
-
-				MultiplayerDisablerMod.Add(new ResourceModFile(s_parentMod, $"EternalMod/strings/{localization.Key}.json", "gameresources_patch1", false)
-				{
-					IsBlangJson = true,
-					FileData = new MemoryStream(jsonBytes, 0, jsonBytes.Length, false, true)
-				});
-			}
-			
-			s_isInitialized = true;
+            s_isInitialized = true;
         }
 
         /// <summary>
