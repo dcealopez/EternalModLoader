@@ -27,7 +27,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 19;
+        public const int Version = 20;
 
         /// <summary>
         /// Resource data file name
@@ -2715,7 +2715,7 @@ namespace EternalModLoader
                     baseDirectoryInfo = new DirectoryInfo(BasePath);
                     SetOptimalBufferSize(Path.GetPathRoot(baseDirectoryInfo.FullName));
                 }
-                catch (Exception ex)
+                catch
                 {
                     BufferSize = 4096;
 

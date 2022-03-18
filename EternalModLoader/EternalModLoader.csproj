@@ -106,6 +106,7 @@
     <Compile Include="Mods\StreamDB\StreamDBHeader.cs" />
     <Compile Include="Mods\StreamDB\StreamDBModFile.cs" />
     <Compile Include="OnlineSafety.cs" />
+    <Compile Include="OnlineSafetySWF.cs" />
     <Compile Include="OodleWrapper.cs" />
     <Compile Include="Mods\Resources\PackageMapSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
