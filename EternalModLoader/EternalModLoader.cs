@@ -86,7 +86,7 @@ namespace EternalModLoader
         public static byte[] DivinityMagic = new byte[] { 0x44, 0x49, 0x56, 0x49, 0x4E, 0x49, 0x54, 0x59 };
 
         /// <summary>
-        /// StreamddBb magic header for streamdb mod files
+        /// Streamdb magic header for streamdb mod files
         /// </summary>
         public static byte[] StreamDBMagic = new byte[] { 0x53, 0x54, 0x52, 0x45, 0x41, 0x4D, 0x44, 0x42 };
 
@@ -3081,7 +3081,7 @@ namespace EternalModLoader
                                 if (!mod.IsSafeForOnline)
                                 {
                                     fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                    fileLoadBufferedConsole.WriteLine($"WARNING: Mod \"{zippedMod}\" is not safe for online play, multiplayer will be disabled");
+                                    fileLoadBufferedConsole.WriteLine($"WARNING: Mod \"{zippedMod}\" is not safe for online play, public matchmaking will be disabled");
                                     fileLoadBufferedConsole.ResetColor();
                                 }
                             }
@@ -3090,7 +3090,7 @@ namespace EternalModLoader
                                 fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                                 fileLoadBufferedConsole.Write("WARNING: ");
                                 fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                                fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" is not safe for online play, skipping");
+                                fileLoadBufferedConsole.WriteLine($"Mod \"{zippedMod}\" is not safe for public matchmaking, skipping");
                                 fileLoadBufferedConsole.ResetColor();
                             }
                         }
@@ -3411,7 +3411,7 @@ namespace EternalModLoader
                     fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
                     fileLoadBufferedConsole.Write("WARNING: ");
                     fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                    fileLoadBufferedConsole.WriteLine("Loose mod files are not safe for online play, skipping");
+                    fileLoadBufferedConsole.WriteLine("Loose mod files are not safe for public matchmaking, skipping");
                     fileLoadBufferedConsole.ResetColor();
                 }
                 else
@@ -3429,7 +3429,7 @@ namespace EternalModLoader
                     if (!globalLooseMod.IsSafeForOnline)
                     {
                         fileLoadBufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Yellow;
-                        fileLoadBufferedConsole.WriteLine($"WARNING: Loose mode files are not safe for online play, multiplayer will be disabled");
+                        fileLoadBufferedConsole.WriteLine($"WARNING: Loose mod files are not safe for online play, public matchmaking will be disabled");
                         fileLoadBufferedConsole.ResetColor();
                     }
                 }
