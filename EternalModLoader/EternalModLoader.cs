@@ -2613,6 +2613,7 @@ namespace EternalModLoader
                 BufferedConsole.WriteLine("\t--online-safe - Only load online-safe mods.");
                 BufferedConsole.WriteLine("\t--compress-textures - Compress texture files during the mod loading process.");
                 BufferedConsole.WriteLine("\t--disable-multithreading - Disables multi-threaded mod loading.");
+                BufferedConsole.WriteLine("\t--redirectBlangContainer [container name] - Redirects the injection of EternalMod string mods to the specified container.");
                 BufferedConsole.Flush();
                 return 1;
             }
