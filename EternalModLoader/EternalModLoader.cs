@@ -27,7 +27,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 20;
+        public const int Version = 21;
 
         /// <summary>
         /// Resource data file name
@@ -74,6 +74,11 @@ namespace EternalModLoader
         /// Only load online-safe mods?
         /// </summary>
         public static bool LoadOnlineSafeOnlyMods = false;
+
+        /// <summary>
+        /// Container to redirect .blang JSON files to
+        /// </summary>
+        public static string BlangFileContainerRedirect = string.Empty;
 
         /// <summary>
         /// Global flag that determines if the mods being loaded are safe for online play or not
@@ -2661,6 +2666,10 @@ namespace EternalModLoader
                     {
                         MultiThreading = false;
                     }
+                    else if (args[i] == "--redirectBlangContainer" && args.Length > i + 1)
+                    {
+                        BlangFileContainerRedirect = args[++i];
+                    }
                     else
                     {
                         BufferedConsole.ForegroundColor = BufferedConsole.ForegroundColorCode.Red;
@@ -2700,6 +2709,11 @@ namespace EternalModLoader
                 if (!MultiThreading)
                 {
                     BufferedConsole.WriteLine("INFO: Multi-threading is disabled.");
+                }
+
+                if (!string.IsNullOrEmpty(BlangFileContainerRedirect))
+                {
+                    BufferedConsole.WriteLine($"INFO: BLang file modifications will be redirected to container '{BlangFileContainerRedirect}' (if it exists)");
                 }
 
                 BufferedConsole.ResetColor();
@@ -2848,6 +2862,14 @@ namespace EternalModLoader
                             if (firstForwardSlash == -1)
                             {
                                 continue;
+                            }
+
+                            // Redirect .blang files to a different container if specified
+                            if (!string.IsNullOrEmpty(BlangFileContainerRedirect) &&
+                                modFileName.Substring(firstForwardSlash + 1).StartsWith($"EternalMod/strings/", StringComparison.Ordinal))
+                            {
+                                modFileName = BlangFileContainerRedirect + "/" + modFileName.Substring(firstForwardSlash + 1);
+                                firstForwardSlash = modFileName.IndexOf('/');
                             }
 
                             string resourceName = modFileName.Substring(0, firstForwardSlash);
@@ -3158,6 +3180,14 @@ namespace EternalModLoader
                     if (firstForwardSlash == -1)
                     {
                         return;
+                    }
+
+                    // Redirect .blang files to a different container if specified
+                    if (!string.IsNullOrEmpty(BlangFileContainerRedirect) &&
+                        modFileName.Substring(firstForwardSlash + 1).StartsWith($"EternalMod/strings/", StringComparison.Ordinal))
+                    {
+                        modFileName = BlangFileContainerRedirect + "/" + modFileName.Substring(firstForwardSlash + 1);
+                        firstForwardSlash = modFileName.IndexOf('/');
                     }
 
                     string resourceName = modFileName.Substring(0, firstForwardSlash);
