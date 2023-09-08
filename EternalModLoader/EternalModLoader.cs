@@ -27,7 +27,7 @@ namespace EternalModLoader
         /// <summary>
         /// Mod loader version
         /// </summary>
-        public const int Version = 21;
+        public const int Version = 22;
 
         /// <summary>
         /// Resource data file name
@@ -2782,6 +2782,18 @@ namespace EternalModLoader
 
             // Initialize the multiplayer disabler mod
             OnlineSafety.InitMultiplayerDisablerMod();
+
+            // Also redirect internal blang modifications if needed
+            if (!string.IsNullOrEmpty(BlangFileContainerRedirect))
+            {
+                foreach (var modFile in OnlineSafety.MultiplayerDisablerMod)
+                {
+                    if (modFile.Name.StartsWith($"EternalMod/strings/", StringComparison.Ordinal))
+                    {
+                        modFile.ResourceName = BlangFileContainerRedirect;
+                    }
+                }
+            }
 
             // Read all the necessary game file paths
             FillContainerPathList();
